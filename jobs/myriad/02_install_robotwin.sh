@@ -31,6 +31,20 @@ echo "ROBOTWIN_REPO_URL=${ROBOTWIN_REPO_URL}"
 echo "ROBOTWIN_COMMIT=${ROBOTWIN_COMMIT}"
 echo "DOWNLOAD_ROBOTWIN_ASSETS=${DOWNLOAD_ROBOTWIN_ASSETS}"
 
+mkdir -p "$(dirname "${ROBOTWIN_ROOT}")"
+if [ ! -d "${ROBOTWIN_ROOT}/.git" ]; then
+    git clone "${ROBOTWIN_REPO_URL}" "${ROBOTWIN_ROOT}"
+fi
+
+cd "${ROBOTWIN_ROOT}"
+git fetch --all --tags
+git checkout "${ROBOTWIN_COMMIT}"
+
+mkdir -p envs
+if [ ! -d envs/curobo/.git ]; then
+    git clone https://github.com/NVlabs/curobo.git envs/curobo
+fi
+
 container_exec_gpu <<'CONTAINER'
 set -euo pipefail
 
@@ -42,14 +56,11 @@ fi
 
 source "${WAN_VA_VENV}/bin/activate"
 
-mkdir -p "$(dirname "${ROBOTWIN_ROOT}")"
-if [ ! -d "${ROBOTWIN_ROOT}/.git" ]; then
-    git clone "${ROBOTWIN_REPO_URL}" "${ROBOTWIN_ROOT}"
-fi
-
 cd "${ROBOTWIN_ROOT}"
-git fetch --all --tags
-git checkout "${ROBOTWIN_COMMIT}"
+export CC="${ROBOTWIN_CC:-gcc}"
+export CXX="${ROBOTWIN_CXX:-g++}"
+which "${CC}"
+which "${CXX}"
 
 cat > script/requirements.txt <<'REQ'
 transforms3d==0.4.2
@@ -85,6 +96,20 @@ text = path.read_text()
 text = text.replace(
     'pip install "git+https://github.com/facebookresearch/pytorch3d.git@stable"',
     'pip install "git+https://github.com/facebookresearch/pytorch3d.git@stable" --no-build-isolation',
+)
+text = text.replace(
+    """cd envs
+git clone https://github.com/NVlabs/curobo.git
+cd curobo
+pip install -e . --no-build-isolation
+cd ../..""",
+    """if [ ! -d envs/curobo ]; then
+    echo "Missing envs/curobo. Clone it on the host before running this script." >&2
+    exit 1
+fi
+cd envs/curobo
+pip install -e . --no-build-isolation
+cd ../..""",
 )
 path.write_text(text)
 print("patched script/_install.sh")
