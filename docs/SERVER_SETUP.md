@@ -188,7 +188,7 @@ export WAN_VA_CONDA_LIBS="$WAM_ROOT/conda-libs"
 /opt/conda/bin/conda create -y -p "$WAN_VA_CONDA_LIBS" -c conda-forge \
   xorg-libx11 xorg-libxext xorg-libxrender xorg-libxi xorg-libxrandr \
   xorg-libxinerama xorg-libxcursor xorg-libxfixes xorg-libsm xorg-libice \
-  libxcb libglvnd
+  libxcb libglvnd glib
 export LD_LIBRARY_PATH="$WAN_VA_CONDA_LIBS/lib:${LD_LIBRARY_PATH:-}"
 ```
 
