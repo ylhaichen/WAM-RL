@@ -28,6 +28,9 @@ ZIP_NAMES="${ZIP_NAMES:-background_texture.zip embodiments.zip objects.zip}"
 PROGRESS_EVERY="${PROGRESS_EVERY:-500}"
 LOCK_DIR="${ASSETS_ROOT}/.unpack.lock"
 
+export ZIP_NAMES
+export PROGRESS_EVERY
+
 echo "JOB_ID=${JOB_ID:-local}"
 echo "HOST=$(hostname)"
 echo "DATE=$(date -Is)"
