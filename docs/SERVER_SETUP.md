@@ -55,6 +55,12 @@ Download checkpoints. The 406G post-training dataset is skipped by default:
 qsub jobs/myriad/01_download_assets.sh
 ```
 
+Install RoboTwin simulator and download RoboTwin assets:
+
+```bash
+qsub jobs/myriad/02_install_robotwin.sh
+```
+
 Download the full post-training dataset only when you are ready to run SFT/RL
 training:
 
