@@ -59,6 +59,9 @@ source "${WAN_VA_VENV}/bin/activate"
 cd "${ROBOTWIN_ROOT}"
 export CC="${ROBOTWIN_CC:-gcc}"
 export CXX="${ROBOTWIN_CXX:-g++}"
+if [ -d "${WAN_VA_CONDA_LIBS}/lib" ]; then
+    export LD_LIBRARY_PATH="${WAN_VA_CONDA_LIBS}/lib:${LD_LIBRARY_PATH:-}"
+fi
 which "${CC}"
 which "${CXX}"
 

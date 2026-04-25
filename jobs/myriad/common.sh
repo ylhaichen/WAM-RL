@@ -14,6 +14,7 @@ fi
 WAM_ROOT="${WAM_ROOT:-${DEFAULT_WAM_ROOT}}"
 SIF="${SIF:-${HOME}/containers/pytorch-2.9.0-cu126.sif}"
 WAN_VA_VENV="${WAN_VA_VENV:-${WAM_ROOT}/venvs/wam-rl-container}"
+WAN_VA_CONDA_LIBS="${WAN_VA_CONDA_LIBS:-${WAM_ROOT}/conda-libs}"
 WAN_VA_MODEL_PATH="${WAN_VA_MODEL_PATH:-${WAM_ROOT}/checkpoints/lingbot-va-posttrain-robotwin}"
 WAN_VA_BASE_MODEL_PATH="${WAN_VA_BASE_MODEL_PATH:-${WAM_ROOT}/checkpoints/lingbot-va-base}"
 WAN_VA_DATASET_PATH="${WAN_VA_DATASET_PATH:-${WAM_ROOT}/datasets/robotwin-clean-and-aug-lerobot}"
@@ -25,6 +26,7 @@ export REPO_ROOT
 export WAM_ROOT
 export SIF
 export WAN_VA_VENV
+export WAN_VA_CONDA_LIBS
 export WAN_VA_MODEL_PATH
 export WAN_VA_BASE_MODEL_PATH
 export WAN_VA_DATASET_PATH
@@ -33,6 +35,10 @@ export ROBOTWIN_ROOT
 export WAN_VA_ROBOTWIN_ROOT
 export TOKENIZERS_PARALLELISM="${TOKENIZERS_PARALLELISM:-false}"
 export WAN_VA_ENABLE_WANDB="${WAN_VA_ENABLE_WANDB:-false}"
+
+if [ -d "${WAN_VA_CONDA_LIBS}/lib" ]; then
+    export LD_LIBRARY_PATH="${WAN_VA_CONDA_LIBS}/lib:${LD_LIBRARY_PATH:-}"
+fi
 
 if command -v module >/dev/null 2>&1; then
     module load apptainer/1.2.4-1 2>/dev/null || true
