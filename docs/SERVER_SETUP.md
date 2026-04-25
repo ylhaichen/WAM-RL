@@ -240,7 +240,12 @@ export WAN_VA_CONDA_LIBS="$WAM_ROOT/conda-libs"
 export LD_LIBRARY_PATH="$WAN_VA_CONDA_LIBS/lib:${LD_LIBRARY_PATH:-}"
 export __EGL_VENDOR_LIBRARY_FILENAMES="/usr/share/glvnd/egl_vendor.d/10_nvidia.json"
 export VK_ICD_FILENAMES="/usr/share/vulkan/icd.d/nvidia_icd.json"
+export SETUPTOOLS_SCM_PRETEND_VERSION="0.0.0"
+export SETUPTOOLS_SCM_PRETEND_VERSION_FOR_NVIDIA_CUROBO="0.0.0"
 ```
+
+The `SETUPTOOLS_SCM_*` variables avoid a CuRobo runtime version lookup failure
+inside the PyTorch container, which does not include `git`.
 
 ## 5. Model and dataset assets
 
