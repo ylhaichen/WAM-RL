@@ -74,18 +74,20 @@ SERVER_PID=$!
 
 python - <<'PY'
 import os
-import socket
 import sys
 import time
+import urllib.request
 
 port = int(os.environ["PORT"])
 deadline = time.time() + int(os.environ["SERVER_WAIT_SECONDS"])
 while time.time() < deadline:
-    with socket.socket() as sock:
-        sock.settimeout(2)
-        if sock.connect_ex(("127.0.0.1", port)) == 0:
-            print(f"server ready on port {port}", flush=True)
-            sys.exit(0)
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/healthz", timeout=2) as response:
+            if response.status == 200:
+                print(f"server ready on port {port}", flush=True)
+                sys.exit(0)
+    except Exception:
+        pass
     time.sleep(5)
 print(f"server did not open port {port}", file=sys.stderr)
 sys.exit(1)

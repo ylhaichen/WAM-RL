@@ -81,9 +81,9 @@ done
 
 python - <<'PY'
 import os
-import socket
 import sys
 import time
+import urllib.request
 
 num_gpus = int(os.environ["NUM_GPUS"])
 start_port = int(os.environ["START_PORT"])
@@ -94,11 +94,13 @@ while time.time() < deadline:
         port = start_port + offset
         if port in ready:
             continue
-        with socket.socket() as sock:
-            sock.settimeout(2)
-            if sock.connect_ex(("127.0.0.1", port)) == 0:
-                print(f"server ready on port {port}", flush=True)
-                ready.add(port)
+        try:
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/healthz", timeout=2) as response:
+                if response.status == 200:
+                    print(f"server ready on port {port}", flush=True)
+                    ready.add(port)
+        except Exception:
+            pass
     if len(ready) == num_gpus:
         sys.exit(0)
     time.sleep(5)
