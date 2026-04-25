@@ -22,13 +22,17 @@ source "${JOB_SCRIPT_DIR}/common.sh"
 
 ROBOTWIN_REPO_URL="${ROBOTWIN_REPO_URL:-https://github.com/RoboTwin-Platform/RoboTwin.git}"
 ROBOTWIN_COMMIT="${ROBOTWIN_COMMIT:-2eeec322}"
+CUROBO_REPO_URL="${CUROBO_REPO_URL:-https://github.com/NVlabs/curobo.git}"
+CUROBO_REF="${CUROBO_REF:-v0.7.8}"
 DOWNLOAD_ROBOTWIN_ASSETS="${DOWNLOAD_ROBOTWIN_ASSETS:-true}"
 
-export ROBOTWIN_REPO_URL ROBOTWIN_COMMIT DOWNLOAD_ROBOTWIN_ASSETS
+export ROBOTWIN_REPO_URL ROBOTWIN_COMMIT CUROBO_REPO_URL CUROBO_REF DOWNLOAD_ROBOTWIN_ASSETS
 
 print_job_context
 echo "ROBOTWIN_REPO_URL=${ROBOTWIN_REPO_URL}"
 echo "ROBOTWIN_COMMIT=${ROBOTWIN_COMMIT}"
+echo "CUROBO_REPO_URL=${CUROBO_REPO_URL}"
+echo "CUROBO_REF=${CUROBO_REF}"
 echo "DOWNLOAD_ROBOTWIN_ASSETS=${DOWNLOAD_ROBOTWIN_ASSETS}"
 
 mkdir -p "$(dirname "${ROBOTWIN_ROOT}")"
@@ -42,8 +46,12 @@ git checkout "${ROBOTWIN_COMMIT}"
 
 mkdir -p envs
 if [ ! -d envs/curobo/.git ]; then
-    git clone https://github.com/NVlabs/curobo.git envs/curobo
+    git clone "${CUROBO_REPO_URL}" envs/curobo
 fi
+cd envs/curobo
+git fetch --all --tags
+git checkout "${CUROBO_REF}"
+cd ../..
 
 container_exec_gpu <<'CONTAINER'
 set -euo pipefail
@@ -129,18 +137,21 @@ PY
 
 bash script/_install.sh
 
-if ! python -c "import curobo" >/dev/null 2>&1; then
+if ! python -c "from curobo.types.math import Pose" >/dev/null 2>&1; then
     if [ ! -d envs/curobo ]; then
         echo "Missing envs/curobo. Clone it on the host before running this script." >&2
         exit 1
     fi
+    python -m pip uninstall -y nvidia-curobo || true
     python -m pip install ninja packaging
     python -m pip install -e envs/curobo --no-build-isolation
 fi
 
 python - <<'PY'
 import curobo
-print("curobo import ok", getattr(curobo, "__version__", "unknown"))
+from curobo.types.math import Pose
+
+print("curobo import ok", getattr(curobo, "__version__", "unknown"), Pose.__name__)
 PY
 
 if [ -f script/update_embodiment_config_path.py ]; then

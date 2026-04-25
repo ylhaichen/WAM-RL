@@ -61,6 +61,10 @@ Install RoboTwin simulator and download RoboTwin assets:
 qsub jobs/myriad/02_install_robotwin.sh
 ```
 
+This job pins CuRobo to `v0.7.8`, because current CuRobo V2 changed its public
+API and RoboTwin commit `2eeec322` imports V1 paths such as
+`curobo.types.math.Pose`.
+
 The job script extracts RoboTwin asset zip files with Python `zipfile`, because
 the PyTorch Apptainer image may not include a system `unzip` command.
 
