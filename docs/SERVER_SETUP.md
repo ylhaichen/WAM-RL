@@ -49,10 +49,17 @@ Build the container-side Python venv:
 qsub jobs/myriad/00_install_container_env.sh
 ```
 
-Download checkpoints and the post-training dataset:
+Download checkpoints. The 406G post-training dataset is skipped by default:
 
 ```bash
 qsub jobs/myriad/01_download_assets.sh
+```
+
+Download the full post-training dataset only when you are ready to run SFT/RL
+training:
+
+```bash
+qsub -v DOWNLOAD_DATASET=true jobs/myriad/01_download_assets.sh
 ```
 
 Run a one-GPU smoke evaluation:
@@ -173,6 +180,10 @@ hf download robbyant/robotwin-clean-and-aug-lerobot \
   --repo-type dataset \
   --local-dir "$WAN_VA_DATASET_PATH"
 ```
+
+This dataset is about 406G. It is not needed for pretrained RoboTwin
+evaluation; it is only needed for post-training, BC anchoring, or dataset-based
+training smoke tests.
 
 The model repos are Apache-2.0. The dataset page lists CC BY-NC-SA 4.0, so
 check that this matches the project requirements before using it beyond

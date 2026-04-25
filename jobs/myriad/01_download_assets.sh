@@ -32,25 +32,36 @@ if [ ! -x "${WAN_VA_VENV}/bin/python" ]; then
 fi
 
 source "${WAN_VA_VENV}/bin/activate"
-python -m pip install -U "huggingface-hub[cli]"
+python -m pip install -U "huggingface-hub[cli]==0.36.2"
 
 mkdir -p "${WAN_VA_MODEL_PATH}" "${WAN_VA_BASE_MODEL_PATH}" "${WAN_VA_DATASET_PATH}"
 
-hf download robbyant/lingbot-va-posttrain-robotwin \
-    --local-dir "${WAN_VA_MODEL_PATH}"
-hf download robbyant/lingbot-va-base \
-    --local-dir "${WAN_VA_BASE_MODEL_PATH}"
-hf download robbyant/robotwin-clean-and-aug-lerobot \
-    --repo-type dataset \
-    --local-dir "${WAN_VA_DATASET_PATH}"
+if [ "${DOWNLOAD_EVAL_MODEL:-true}" = "true" ]; then
+    hf download robbyant/lingbot-va-posttrain-robotwin \
+        --local-dir "${WAN_VA_MODEL_PATH}"
+    python tools/set_attn_mode.py "${WAN_VA_MODEL_PATH}" torch
+fi
 
-python tools/set_attn_mode.py "${WAN_VA_MODEL_PATH}" torch
-python tools/set_attn_mode.py "${WAN_VA_BASE_MODEL_PATH}" flex
+if [ "${DOWNLOAD_BASE_MODEL:-true}" = "true" ]; then
+    hf download robbyant/lingbot-va-base \
+        --local-dir "${WAN_VA_BASE_MODEL_PATH}"
+    python tools/set_attn_mode.py "${WAN_VA_BASE_MODEL_PATH}" flex
+fi
+
+if [ "${DOWNLOAD_DATASET:-false}" = "true" ]; then
+    hf download robbyant/robotwin-clean-and-aug-lerobot \
+        --repo-type dataset \
+        --local-dir "${WAN_VA_DATASET_PATH}"
+else
+    echo "Skipping 406G RoboTwin post-training dataset. Set DOWNLOAD_DATASET=true to download it."
+fi
 
 check_args=(
     --model-path "${WAN_VA_MODEL_PATH}"
-    --dataset-path "${WAN_VA_DATASET_PATH}"
 )
+if [ "${DOWNLOAD_DATASET:-false}" = "true" ]; then
+    check_args+=(--dataset-path "${WAN_VA_DATASET_PATH}")
+fi
 if [ -d "${ROBOTWIN_ROOT}" ]; then
     check_args+=(--robotwin-root "${ROBOTWIN_ROOT}")
 else

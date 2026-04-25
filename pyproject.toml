@@ -40,7 +40,7 @@ dev = [
     "flake8",
     "isort",
     "mypy",
-    "huggingface-hub[cli]"
+    "huggingface-hub[cli]==0.36.2"
 ]
 posttrain = [
     "lerobot==0.3.3",
