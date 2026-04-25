@@ -6,7 +6,6 @@ transformers==4.55.2
 accelerate
 einops
 easydict
-flash_attn
 numpy==1.26.4
 tqdm
 imageio[ffmpeg]

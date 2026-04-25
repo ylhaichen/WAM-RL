@@ -1,0 +1,60 @@
+#!/bin/bash -l
+
+# Batch script to download LingBot-VA checkpoints and the RoboTwin posttrain dataset.
+# Submit after 00_install_container_env.sh has completed.
+
+#$ -S /bin/bash
+#$ -N wam_assets
+#$ -cwd
+#$ -j y
+#$ -o logs/jobs
+#$ -l h_rt=12:00:00
+#$ -l mem=4G
+#$ -pe smp 4
+#$ -l tmpfs=100G
+
+set -euo pipefail
+
+JOB_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${JOB_SCRIPT_DIR}/common.sh"
+
+print_job_context
+
+container_exec_cpu <<'CONTAINER'
+set -euo pipefail
+
+cd "${REPO_ROOT}"
+
+if [ ! -x "${WAN_VA_VENV}/bin/python" ]; then
+    echo "Missing venv: ${WAN_VA_VENV}" >&2
+    echo "Run jobs/myriad/00_install_container_env.sh first." >&2
+    exit 1
+fi
+
+source "${WAN_VA_VENV}/bin/activate"
+python -m pip install -U "huggingface-hub[cli]"
+
+mkdir -p "${WAN_VA_MODEL_PATH}" "${WAN_VA_BASE_MODEL_PATH}" "${WAN_VA_DATASET_PATH}"
+
+hf download robbyant/lingbot-va-posttrain-robotwin \
+    --local-dir "${WAN_VA_MODEL_PATH}"
+hf download robbyant/lingbot-va-base \
+    --local-dir "${WAN_VA_BASE_MODEL_PATH}"
+hf download robbyant/robotwin-clean-and-aug-lerobot \
+    --repo-type dataset \
+    --local-dir "${WAN_VA_DATASET_PATH}"
+
+python tools/set_attn_mode.py "${WAN_VA_MODEL_PATH}" torch
+python tools/set_attn_mode.py "${WAN_VA_BASE_MODEL_PATH}" flex
+
+check_args=(
+    --model-path "${WAN_VA_MODEL_PATH}"
+    --dataset-path "${WAN_VA_DATASET_PATH}"
+)
+if [ -d "${ROBOTWIN_ROOT}" ]; then
+    check_args+=(--robotwin-root "${ROBOTWIN_ROOT}")
+else
+    echo "Skipping RoboTwin path check because ${ROBOTWIN_ROOT} does not exist yet."
+fi
+python tools/check_setup.py "${check_args[@]}"
+CONTAINER

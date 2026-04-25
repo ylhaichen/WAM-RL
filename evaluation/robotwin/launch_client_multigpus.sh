@@ -10,9 +10,10 @@ task_config=demo_clean
 train_config_name=0
 model_name=0
 seed=${3:-0}
-test_num=${4:-100}
-start_port=29556 
-num_gpus=8
+test_num=${4:-${TEST_NUM:-10}}
+start_port=${START_PORT:-29556}
+num_gpus=${NUM_GPUS:-4}
+rollout_log_dir=${ROLLOUT_LOG_DIR:-${save_root}/rollouts}
 
 task_list_id=${2:-0}
 
@@ -26,12 +27,15 @@ task_groups=(
   "place_empty_cup blocks_ranking_rgb place_empty_cup blocks_ranking_rgb place_empty_cup blocks_ranking_rgb place_empty_cup blocks_ranking_rgb"
 )
 
-if (( task_list_id < 0 || task_list_id >= ${#task_groups[@]} )); then
-  echo "task_list_id out of range: $task_list_id (0..$(( ${#task_groups[@]} - 1 )))" >&2
-  exit 1
+if [ -n "${TASK_NAMES:-}" ]; then
+  read -r -a task_names <<< "${TASK_NAMES}"
+else
+  if (( task_list_id < 0 || task_list_id >= ${#task_groups[@]} )); then
+    echo "task_list_id out of range: $task_list_id (0..$(( ${#task_groups[@]} - 1 )))" >&2
+    exit 1
+  fi
+  read -r -a task_names <<< "${task_groups[$task_list_id]}"
 fi
-
-read -r -a task_names <<< "${task_groups[$task_list_id]}"
 
 echo "task_list_id=$task_list_id"
 printf 'task_names (%d): %s\n' "${#task_names[@]}" "${task_names[*]}"
@@ -71,7 +75,8 @@ for i in "${!task_names[@]}"; do
         --video_guidance_scale 5 \
         --action_guidance_scale 1 \
         --test_num ${test_num} \
-        --port ${port} > "$log_file" 2>&1 &
+        --port ${port} \
+        --rollout_log_dir ${rollout_log_dir} > "$log_file" 2>&1 &
 
     pid=$!
     echo "${pid}" | tee -a "$pid_file"

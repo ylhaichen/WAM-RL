@@ -2,6 +2,7 @@
 import argparse
 import os
 import sys
+from copy import deepcopy
 from pathlib import Path
 import wandb
 
@@ -22,6 +23,7 @@ import json
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from configs import VA_CONFIGS
+from configs.runtime import apply_cli_overrides, apply_env_overrides
 from distributed.fsdp import shard_model, apply_ac
 from distributed.util import (
     _configure_model, 
@@ -504,7 +506,9 @@ class Trainer:
 
 def run(args):
     """Main entry point."""
-    config = VA_CONFIGS[args.config_name]
+    config = deepcopy(VA_CONFIGS[args.config_name])
+    apply_env_overrides(config)
+    apply_cli_overrides(config, getattr(args, "opts", []))
 
     rank = int(os.getenv("RANK", 0))
     local_rank = int(os.environ.get('LOCAL_RANK', 0))
@@ -542,8 +546,15 @@ def main():
         default=None,
         help="Root directory for saving checkpoints",
     )
+    parser.add_argument(
+        "--opts",
+        nargs="*",
+        default=[],
+        help="Config overrides as key=value or --key value pairs",
+    )
 
-    args = parser.parse_args()
+    args, unknown = parser.parse_known_args()
+    args.opts.extend(unknown)
     run(args)
 
 

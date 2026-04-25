@@ -3,6 +3,7 @@ import argparse
 import os
 import sys
 import time
+from copy import deepcopy
 from functools import partial
 from PIL import Image
 from diffusers.video_processor import VideoProcessor
@@ -18,6 +19,7 @@ from tqdm import tqdm
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from configs import VA_CONFIGS
+from configs.runtime import apply_cli_overrides, apply_env_overrides
 from distributed.fsdp import shard_model
 from distributed.util import _configure_model, init_distributed
 from modules.utils import (
@@ -561,12 +563,18 @@ class VA_Server:
 
         actions[:, ~self.action_mask] *= 0
 
-        save_async(latents, os.path.join(self.exp_save_root, f'latents_{frame_st_id}.pt'))
-        save_async(actions, os.path.join(self.exp_save_root, f'actions_{frame_st_id}.pt'))
+        latent_path = os.path.join(self.exp_save_root, f'latents_{frame_st_id}.pt')
+        action_path = os.path.join(self.exp_save_root, f'actions_{frame_st_id}.pt')
+        save_async(latents, latent_path)
+        save_async(actions, action_path)
 
         actions = self.postprocess_action(actions)
         torch.cuda.empty_cache()
-        return actions, latents
+        return actions, latents, {
+            "latent_path": latent_path,
+            "action_path": action_path,
+            "server_exp_save_root": self.exp_save_root,
+        }
 
     def _compute_kv_cache(self, obs):
         ### optional async save obs for debug
@@ -619,8 +627,8 @@ class VA_Server:
             return dict()
         else:
             logger.info(f"################# Infer One Chunk #################")
-            action, _ = self._infer(obs, frame_st_id=self.frame_st_id)
-            return dict(action=action)
+            action, _, debug_info = self._infer(obs, frame_st_id=self.frame_st_id)
+            return dict(action=action, **debug_info)
     
     def decode_one_video(self, latents, output_type):
         latents = latents.to(self.vae.dtype)
@@ -651,7 +659,7 @@ class VA_Server:
         pred_latent_lst = []
         pred_action_lst = []
         for chunk_id in range(self.job_config.num_chunks_to_infer):
-            actions, latents = self._infer(init_obs, frame_st_id=(chunk_id * self.job_config.frame_chunk_size))
+            actions, latents, _ = self._infer(init_obs, frame_st_id=(chunk_id * self.job_config.frame_chunk_size))
             actions = torch.from_numpy(actions)
             pred_latent_lst.append(latents)
             pred_action_lst.append(actions)
@@ -675,7 +683,9 @@ class VA_Server:
 
 def run(args):    
     
-    config = VA_CONFIGS[args.config_name]
+    config = deepcopy(VA_CONFIGS[args.config_name])
+    apply_env_overrides(config)
+    apply_cli_overrides(config, getattr(args, "opts", []))
     port = config.port if args.port is None else args.port
     if args.save_root is not None:
         config.save_root = args.save_root
@@ -720,7 +730,14 @@ def main():
         default=None,
         help='save root'
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "--opts",
+        nargs="*",
+        default=[],
+        help="Config overrides as key=value or --key value pairs",
+    )
+    args, unknown = parser.parse_known_args()
+    args.opts.extend(unknown)
     run(args)
     logger.info("Finish all process!!!!!!!!!!!!")
 

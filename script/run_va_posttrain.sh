@@ -16,10 +16,8 @@ if [ $# -ne 0 ]; then
     overrides="$*"
 fi
 
-export WANDB_API_KEY="your key"
-export WANDB_BASE_URL="your url"
-export WANDB_TEAM_NAME="your team name"
-export WANDB_PROJECT="your project"
+export WAN_VA_ENABLE_WANDB=${WAN_VA_ENABLE_WANDB:-false}
+export WANDB_PROJECT=${WANDB_PROJECT:-wam-rl}
 
 ## node setting
 num_gpu=${NGPU}

@@ -6,7 +6,26 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import cv2
 from pathlib import Path
 
-robowin_root = Path("/path/to/your/robowin")
+def _read_cli_value(flag):
+    if flag not in sys.argv:
+        return None
+    idx = sys.argv.index(flag)
+    if idx + 1 >= len(sys.argv):
+        raise ValueError(f"{flag} requires a value")
+    return sys.argv[idx + 1]
+
+
+robowin_root = Path(
+    _read_cli_value("--robotwin_root")
+    or os.environ.get("ROBOTWIN_ROOT")
+    or os.environ.get("WAN_VA_ROBOTWIN_ROOT")
+    or "/path/to/your/robowin"
+).expanduser()
+if not robowin_root.exists():
+    raise RuntimeError(
+        f"RoboTwin root does not exist: {robowin_root}. "
+        "Set ROBOTWIN_ROOT or pass --robotwin_root before running evaluation."
+    )
 if str(robowin_root) not in sys.path:
     sys.path.insert(0, str(robowin_root))
 
@@ -55,6 +74,50 @@ def write_json(data: dict, fpath: Path) -> None:
     fpath.parent.mkdir(exist_ok=True, parents=True)
     with open(fpath, "w") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
+
+
+def save_rollout_record(
+    log_dir,
+    task_name,
+    episode_index,
+    seed,
+    prompt,
+    success,
+    action_history,
+    obs_count,
+    take_action_cnt,
+    step_lim,
+    video_path,
+    server_debug_roots,
+):
+    if not log_dir:
+        return
+
+    out_dir = Path(log_dir) / task_name
+    out_dir.mkdir(parents=True, exist_ok=True)
+    stem = f"episode_{episode_index:06d}_seed_{seed}"
+    action_path = out_dir / f"{stem}_actions.npy"
+    actions = np.asarray(action_history, dtype=np.float32)
+    np.save(action_path, actions)
+
+    write_json(
+        {
+            "task_name": task_name,
+            "episode_index": int(episode_index),
+            "seed": int(seed),
+            "prompt": prompt,
+            "success": bool(success),
+            "reward": 1.0 if success else 0.0,
+            "obs_count": int(obs_count),
+            "action_count": int(len(action_history)),
+            "take_action_cnt": int(take_action_cnt),
+            "step_lim": int(step_lim),
+            "actions_path": str(action_path),
+            "visualization_path": str(video_path),
+            "server_debug_roots": sorted(set(server_debug_roots)),
+        },
+        out_dir / f"{stem}.json",
+    )
 
 def add_title_bar(img, text, font_scale=0.8, thickness=2):
     """Add a black title bar with text above the image"""
@@ -555,6 +618,7 @@ def eval_policy(task_name,
         initial_formatted_obs = format_obs(initial_obs, prompt)
         full_obs_list.append(initial_formatted_obs)
         first_obs = None
+        server_debug_roots = []
         while TASK_ENV.take_action_cnt<TASK_ENV.step_lim:
             if first:
                 observation = TASK_ENV.get_obs()
@@ -562,6 +626,8 @@ def eval_policy(task_name,
 
             ret = model.infer(dict(obs=first_obs, prompt=prompt, save_visualization=save_visualization, video_guidance_scale=video_guidance_scale, action_guidance_scale=action_guidance_scale)) #(TASK_ENV, model, observation)
             action = ret['action']
+            if ret.get("server_exp_save_root"):
+                server_debug_roots.append(ret["server_exp_save_root"])
             if 'video' in ret:
                 imagined_video = ret['video']
                 gen_video_list.append(imagined_video)
@@ -623,6 +689,20 @@ def eval_policy(task_name,
             save_path=str(out_img_file),
             fps=15 # Suggest adjusting fps based on simulation step
         )
+        save_rollout_record(
+            log_dir=args.get("rollout_log_dir"),
+            task_name=task_name,
+            episode_index=TASK_ENV.test_num,
+            seed=now_seed,
+            prompt=prompt,
+            success=succ,
+            action_history=full_action_history,
+            obs_count=len(full_obs_list),
+            take_action_cnt=TASK_ENV.take_action_cnt,
+            step_lim=TASK_ENV.step_lim,
+            video_path=out_img_file,
+            server_debug_roots=server_debug_roots,
+        )
         if TASK_ENV.eval_video_path is not None:
             TASK_ENV._del_eval_video_ffmpeg()
 
@@ -667,6 +747,8 @@ def parse_args_and_config():
     parser.add_argument("--video_guidance_scale", type=float, default=5.0)
     parser.add_argument("--action_guidance_scale", type=float, default=5.0)
     parser.add_argument("--test_num", type=int, default=100)
+    parser.add_argument("--robotwin_root", type=str, default=None)
+    parser.add_argument("--rollout_log_dir", type=str, default=None)
     args = parser.parse_args()
 
     with open(args.config, "r", encoding="utf-8") as f:
@@ -688,6 +770,8 @@ def parse_args_and_config():
     if args.overrides:
         overrides = parse_override_pairs(args.overrides)
         config.update(overrides)
+    if args.rollout_log_dir is not None:
+        config["rollout_log_dir"] = args.rollout_log_dir
 
     return config
 
@@ -697,4 +781,3 @@ if __name__ == "__main__":
     Sapien_TEST()
     usr_args = parse_args_and_config()
     main(usr_args)
-
