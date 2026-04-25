@@ -15,6 +15,8 @@ WAM_ROOT="${WAM_ROOT:-${DEFAULT_WAM_ROOT}}"
 SIF="${SIF:-${HOME}/containers/pytorch-2.9.0-cu126.sif}"
 WAN_VA_VENV="${WAN_VA_VENV:-${WAM_ROOT}/venvs/wam-rl-container}"
 WAN_VA_CONDA_LIBS="${WAN_VA_CONDA_LIBS:-${WAM_ROOT}/conda-libs}"
+WAN_VA_EGL_VENDOR_DIR="${WAN_VA_EGL_VENDOR_DIR:-${WAM_ROOT}/glvnd/egl_vendor.d}"
+WAN_VA_VULKAN_ICD_DIR="${WAN_VA_VULKAN_ICD_DIR:-${WAM_ROOT}/vulkan/icd.d}"
 WAN_VA_MODEL_PATH="${WAN_VA_MODEL_PATH:-${WAM_ROOT}/checkpoints/lingbot-va-posttrain-robotwin}"
 WAN_VA_BASE_MODEL_PATH="${WAN_VA_BASE_MODEL_PATH:-${WAM_ROOT}/checkpoints/lingbot-va-base}"
 WAN_VA_DATASET_PATH="${WAN_VA_DATASET_PATH:-${WAM_ROOT}/datasets/robotwin-clean-and-aug-lerobot}"
@@ -27,6 +29,8 @@ export WAM_ROOT
 export SIF
 export WAN_VA_VENV
 export WAN_VA_CONDA_LIBS
+export WAN_VA_EGL_VENDOR_DIR
+export WAN_VA_VULKAN_ICD_DIR
 export WAN_VA_MODEL_PATH
 export WAN_VA_BASE_MODEL_PATH
 export WAN_VA_DATASET_PATH
@@ -39,6 +43,27 @@ export WAN_VA_ENABLE_WANDB="${WAN_VA_ENABLE_WANDB:-false}"
 if [ -d "${WAN_VA_CONDA_LIBS}/lib" ]; then
     export LD_LIBRARY_PATH="${WAN_VA_CONDA_LIBS}/lib:${LD_LIBRARY_PATH:-}"
 fi
+
+mkdir -p "${WAN_VA_EGL_VENDOR_DIR}" "${WAN_VA_VULKAN_ICD_DIR}"
+cat > "${WAN_VA_EGL_VENDOR_DIR}/10_nvidia.json" <<'JSON'
+{
+  "file_format_version": "1.0.0",
+  "ICD": {
+    "library_path": "libEGL_nvidia.so.0"
+  }
+}
+JSON
+cat > "${WAN_VA_VULKAN_ICD_DIR}/nvidia_icd.json" <<'JSON'
+{
+  "file_format_version": "1.0.0",
+  "ICD": {
+    "library_path": "libGLX_nvidia.so.0",
+    "api_version": "1.3.204"
+  }
+}
+JSON
+export __EGL_VENDOR_LIBRARY_FILENAMES="/usr/share/glvnd/egl_vendor.d/10_nvidia.json"
+export VK_ICD_FILENAMES="/usr/share/vulkan/icd.d/nvidia_icd.json"
 
 if command -v module >/dev/null 2>&1; then
     module load apptainer/1.2.4-1 2>/dev/null || true
@@ -75,6 +100,9 @@ fi
 if [ -d "${ROBOTWIN_ROOT}" ]; then
     APPTAINER_ARGS+=(--bind "${ROBOTWIN_ROOT}:${ROBOTWIN_ROOT}")
 fi
+APPTAINER_ARGS+=(--bind "${WAN_VA_EGL_VENDOR_DIR}:/usr/share/glvnd/egl_vendor.d")
+APPTAINER_ARGS+=(--bind "${WAN_VA_VULKAN_ICD_DIR}:/usr/share/vulkan/icd.d")
+APPTAINER_ARGS+=(--bind "${WAN_VA_VULKAN_ICD_DIR}:/etc/vulkan/icd.d")
 
 print_job_context() {
     echo "JOB_ID=${JOB_ID:-local}"

@@ -178,6 +178,56 @@ export WAN_VA_CONDA_LIBS="$WAM_ROOT/conda-libs"
 export LD_LIBRARY_PATH="$WAN_VA_CONDA_LIBS/lib:${LD_LIBRARY_PATH:-}"
 ```
 
+If SAPIEN then reports missing GLVND/Vulkan ICD paths such as
+`/usr/share/glvnd/egl_vendor.d`, exit the container, create user-writable ICD
+files, and re-enter Apptainer with extra binds:
+
+```bash
+exit
+
+export WAM_ROOT="$HOME/Scratch/wam-rl"
+export REPO_ROOT="$HOME/Scratch/WAM-RL"
+export WAN_VA_EGL_VENDOR_DIR="$WAM_ROOT/glvnd/egl_vendor.d"
+export WAN_VA_VULKAN_ICD_DIR="$WAM_ROOT/vulkan/icd.d"
+
+mkdir -p "$WAN_VA_EGL_VENDOR_DIR" "$WAN_VA_VULKAN_ICD_DIR"
+cat > "$WAN_VA_EGL_VENDOR_DIR/10_nvidia.json" <<'JSON'
+{
+  "file_format_version": "1.0.0",
+  "ICD": {
+    "library_path": "libEGL_nvidia.so.0"
+  }
+}
+JSON
+cat > "$WAN_VA_VULKAN_ICD_DIR/nvidia_icd.json" <<'JSON'
+{
+  "file_format_version": "1.0.0",
+  "ICD": {
+    "library_path": "libGLX_nvidia.so.0",
+    "api_version": "1.3.204"
+  }
+}
+JSON
+
+apptainer shell --nv \
+  --bind "$HOME:$HOME" \
+  --bind /shared:/shared \
+  --bind "$WAN_VA_EGL_VENDOR_DIR:/usr/share/glvnd/egl_vendor.d" \
+  --bind "$WAN_VA_VULKAN_ICD_DIR:/usr/share/vulkan/icd.d" \
+  --bind "$WAN_VA_VULKAN_ICD_DIR:/etc/vulkan/icd.d" \
+  "$HOME/containers/pytorch-2.9.0-cu126.sif"
+```
+
+Inside `Apptainer>`:
+
+```bash
+export WAM_ROOT="$HOME/Scratch/wam-rl"
+export WAN_VA_CONDA_LIBS="$WAM_ROOT/conda-libs"
+export LD_LIBRARY_PATH="$WAN_VA_CONDA_LIBS/lib:${LD_LIBRARY_PATH:-}"
+export __EGL_VENDOR_LIBRARY_FILENAMES="/usr/share/glvnd/egl_vendor.d/10_nvidia.json"
+export VK_ICD_FILENAMES="/usr/share/vulkan/icd.d/nvidia_icd.json"
+```
+
 ## 5. Model and dataset assets
 
 Recommended baseline checkpoint for RoboTwin evaluation:
