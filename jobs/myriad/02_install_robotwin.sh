@@ -131,7 +131,24 @@ if [ -f script/update_embodiment_config_path.py ]; then
 fi
 
 if [ "${DOWNLOAD_ROBOTWIN_ASSETS}" = "true" ]; then
-    bash script/_download_assets.sh
+    cd assets
+    python _download.py
+    python - <<'PY'
+from pathlib import Path
+from zipfile import ZipFile
+
+for name in ["background_texture.zip", "embodiments.zip", "objects.zip"]:
+    path = Path(name)
+    print(f"extracting {path} ...")
+    if not path.exists():
+        raise FileNotFoundError(path)
+    with ZipFile(path) as zf:
+        zf.extractall(".")
+    path.unlink()
+    print(f"done {path}")
+PY
+    cd ..
+    python ./script/update_embodiment_config_path.py
 else
     echo "Skipping RoboTwin assets. Set DOWNLOAD_ROBOTWIN_ASSETS=true to download them."
 fi

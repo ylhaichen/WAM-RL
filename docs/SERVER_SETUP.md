@@ -61,6 +61,9 @@ Install RoboTwin simulator and download RoboTwin assets:
 qsub jobs/myriad/02_install_robotwin.sh
 ```
 
+The job script extracts RoboTwin asset zip files with Python `zipfile`, because
+the PyTorch Apptainer image may not include a system `unzip` command.
+
 Download the full post-training dataset only when you are ready to run SFT/RL
 training:
 
