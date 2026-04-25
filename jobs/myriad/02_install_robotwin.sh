@@ -59,6 +59,12 @@ source "${WAN_VA_VENV}/bin/activate"
 cd "${ROBOTWIN_ROOT}"
 export CC="${ROBOTWIN_CC:-gcc}"
 export CXX="${ROBOTWIN_CXX:-g++}"
+if [ ! -f "${WAN_VA_CONDA_LIBS}/lib/libX11.so.6" ]; then
+    /opt/conda/bin/conda create -y -p "${WAN_VA_CONDA_LIBS}" -c conda-forge \
+        xorg-libx11 xorg-libxext xorg-libxrender xorg-libxi xorg-libxrandr \
+        xorg-libxinerama xorg-libxcursor xorg-libxfixes xorg-libsm xorg-libice \
+        libxcb libglvnd
+fi
 if [ -d "${WAN_VA_CONDA_LIBS}/lib" ]; then
     export LD_LIBRARY_PATH="${WAN_VA_CONDA_LIBS}/lib:${LD_LIBRARY_PATH:-}"
 fi
