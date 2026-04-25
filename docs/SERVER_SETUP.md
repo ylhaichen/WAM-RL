@@ -246,10 +246,18 @@ export __EGL_VENDOR_LIBRARY_FILENAMES="/usr/share/glvnd/egl_vendor.d/10_nvidia.j
 export VK_ICD_FILENAMES="/usr/share/vulkan/icd.d/nvidia_icd.json"
 export SETUPTOOLS_SCM_PRETEND_VERSION="0.0.0"
 export SETUPTOOLS_SCM_PRETEND_VERSION_FOR_NVIDIA_CUROBO="0.0.0"
+export TMPDIR="$WAM_ROOT/tmp"
+export TMP="$TMPDIR"
+export TEMP="$TMPDIR"
+export TORCH_EXTENSIONS_DIR="$WAM_ROOT/torch_extensions"
+export CUDA_CACHE_PATH="$WAM_ROOT/cuda_cache"
+mkdir -p "$TMPDIR" "$TORCH_EXTENSIONS_DIR" "$CUDA_CACHE_PATH"
 ```
 
 The `SETUPTOOLS_SCM_*` variables avoid a CuRobo runtime version lookup failure
 inside the PyTorch container, which does not include `git`.
+The temporary/cache variables avoid CUDA extension builds writing to stale SGE
+paths such as `/tmpdir/job/<old-job>.undefined`.
 
 ## 5. Model and dataset assets
 

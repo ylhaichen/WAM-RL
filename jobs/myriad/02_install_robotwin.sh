@@ -70,6 +70,12 @@ export CXX="${ROBOTWIN_CXX:-g++}"
 export CUDA_HOME="${CUDA_HOME:-/usr/local/cuda}"
 export PATH="${CUDA_HOME}/bin:${PATH}"
 export TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST:-8.0}"
+export TMPDIR="${TMPDIR:-${WAM_ROOT}/tmp}"
+export TMP="${TMP:-${TMPDIR}}"
+export TEMP="${TEMP:-${TMPDIR}}"
+export TORCH_EXTENSIONS_DIR="${TORCH_EXTENSIONS_DIR:-${WAM_ROOT}/torch_extensions}"
+export CUDA_CACHE_PATH="${CUDA_CACHE_PATH:-${WAM_ROOT}/cuda_cache}"
+mkdir -p "${TMPDIR}" "${TORCH_EXTENSIONS_DIR}" "${CUDA_CACHE_PATH}"
 if [ ! -f "${WAN_VA_CONDA_LIBS}/lib/libX11.so.6" ]; then
     /opt/conda/bin/conda create -y -p "${WAN_VA_CONDA_LIBS}" -c conda-forge \
         xorg-libx11 xorg-libxext xorg-libxrender xorg-libxi xorg-libxrandr \
