@@ -59,6 +59,9 @@ source "${WAN_VA_VENV}/bin/activate"
 cd "${ROBOTWIN_ROOT}"
 export CC="${ROBOTWIN_CC:-gcc}"
 export CXX="${ROBOTWIN_CXX:-g++}"
+export CUDA_HOME="${CUDA_HOME:-/usr/local/cuda}"
+export PATH="${CUDA_HOME}/bin:${PATH}"
+export TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST:-8.0}"
 if [ ! -f "${WAN_VA_CONDA_LIBS}/lib/libX11.so.6" ]; then
     /opt/conda/bin/conda create -y -p "${WAN_VA_CONDA_LIBS}" -c conda-forge \
         xorg-libx11 xorg-libxext xorg-libxrender xorg-libxi xorg-libxrandr \
@@ -125,6 +128,20 @@ print("patched script/_install.sh")
 PY
 
 bash script/_install.sh
+
+if ! python -c "import curobo" >/dev/null 2>&1; then
+    if [ ! -d envs/curobo ]; then
+        echo "Missing envs/curobo. Clone it on the host before running this script." >&2
+        exit 1
+    fi
+    python -m pip install ninja packaging
+    python -m pip install -e envs/curobo --no-build-isolation
+fi
+
+python - <<'PY'
+import curobo
+print("curobo import ok", getattr(curobo, "__version__", "unknown"))
+PY
 
 if [ -f script/update_embodiment_config_path.py ]; then
     python script/update_embodiment_config_path.py || true
