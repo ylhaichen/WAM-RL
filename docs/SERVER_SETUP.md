@@ -64,6 +64,17 @@ qsub jobs/myriad/02_install_robotwin.sh
 The job script extracts RoboTwin asset zip files with Python `zipfile`, because
 the PyTorch Apptainer image may not include a system `unzip` command.
 
+If asset extraction is interrupted after the zip files have downloaded, resume
+it on a CPU node:
+
+```bash
+qsub jobs/myriad/03_unpack_robotwin_assets.sh
+```
+
+Stop any manual extraction first. The unpack job uses
+`$ROBOTWIN_ROOT/assets/.unpack.lock` to avoid two processes writing the same
+asset directory.
+
 Download the full post-training dataset only when you are ready to run SFT/RL
 training:
 
