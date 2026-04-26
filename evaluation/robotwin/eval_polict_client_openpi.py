@@ -1,6 +1,7 @@
 import sys
 import os
 import subprocess
+import shutil
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import cv2
@@ -61,6 +62,21 @@ from pathlib import Path
 
 from evaluation.robotwin.websocket_client_policy import WebsocketClientPolicy
 from evaluation.robotwin.test_render import Sapien_TEST
+
+def get_ffmpeg_executable() -> str:
+    ffmpeg = shutil.which("ffmpeg")
+    if ffmpeg:
+        return ffmpeg
+
+    try:
+        import imageio_ffmpeg
+    except ImportError as exc:
+        raise RuntimeError(
+            "ffmpeg executable is required for RoboTwin evaluation videos. "
+            "Install a system ffmpeg binary or install imageio-ffmpeg."
+        ) from exc
+
+    return imageio_ffmpeg.get_ffmpeg_exe()
 
 def write_json(data: dict, fpath: Path) -> None:
     """Write data to a JSON file.
@@ -573,7 +589,7 @@ def eval_policy(task_name,
         if TASK_ENV.eval_video_path is not None:
             ffmpeg = subprocess.Popen(
                 [
-                    "ffmpeg",
+                    get_ffmpeg_executable(),
                     "-y",
                     "-loglevel",
                     "error",
