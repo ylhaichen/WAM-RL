@@ -164,6 +164,26 @@ if [ -f script/update_embodiment_config_path.py ]; then
     python script/update_embodiment_config_path.py || true
 fi
 
+python - <<'PY'
+from pathlib import Path
+
+path = Path("envs/robot/robot.py")
+text = path.read_text()
+old = "if not isinstance(self.left_planner, CuroboPlanner) or not isinstance(self.right_planner, CuroboPlanner):"
+new = (
+    'if (not hasattr(self, "left_planner") or not hasattr(self, "right_planner") '
+    'or not isinstance(self.left_planner, CuroboPlanner) '
+    'or not isinstance(self.right_planner, CuroboPlanner)):'
+)
+if old in text:
+    path.write_text(text.replace(old, new))
+    print("patched planner initialization guard in envs/robot/robot.py")
+elif new in text:
+    print("planner initialization guard already patched")
+else:
+    raise RuntimeError("Could not find planner initialization guard in envs/robot/robot.py")
+PY
+
 if [ "${DOWNLOAD_ROBOTWIN_ASSETS}" = "true" ]; then
     cd assets
     python _download.py
