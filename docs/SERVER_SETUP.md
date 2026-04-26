@@ -210,8 +210,8 @@ python -c "import torch; print(torch.__version__); print(torch.cuda.is_available
 ```
 
 If RoboTwin/SAPIEN/OpenCV reports missing shared libraries such as
-`libX11.so.6` or `libgthread-2.0.so.0`, install runtime libraries into a
-user-writable conda prefix and add it to `LD_LIBRARY_PATH`:
+`libX11.so.6`, `libgthread-2.0.so.0`, or `libGL.so.1`, install runtime
+libraries into a user-writable conda prefix and add it to `LD_LIBRARY_PATH`:
 
 ```bash
 export WAM_ROOT="$HOME/Scratch/wam-rl"

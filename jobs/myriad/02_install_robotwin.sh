@@ -86,7 +86,9 @@ runtime_packages=(
 )
 if [ ! -d "${WAN_VA_CONDA_LIBS}/conda-meta" ]; then
     /opt/conda/bin/conda create -y -p "${WAN_VA_CONDA_LIBS}" -c conda-forge "${runtime_packages[@]}"
-elif [ ! -f "${WAN_VA_CONDA_LIBS}/lib/libX11.so.6" ] || [ ! -f "${WAN_VA_CONDA_LIBS}/lib/libgthread-2.0.so.0" ]; then
+elif [ ! -f "${WAN_VA_CONDA_LIBS}/lib/libX11.so.6" ] \
+    || [ ! -f "${WAN_VA_CONDA_LIBS}/lib/libgthread-2.0.so.0" ] \
+    || [ ! -f "${WAN_VA_CONDA_LIBS}/lib/libGL.so.1" ]; then
     /opt/conda/bin/conda install -y -p "${WAN_VA_CONDA_LIBS}" -c conda-forge "${runtime_packages[@]}"
 fi
 if [ -d "${WAN_VA_CONDA_LIBS}/lib" ]; then
