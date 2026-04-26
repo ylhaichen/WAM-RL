@@ -77,7 +77,34 @@ qsub jobs/myriad/03_unpack_robotwin_assets.sh
 
 Stop any manual extraction first. The unpack job uses
 `$ROBOTWIN_ROOT/assets/.unpack.lock` to avoid two processes writing the same
-asset directory.
+asset directory. It also runs RoboTwin's embodiment path updater inside the
+Apptainer container so generated CuRobo config files use `/home/...` paths that
+are visible during evaluation.
+
+If an older unpack job wrote `/myriadfs/home/...` paths into RoboTwin YAML files,
+fix them inside the running Apptainer shell before launching evaluation:
+
+```bash
+cd "$ROBOTWIN_ROOT"
+python ./script/update_embodiment_config_path.py
+
+python - <<'PY'
+import os
+from pathlib import Path
+
+root = Path(os.environ["ROBOTWIN_ROOT"])
+old = f"/myriadfs/home/{os.environ['USER']}"
+new = f"/home/{os.environ['USER']}"
+
+for path in (root / "assets" / "embodiments").glob("**/*.yml"):
+    text = path.read_text()
+    if old in text:
+        path.write_text(text.replace(old, new))
+        print("fixed", path)
+PY
+
+grep -R "/myriadfs/home" -n assets/embodiments/*.yml assets/embodiments/*/*.yml || true
+```
 
 Download the full post-training dataset only when you are ready to run SFT/RL
 training:

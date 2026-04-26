@@ -15,14 +15,9 @@
 
 set -euo pipefail
 
-if [ -d "${HOME}/Scratch" ]; then
-    DEFAULT_WAM_ROOT="${HOME}/Scratch/wam-rl"
-else
-    DEFAULT_WAM_ROOT="${HOME}/wam-rl"
-fi
+JOB_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${JOB_SCRIPT_DIR}/common.sh"
 
-WAM_ROOT="${WAM_ROOT:-${DEFAULT_WAM_ROOT}}"
-ROBOTWIN_ROOT="${ROBOTWIN_ROOT:-${WAM_ROOT}/RoboTwin}"
 ASSETS_ROOT="${ASSETS_ROOT:-${ROBOTWIN_ROOT}/assets}"
 ZIP_NAMES="${ZIP_NAMES:-background_texture.zip embodiments.zip objects.zip}"
 PROGRESS_EVERY="${PROGRESS_EVERY:-500}"
@@ -31,10 +26,7 @@ LOCK_DIR="${ASSETS_ROOT}/.unpack.lock"
 export ZIP_NAMES
 export PROGRESS_EVERY
 
-echo "JOB_ID=${JOB_ID:-local}"
-echo "HOST=$(hostname)"
-echo "DATE=$(date -Is)"
-echo "ROBOTWIN_ROOT=${ROBOTWIN_ROOT}"
+print_job_context
 echo "ASSETS_ROOT=${ASSETS_ROOT}"
 echo "ZIP_NAMES=${ZIP_NAMES}"
 
@@ -102,7 +94,39 @@ PY
 cd "${ROBOTWIN_ROOT}"
 
 if [ -f ./script/update_embodiment_config_path.py ]; then
-    python3 ./script/update_embodiment_config_path.py || true
+    echo "Updating RoboTwin embodiment config paths inside Apptainer ..."
+    container_exec_cpu <<'CONTAINER'
+set -euo pipefail
+
+source "${WAN_VA_VENV}/bin/activate"
+cd "${ROBOTWIN_ROOT}"
+
+python ./script/update_embodiment_config_path.py
+
+python - <<'PY'
+import os
+from pathlib import Path
+
+root = Path(os.environ["ROBOTWIN_ROOT"])
+user = os.environ.get("USER", "")
+replacements = [
+    (f"/myriadfs/home/{user}", f"/home/{user}"),
+]
+
+changed = 0
+for path in (root / "assets" / "embodiments").glob("**/*.yml"):
+    text = path.read_text()
+    new_text = text
+    for old, new in replacements:
+        new_text = new_text.replace(old, new)
+    if new_text != text:
+        path.write_text(new_text)
+        changed += 1
+        print(f"normalized {path}", flush=True)
+
+print(f"path normalization complete: changed={changed}", flush=True)
+PY
+CONTAINER
 fi
 
 ls -ld assets/background_texture assets/embodiments assets/objects
