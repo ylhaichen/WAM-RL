@@ -78,11 +78,16 @@ export TEMP="${TEMP:-${TMPDIR}}"
 export TORCH_EXTENSIONS_DIR="${TORCH_EXTENSIONS_DIR:-${WAM_ROOT}/torch_extensions}"
 export CUDA_CACHE_PATH="${CUDA_CACHE_PATH:-${WAM_ROOT}/cuda_cache}"
 mkdir -p "${TMPDIR}" "${TORCH_EXTENSIONS_DIR}" "${CUDA_CACHE_PATH}"
-if [ ! -f "${WAN_VA_CONDA_LIBS}/lib/libX11.so.6" ]; then
-    /opt/conda/bin/conda create -y -p "${WAN_VA_CONDA_LIBS}" -c conda-forge \
-        xorg-libx11 xorg-libxext xorg-libxrender xorg-libxi xorg-libxrandr \
-        xorg-libxinerama xorg-libxcursor xorg-libxfixes xorg-libsm xorg-libice \
-        libxcb libglvnd glib
+
+runtime_packages=(
+    xorg-libx11 xorg-libxext xorg-libxrender xorg-libxi xorg-libxrandr
+    xorg-libxinerama xorg-libxcursor xorg-libxfixes xorg-libsm xorg-libice
+    libxcb libglvnd glib
+)
+if [ ! -d "${WAN_VA_CONDA_LIBS}/conda-meta" ]; then
+    /opt/conda/bin/conda create -y -p "${WAN_VA_CONDA_LIBS}" -c conda-forge "${runtime_packages[@]}"
+elif [ ! -f "${WAN_VA_CONDA_LIBS}/lib/libX11.so.6" ] || [ ! -f "${WAN_VA_CONDA_LIBS}/lib/libgthread-2.0.so.0" ]; then
+    /opt/conda/bin/conda install -y -p "${WAN_VA_CONDA_LIBS}" -c conda-forge "${runtime_packages[@]}"
 fi
 if [ -d "${WAN_VA_CONDA_LIBS}/lib" ]; then
     export LD_LIBRARY_PATH="${WAN_VA_CONDA_LIBS}/lib:${LD_LIBRARY_PATH:-}"

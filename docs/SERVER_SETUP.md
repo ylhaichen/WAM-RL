@@ -209,17 +209,26 @@ Inside `Apptainer>`:
 python -c "import torch; print(torch.__version__); print(torch.cuda.is_available()); print(torch.cuda.get_device_name(0))"
 ```
 
-If RoboTwin/SAPIEN reports missing shared libraries such as `libX11.so.6`,
-install runtime libraries into a user-writable conda prefix and add it to
-`LD_LIBRARY_PATH`:
+If RoboTwin/SAPIEN/OpenCV reports missing shared libraries such as
+`libX11.so.6` or `libgthread-2.0.so.0`, install runtime libraries into a
+user-writable conda prefix and add it to `LD_LIBRARY_PATH`:
 
 ```bash
 export WAM_ROOT="$HOME/Scratch/wam-rl"
 export WAN_VA_CONDA_LIBS="$WAM_ROOT/conda-libs"
-/opt/conda/bin/conda create -y -p "$WAN_VA_CONDA_LIBS" -c conda-forge \
-  xorg-libx11 xorg-libxext xorg-libxrender xorg-libxi xorg-libxrandr \
-  xorg-libxinerama xorg-libxcursor xorg-libxfixes xorg-libsm xorg-libice \
-  libxcb libglvnd glib
+
+if [ -d "$WAN_VA_CONDA_LIBS/conda-meta" ]; then
+  /opt/conda/bin/conda install -y -p "$WAN_VA_CONDA_LIBS" -c conda-forge \
+    xorg-libx11 xorg-libxext xorg-libxrender xorg-libxi xorg-libxrandr \
+    xorg-libxinerama xorg-libxcursor xorg-libxfixes xorg-libsm xorg-libice \
+    libxcb libglvnd glib
+else
+  /opt/conda/bin/conda create -y -p "$WAN_VA_CONDA_LIBS" -c conda-forge \
+    xorg-libx11 xorg-libxext xorg-libxrender xorg-libxi xorg-libxrandr \
+    xorg-libxinerama xorg-libxcursor xorg-libxfixes xorg-libsm xorg-libice \
+    libxcb libglvnd glib
+fi
+
 export LD_LIBRARY_PATH="$WAN_VA_CONDA_LIBS/lib:${LD_LIBRARY_PATH:-}"
 ```
 
