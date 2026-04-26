@@ -17,8 +17,10 @@
 
 set -euo pipefail
 
-JOB_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${JOB_SCRIPT_DIR}/common.sh"
+if [ -z "${REPO_ROOT:-}" ]; then
+    REPO_ROOT="${SGE_O_WORKDIR:-$(pwd)}"
+fi
+source "${REPO_ROOT}/jobs/myriad/common.sh"
 
 ROBOTWIN_REPO_URL="${ROBOTWIN_REPO_URL:-https://github.com/RoboTwin-Platform/RoboTwin.git}"
 ROBOTWIN_COMMIT="${ROBOTWIN_COMMIT:-2eeec322}"

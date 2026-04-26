@@ -17,8 +17,10 @@
 
 set -euo pipefail
 
-JOB_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${JOB_SCRIPT_DIR}/common.sh"
+if [ -z "${REPO_ROOT:-}" ]; then
+    REPO_ROOT="${SGE_O_WORKDIR:-$(pwd)}"
+fi
+source "${REPO_ROOT}/jobs/myriad/common.sh"
 
 NUM_GPUS="${NUM_GPUS:-4}"
 TASK_NAMES="${TASK_NAMES:-adjust_bottle place_mouse_pad stack_blocks_two click_bell}"
