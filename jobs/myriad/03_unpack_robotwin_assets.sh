@@ -100,6 +100,10 @@ if [ -f ./script/update_embodiment_config_path.py ]; then
     container_exec_cpu <<'CONTAINER'
 set -euo pipefail
 
+if [ -d "${WAN_VA_CONDA_LIBS}/lib" ]; then
+    export LD_LIBRARY_PATH="${WAN_VA_CONDA_LIBS}/lib:${LD_LIBRARY_PATH:-}"
+fi
+
 source "${WAN_VA_VENV}/bin/activate"
 cd "${ROBOTWIN_ROOT}"
 

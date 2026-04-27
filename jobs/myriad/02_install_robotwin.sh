@@ -58,6 +58,10 @@ cd ../..
 container_exec_gpu <<'CONTAINER'
 set -euo pipefail
 
+if [ -d "${WAN_VA_CONDA_LIBS}/lib" ]; then
+    export LD_LIBRARY_PATH="${WAN_VA_CONDA_LIBS}/lib:${LD_LIBRARY_PATH:-}"
+fi
+
 if [ ! -x "${WAN_VA_VENV}/bin/python" ]; then
     echo "Missing venv: ${WAN_VA_VENV}" >&2
     echo "Run jobs/myriad/00_install_container_env.sh first." >&2
@@ -82,7 +86,7 @@ mkdir -p "${TMPDIR}" "${TORCH_EXTENSIONS_DIR}" "${CUDA_CACHE_PATH}"
 runtime_packages=(
     xorg-libx11 xorg-libxext xorg-libxrender xorg-libxi xorg-libxrandr
     xorg-libxinerama xorg-libxcursor xorg-libxfixes xorg-libsm xorg-libice
-    libxcb libglvnd glib
+    libxcb libglvnd libgl glib
 )
 if [ ! -d "${WAN_VA_CONDA_LIBS}/conda-meta" ]; then
     /opt/conda/bin/conda create -y -p "${WAN_VA_CONDA_LIBS}" -c conda-forge "${runtime_packages[@]}"

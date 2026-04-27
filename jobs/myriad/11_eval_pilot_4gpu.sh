@@ -37,6 +37,10 @@ print_job_context
 container_exec_gpu <<'CONTAINER'
 set -euo pipefail
 
+if [ -d "${WAN_VA_CONDA_LIBS}/lib" ]; then
+    export LD_LIBRARY_PATH="${WAN_VA_CONDA_LIBS}/lib:${LD_LIBRARY_PATH:-}"
+fi
+
 cd "${REPO_ROOT}"
 
 if [ ! -x "${WAN_VA_VENV}/bin/python" ]; then
