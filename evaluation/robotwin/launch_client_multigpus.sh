@@ -14,6 +14,7 @@ test_num=${4:-${TEST_NUM:-10}}
 start_port=${START_PORT:-29556}
 num_gpus=${NUM_GPUS:-4}
 rollout_log_dir=${ROLLOUT_LOG_DIR:-${save_root}/rollouts}
+client_log_dir=${CLIENT_LOG_DIR:-${save_root}/logs/clients}
 
 task_list_id=${2:-0}
 
@@ -40,24 +41,25 @@ fi
 echo "task_list_id=$task_list_id"
 printf 'task_names (%d): %s\n' "${#task_names[@]}" "${task_names[*]}"
 
-log_dir="./logs"
-mkdir -p "$log_dir"
+mkdir -p "$client_log_dir"
 
 echo -e "\033[32mLaunching ${#task_names[@]} tasks. GPUs assigned by mod ${num_gpus}, ports starting from ${start_port} incrementing.\033[0m"
 
 pid_file="pids.txt"
 > "$pid_file"
+task_file="tasks.txt"
+> "$task_file"
 
 batch_time=$(date +%Y%m%d_%H%M%S)
 
 for i in "${!task_names[@]}"; do
     task_name="${task_names[$i]}"
     gpu_id=$(( i % num_gpus ))
-    port=$(( start_port + i ))
+    port=$(( start_port + gpu_id ))
 
     export CUDA_VISIBLE_DEVICES=${gpu_id}
 
-    log_file="${log_dir}/${task_name}_${batch_time}.log"
+    log_file="${client_log_dir}/${task_name}_${batch_time}.log"
 
     echo -e "\033[33m[Task $i] Task: ${task_name}, GPU: ${gpu_id}, PORT: ${port}, Log: ${log_file}\033[0m"
 
@@ -80,7 +82,27 @@ for i in "${!task_names[@]}"; do
 
     pid=$!
     echo "${pid}" | tee -a "$pid_file"
+    echo "${pid} ${task_name} ${log_file}" >> "$task_file"
 done
 
 echo -e "\033[32mAll tasks launched. PIDs saved to ${pid_file}\033[0m"
 echo -e "\033[36mTo terminate all processes, run: kill \$(cat ${pid_file})\033[0m"
+
+status=0
+while read -r pid task_name log_file; do
+    if wait "${pid}"; then
+        echo -e "\033[32m[Done] ${task_name}: ${log_file}\033[0m"
+    else
+        rc=$?
+        status=1
+        echo -e "\033[31m[Failed] ${task_name}: exit=${rc}, log=${log_file}\033[0m" >&2
+        tail -80 "${log_file}" >&2 || true
+    fi
+done < "$task_file"
+
+if [ "$status" -ne 0 ]; then
+    echo "One or more evaluation clients failed." >&2
+    exit "$status"
+fi
+
+echo -e "\033[32mAll evaluation clients completed successfully.\033[0m"

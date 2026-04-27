@@ -122,6 +122,7 @@ export TASK_NAMES
 export ROBOTWIN_ROOT
 export WAN_VA_ROBOTWIN_ROOT="${ROBOTWIN_ROOT}"
 export ROLLOUT_LOG_DIR="${RESULTS_ROOT}/rollouts"
+export CLIENT_LOG_DIR="${RESULTS_ROOT}/logs/clients"
 
 bash evaluation/robotwin/launch_client_multigpus.sh "${RESULTS_ROOT}" 0
 CONTAINER
