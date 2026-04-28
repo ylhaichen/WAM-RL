@@ -45,12 +45,12 @@ mkdir -p "$client_log_dir"
 
 echo -e "\033[32mLaunching ${#task_names[@]} tasks. GPUs assigned by mod ${num_gpus}, ports starting from ${start_port} incrementing.\033[0m"
 
-pid_file="pids.txt"
-> "$pid_file"
-task_file="tasks.txt"
-> "$task_file"
-
 batch_time=$(date +%Y%m%d_%H%M%S)
+
+pid_file="${client_log_dir}/pids_${batch_time}.txt"
+> "$pid_file"
+task_file="${client_log_dir}/tasks_${batch_time}.txt"
+> "$task_file"
 
 for i in "${!task_names[@]}"; do
     task_name="${task_names[$i]}"

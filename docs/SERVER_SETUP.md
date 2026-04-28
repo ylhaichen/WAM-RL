@@ -175,6 +175,28 @@ qsub -v TASK_NAMES="adjust_bottle place_mouse_pad stack_blocks_two click_bell",T
   jobs/myriad/11_eval_pilot_4gpu.sh
 ```
 
+For a broader baseline sweep used to select medium/hard tasks:
+
+```bash
+qsub -v TEST_NUM=10 jobs/myriad/12_eval_baseline_sweep_4gpu.sh
+```
+
+This job runs tasks in four-task batches on four GPUs and writes outputs under
+`$WAM_ROOT/results_baseline_sweep/$JOB_ID`. For a quick partial sweep, limit the
+number of batches:
+
+```bash
+qsub -v TEST_NUM=5,MAX_BATCHES=2 jobs/myriad/12_eval_baseline_sweep_4gpu.sh
+```
+
+Summarize any RoboTwin result root:
+
+```bash
+python tools/summarize_robotwin_results.py \
+  "$HOME/Scratch/wam-rl/results_baseline_sweep/JOB_ID" \
+  --csv "$HOME/Scratch/wam-rl/results_baseline_sweep/JOB_ID/summary.csv"
+```
+
 ## 4. Interactive one-GPU debug session
 
 Use interactive sessions only for short debugging because they can wait in the
