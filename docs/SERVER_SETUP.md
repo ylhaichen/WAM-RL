@@ -197,6 +197,19 @@ python tools/summarize_robotwin_results.py \
   --csv "$HOME/Scratch/wam-rl/results_baseline_sweep/JOB_ID/summary.csv"
 ```
 
+For formal evaluation on the selected task set:
+
+```bash
+qsub -v \
+  EVAL_NAME=baseline_selected,\
+TASK_NAMES="task_a task_b task_c task_d",\
+TEST_NUM=50 \
+  jobs/myriad/13_eval_selected_tasks_4gpu.sh
+```
+
+Use the same `TASK_NAMES`, `TEST_NUM`, and `SEED` when comparing a later method
+checkpoint against the baseline.
+
 ## 4. Interactive one-GPU debug session
 
 Use interactive sessions only for short debugging because they can wait in the
