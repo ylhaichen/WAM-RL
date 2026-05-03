@@ -42,7 +42,9 @@ from utils import (
     sample_timestep_id,
     data_seq_to_patch,
     warmup_constant_lambda,
-    FlowMatchScheduler
+    FlowMatchScheduler,
+    configure_trainable_parameters,
+    format_trainable_summary,
 )
 
 from dataset import MultiLatentLeRobotDataset
@@ -88,6 +90,10 @@ class Trainer:
             torch_dtype=torch.float32,
             torch_device='cpu',
         )
+        self.transformer.requires_grad_(True)
+        trainable_summary = configure_trainable_parameters(self.transformer, config)
+        if config.rank == 0:
+            logger.info("Trainable parameter policy:\n%s", format_trainable_summary(trainable_summary))
 
         logger.info("Setting up activation checkpointing ...")
         apply_ac(self.transformer)
@@ -102,7 +108,6 @@ class Trainer:
             eval_mode=False,
         )
         self.transformer.train()
-        self.transformer.requires_grad_(True)
 
         # Optimizer
         self.optimizer = torch.optim.AdamW(

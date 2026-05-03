@@ -10,6 +10,9 @@ ENV_TO_CONFIG = {
     "WAN_VA_EMPTY_EMB_PATH": "empty_emb_path",
     "WAN_VA_SAVE_ROOT": "save_root",
     "WAN_VA_ENABLE_WANDB": "enable_wandb",
+    "WAN_VA_TRAINABLE_MODE": "trainable_mode",
+    "WAN_VA_TRAINABLE_PATTERNS": "trainable_param_patterns",
+    "WAN_VA_FROZEN_PATTERNS": "frozen_param_patterns",
 }
 
 

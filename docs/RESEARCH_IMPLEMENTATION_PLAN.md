@@ -92,6 +92,15 @@ Initial target:
 This phase should answer whether parameter-efficient updates are viable on
 4xA100 40GB before adding RL instability.
 
+Implementation scaffold now exists:
+
+- `robotwin_peft_train` config uses `trainable_mode=action_heads`.
+- `WAN_VA_TRAINABLE_MODE` can select `full`, `action_heads`, `patterns`, or
+  `frozen`.
+- `jobs/myriad/21_train_peft_tiny_4gpu.sh` runs a short 4-GPU PEFT wiring test.
+- `tools/collect_robotwin_rollouts.py` converts RoboTwin rollout JSON records
+  into a flat reward dataset for later offline/grouped RL experiments.
+
 ## Phase 4: Outcome-Based Post-Training
 
 Use the selected medium/hard tasks to collect grouped rollouts from the current

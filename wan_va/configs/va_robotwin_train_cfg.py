@@ -25,3 +25,10 @@ va_robotwin_train_cfg.warmup_steps = 10
 va_robotwin_train_cfg.batch_size = 1 
 va_robotwin_train_cfg.gradient_accumulation_steps = 1
 va_robotwin_train_cfg.num_steps = 50000 
+
+# Parameter-efficient adaptation scaffold. The default keeps original full
+# fine-tuning behavior; use robotwin_peft_train or WAN_VA_TRAINABLE_MODE to
+# select a smaller update surface.
+va_robotwin_train_cfg.trainable_mode = 'full'
+va_robotwin_train_cfg.trainable_param_patterns = []
+va_robotwin_train_cfg.frozen_param_patterns = []
