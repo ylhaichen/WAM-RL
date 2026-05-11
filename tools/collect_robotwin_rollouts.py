@@ -14,15 +14,32 @@ from typing import Iterable
 @dataclass
 class RolloutRecord:
     result_root: str
+    run_id: str
+    policy_checkpoint: str
+    reference_checkpoint: str
     task: str
     seed: int
+    env_seed: int
     episode_index: int
+    group_id: str
+    sample_idx: int | None
+    group_size: int | None
+    sampling_seed: int | None
     success: bool
     reward: float
     prompt: str
     actions_path: str
+    initial_obs_path: str
     visualization_path: str
     record_path: str
+    server_action_paths: list[str]
+    server_latent_paths: list[str]
+    strict_grpo_ready: bool
+    strict_grpo_scope: str
+    strict_grpo_artifact_paths: list[str]
+    video_guidance_scale: float | None = None
+    action_guidance_scale: float | None = None
+    action_num_inference_steps: int | None = None
     action_count: int | None = None
     obs_count: int | None = None
     take_action_cnt: int | None = None
@@ -55,15 +72,32 @@ def iter_rollout_records(root: Path, tasks: set[str] | None = None) -> Iterable[
             continue
         yield RolloutRecord(
             result_root=str(root),
+            run_id=str(data.get("run_id", "")),
+            policy_checkpoint=str(data.get("policy_checkpoint", "")),
+            reference_checkpoint=str(data.get("reference_checkpoint", "")),
             task=task,
             seed=int(data["seed"]),
+            env_seed=int(data.get("env_seed", data["seed"])),
             episode_index=int(data["episode_index"]),
+            group_id=str(data.get("group_id", "")),
+            sample_idx=_optional_int(data.get("sample_idx")),
+            group_size=_optional_int(data.get("group_size")),
+            sampling_seed=_optional_int(data.get("sampling_seed")),
             success=bool(data["success"]),
             reward=float(data.get("reward", 1.0 if data["success"] else 0.0)),
             prompt=str(data.get("prompt", "")),
             actions_path=str(data.get("actions_path", "")),
+            initial_obs_path=str(data.get("initial_obs_path", "")),
             visualization_path=str(data.get("visualization_path", "")),
             record_path=str(path),
+            server_action_paths=_string_list(data.get("server_action_paths")),
+            server_latent_paths=_string_list(data.get("server_latent_paths")),
+            strict_grpo_ready=bool(data.get("strict_grpo_ready", False)),
+            strict_grpo_scope=str(data.get("strict_grpo_scope", "")),
+            strict_grpo_artifact_paths=_string_list(data.get("strict_grpo_artifact_paths")),
+            video_guidance_scale=_optional_float(data.get("video_guidance_scale")),
+            action_guidance_scale=_optional_float(data.get("action_guidance_scale")),
+            action_num_inference_steps=_optional_int(data.get("action_num_inference_steps")),
             action_count=_optional_int(data.get("action_count")),
             obs_count=_optional_int(data.get("obs_count")),
             take_action_cnt=_optional_int(data.get("take_action_cnt")),
@@ -75,6 +109,20 @@ def _optional_int(value) -> int | None:
     if value is None:
         return None
     return int(value)
+
+
+def _optional_float(value) -> float | None:
+    if value is None:
+        return None
+    return float(value)
+
+
+def _string_list(value) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [str(item) for item in value]
+    return [str(value)]
 
 
 def summarize(records: list[RolloutRecord]) -> str:

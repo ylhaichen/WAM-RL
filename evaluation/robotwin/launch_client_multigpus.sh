@@ -63,6 +63,18 @@ for i in "${!task_names[@]}"; do
 
     echo -e "\033[33m[Task $i] Task: ${task_name}, GPU: ${gpu_id}, PORT: ${port}, Log: ${log_file}\033[0m"
 
+    extra_args=()
+    [ -n "${RUN_ID:-}" ] && extra_args+=(--run_id "$RUN_ID")
+    [ -n "${POLICY_CHECKPOINT:-}" ] && extra_args+=(--policy_checkpoint "$POLICY_CHECKPOINT")
+    [ -n "${REFERENCE_CHECKPOINT:-}" ] && extra_args+=(--reference_checkpoint "$REFERENCE_CHECKPOINT")
+    [ -n "${GROUP_ID:-}" ] && extra_args+=(--group_id "$GROUP_ID")
+    [ -n "${GROUP_INDEX:-}" ] && extra_args+=(--group_index "$GROUP_INDEX")
+    [ -n "${SAMPLE_IDX:-}" ] && extra_args+=(--sample_idx "$SAMPLE_IDX")
+    [ -n "${GROUP_SIZE:-}" ] && extra_args+=(--group_size "$GROUP_SIZE")
+    [ -n "${SAMPLING_SEED:-}" ] && extra_args+=(--sampling_seed "$SAMPLING_SEED")
+    [ -n "${PROMPT_INDEX:-}" ] && extra_args+=(--prompt_index "$PROMPT_INDEX")
+    [ -n "${ACTION_NUM_INFERENCE_STEPS:-}" ] && extra_args+=(--action_num_inference_steps "$ACTION_NUM_INFERENCE_STEPS")
+
     PYTHONWARNINGS=ignore::UserWarning \
     XLA_PYTHON_CLIENT_MEM_FRACTION=0.9 python -m evaluation.robotwin.eval_polict_client_openpi --config policy/$policy_name/deploy_policy.yml \
         --overrides \
@@ -78,7 +90,8 @@ for i in "${!task_names[@]}"; do
         --action_guidance_scale 1 \
         --test_num ${test_num} \
         --port ${port} \
-        --rollout_log_dir ${rollout_log_dir} > "$log_file" 2>&1 &
+        --rollout_log_dir ${rollout_log_dir} \
+        "${extra_args[@]}" > "$log_file" 2>&1 &
 
     pid=$!
     echo "${pid}" | tee -a "$pid_file"

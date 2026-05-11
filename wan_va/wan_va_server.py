@@ -1,5 +1,6 @@
 # Copyright 2024-2025 The Robbyant Team Authors. All rights reserved.
 import argparse
+import math
 import os
 import sys
 import time
@@ -59,6 +60,8 @@ class VA_Server:
             extra_one_step=True)
         self.scheduler.set_timesteps(1000, training=True)
         self.action_scheduler.set_timesteps(1000, training=True)
+        self.sampling_generator = None
+        self.sampling_seed = None
 
         self.vae = load_vae(
             os.path.join(job_config.wan22_pretrained_model_name_or_path,
@@ -375,8 +378,14 @@ class VA_Server:
         video_latent = torch.cat(mu_norm.split(1, dim=0), dim=-1)
         return video_latent.to(self.device)
 
-    def _reset(self, prompt=None):
+    def _reset(self, prompt=None, sampling_seed=None):
         logger.info('Reset.')
+        self.sampling_seed = None if sampling_seed is None else int(sampling_seed)
+        if self.sampling_seed is None:
+            self.sampling_generator = None
+        else:
+            self.sampling_generator = torch.Generator(device=self.device)
+            self.sampling_generator.manual_seed(self.sampling_seed)
         self.use_cfg = (self.job_config.guidance_scale > 1) or (self.job_config.action_guidance_scale > 1)
         #### Reset all parameters
         self.frame_st_id = 0
@@ -441,20 +450,25 @@ class VA_Server:
         os.makedirs(self.exp_save_root, exist_ok=True)
         torch.cuda.empty_cache()
 
+    def _randn(self, *size, **kwargs):
+        if self.sampling_generator is not None:
+            kwargs["generator"] = self.sampling_generator
+        return torch.randn(*size, **kwargs)
+
     def _infer(self, obs, frame_st_id=0):
         frame_chunk_size = self.job_config.frame_chunk_size
         if frame_st_id == 0:
             init_latent = self._encode_obs(obs)
             self.init_latent = init_latent
 
-        latents = torch.randn(1,
+        latents = self._randn(1,
                               48,
                               frame_chunk_size,
                               self.latent_height,
                               self.latent_width,
                               device=self.device,
                               dtype=self.dtype)
-        actions = torch.randn(1,
+        actions = self._randn(1,
                               self.job_config.action_dim,
                               frame_chunk_size,
                               self.action_per_frame,
@@ -522,6 +536,7 @@ class VA_Server:
 
                 latents[:, :, 0:1] = latent_cond if frame_st_id == 0 else latents[:, :, 0:1]
 
+            strict_grpo_artifact = None
             for i, t in enumerate(tqdm(action_timesteps)):
                 last_step = i == len(action_timesteps) - 1
                 action_cond = torch.zeros(
@@ -554,10 +569,52 @@ class VA_Server:
                         action_noise_pred = action_noise_pred[1:] + self.job_config.action_guidance_scale * (action_noise_pred[:1] - action_noise_pred[1:])
                     else:
                         action_noise_pred = action_noise_pred[:1]
-                    actions = self.action_scheduler.step(action_noise_pred,
-                                                         t,
-                                                         actions,
-                                                         return_dict=False)
+                    transition_mean = self.action_scheduler.step(action_noise_pred,
+                                                                 t,
+                                                                 actions,
+                                                                 return_dict=False)
+                    if i == 0 and bool(getattr(self.job_config, "strict_grpo_capture", False)):
+                        transition_std = float(getattr(self.job_config, "strict_grpo_transition_std", 0.01))
+                        transition_std = max(transition_std, 1e-8)
+                        transition_noise = self._randn(
+                            *transition_mean.shape,
+                            device=transition_mean.device,
+                            dtype=transition_mean.dtype,
+                        )
+                        action_xt = actions
+                        actions = transition_mean + transition_noise * transition_std
+                        log_prob_mask = torch.ones_like(actions, dtype=torch.bool)
+                        if frame_st_id == 0:
+                            log_prob_mask[:, :, 0:1] = False
+                            actions[:, :, 0:1] = action_cond
+                            transition_mean = transition_mean.clone()
+                            transition_mean[:, :, 0:1] = action_cond
+                        log_prob = (
+                            -0.5 * transition_noise.float().pow(2)
+                            - math.log(transition_std)
+                            - 0.5 * math.log(2 * math.pi)
+                        )
+                        log_prob = log_prob.masked_fill(~log_prob_mask, 0)
+                        reduce_dims = tuple(range(1, log_prob.ndim))
+                        log_prob_count = log_prob_mask.sum(dim=reduce_dims).clamp_min(1)
+                        old_logprob_sum = log_prob.sum(dim=reduce_dims)
+                        strict_grpo_artifact = {
+                            "schema_version": 1,
+                            "scope": "first_action_denoising_step",
+                            "sampling_seed": self.sampling_seed,
+                            "frame_st_id": int(frame_st_id),
+                            "timestep": t.detach().cpu(),
+                            "action_xt": action_xt.detach().cpu(),
+                            "action_xt_next": actions.detach().cpu(),
+                            "transition_mean": transition_mean.detach().cpu(),
+                            "transition_std": torch.tensor(transition_std),
+                            "old_logprob_sum": old_logprob_sum.detach().cpu(),
+                            "old_logprob_mean": (old_logprob_sum / log_prob_count).detach().cpu(),
+                            "old_logprob_count": log_prob_count.detach().cpu(),
+                            "logprob_mask": log_prob_mask.detach().cpu(),
+                        }
+                    else:
+                        actions = transition_mean
 
                 actions[:, :, 0:1] = action_cond if frame_st_id == 0 else actions[:, :, 0:1]
 
@@ -565,14 +622,19 @@ class VA_Server:
 
         latent_path = os.path.join(self.exp_save_root, f'latents_{frame_st_id}.pt')
         action_path = os.path.join(self.exp_save_root, f'actions_{frame_st_id}.pt')
+        strict_grpo_path = None
         save_async(latents, latent_path)
         save_async(actions, action_path)
+        if strict_grpo_artifact is not None:
+            strict_grpo_path = os.path.join(self.exp_save_root, f'strict_grpo_{frame_st_id}.pt')
+            save_async(strict_grpo_artifact, strict_grpo_path)
 
         actions = self.postprocess_action(actions)
         torch.cuda.empty_cache()
         return actions, latents, {
             "latent_path": latent_path,
             "action_path": action_path,
+            "strict_grpo_path": strict_grpo_path,
             "server_exp_save_root": self.exp_save_root,
         }
 
@@ -618,7 +680,7 @@ class VA_Server:
 
         if reset:
             logger.info(f"******************* Reset server ******************")
-            self._reset(prompt=prompt)
+            self._reset(prompt=prompt, sampling_seed=obs.get("sampling_seed"))
             return dict()
         elif compute_kv_cache:
             logger.info(

@@ -1,23 +1,14 @@
-torch==2.9.0
-torchvision==0.24.0
-torchaudio==2.9.0
-diffusers==0.36.0
-transformers==4.55.2
-accelerate
-einops
-easydict
-numpy==1.26.4
-tqdm
-imageio[ffmpeg]
-websockets
-msgpack
-opencv-python
-matplotlib
-ftfy
-safetensors
-Pillow
+# Portable default requirements for WAM-RL.
+#
+# Install the CUDA-specific PyTorch wheel first, then install this file:
+#
+#   python -m pip install \
+#     torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 \
+#     --index-url https://download.pytorch.org/whl/cu124
+#   python -m pip install -r requirements.txt
+#
+# RoboTwin simulator packages are intentionally split into
+# requirements-robotwin.txt because CuRobo/PyTorch3D need controlled source
+# builds.
 
-# Post-training
-lerobot==0.3.3
-scipy
-wandb
+-r requirements-cu124.txt

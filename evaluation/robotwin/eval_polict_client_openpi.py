@@ -48,6 +48,7 @@ import importlib
 import argparse
 import pdb
 from evaluation.robotwin.geometry import euler2quat
+from evaluation.robotwin.rollout_logging import build_group_id, build_rollout_metadata
 import numpy as np
 
 from description.utils.generate_episode_instructions import *
@@ -104,7 +105,20 @@ def save_rollout_record(
     take_action_cnt,
     step_lim,
     video_path,
-    server_debug_roots,
+    initial_obs,
+    server_action_paths,
+    server_latent_paths,
+    strict_grpo_artifact_paths,
+    run_id=None,
+    policy_checkpoint=None,
+    reference_checkpoint=None,
+    group_id=None,
+    sample_idx=None,
+    group_size=None,
+    sampling_seed=None,
+    video_guidance_scale=None,
+    action_guidance_scale=None,
+    action_num_inference_steps=None,
 ):
     if not log_dir:
         return
@@ -112,28 +126,42 @@ def save_rollout_record(
     out_dir = Path(log_dir) / task_name
     out_dir.mkdir(parents=True, exist_ok=True)
     stem = f"episode_{episode_index:06d}_seed_{seed}"
+    if sample_idx is not None:
+        stem = f"{stem}_sample_{int(sample_idx):03d}"
     action_path = out_dir / f"{stem}_actions.npy"
     actions = np.asarray(action_history, dtype=np.float32)
     np.save(action_path, actions)
+    initial_obs_path = out_dir / f"{stem}_initial_obs.npy"
+    np.save(initial_obs_path, initial_obs, allow_pickle=True)
 
-    write_json(
-        {
-            "task_name": task_name,
-            "episode_index": int(episode_index),
-            "seed": int(seed),
-            "prompt": prompt,
-            "success": bool(success),
-            "reward": 1.0 if success else 0.0,
-            "obs_count": int(obs_count),
-            "action_count": int(len(action_history)),
-            "take_action_cnt": int(take_action_cnt),
-            "step_lim": int(step_lim),
-            "actions_path": str(action_path),
-            "visualization_path": str(video_path),
-            "server_debug_roots": sorted(set(server_debug_roots)),
-        },
-        out_dir / f"{stem}.json",
+    metadata = build_rollout_metadata(
+        task_name=task_name,
+        episode_index=episode_index,
+        env_seed=seed,
+        prompt=prompt,
+        success=success,
+        action_count=len(action_history),
+        obs_count=obs_count,
+        take_action_cnt=take_action_cnt,
+        step_lim=step_lim,
+        executed_actions_path=action_path,
+        visualization_path=video_path,
+        initial_obs_path=initial_obs_path,
+        run_id=run_id,
+        policy_checkpoint=policy_checkpoint,
+        reference_checkpoint=reference_checkpoint,
+        group_id=group_id,
+        sample_idx=sample_idx,
+        group_size=group_size,
+        sampling_seed=sampling_seed,
+        video_guidance_scale=video_guidance_scale,
+        action_guidance_scale=action_guidance_scale,
+        action_num_inference_steps=action_num_inference_steps,
+        server_action_paths=sorted(set(server_action_paths)),
+        server_latent_paths=sorted(set(server_latent_paths)),
+        strict_grpo_artifact_paths=sorted(set(strict_grpo_artifact_paths)),
     )
+    write_json(metadata, out_dir / f"{stem}.json")
 
 def add_title_bar(img, text, font_scale=0.8, thickness=2):
     """Add a black title bar with text above the image"""
@@ -583,7 +611,12 @@ def eval_policy(task_name,
         TASK_ENV.setup_demo(now_ep_num=now_id, seed=now_seed, is_test=True, **args)
         episode_info_list = [episode_info["info"]]
         results = generate_episode_descriptions(args["task_name"], episode_info_list, test_num)
-        instruction = np.random.choice(results[0][instruction_type])
+        prompt_index = args.get("prompt_index")
+        if prompt_index is None:
+            instruction = np.random.choice(results[0][instruction_type])
+        else:
+            candidates = results[0][instruction_type]
+            instruction = candidates[int(prompt_index) % len(candidates)]
         TASK_ENV.set_instruction(instruction=instruction)  # set language instruction
 
         if TASK_ENV.eval_video_path is not None:
@@ -618,7 +651,12 @@ def eval_policy(task_name,
         succ = False
 
         prompt = TASK_ENV.get_instruction()
-        ret = model.infer(dict(reset = True, prompt=prompt, save_visualization=save_visualization))
+        ret = model.infer(dict(
+            reset=True,
+            prompt=prompt,
+            save_visualization=save_visualization,
+            sampling_seed=args.get("sampling_seed"),
+        ))
         
         first = True
         full_obs_list = []
@@ -634,7 +672,9 @@ def eval_policy(task_name,
         initial_formatted_obs = format_obs(initial_obs, prompt)
         full_obs_list.append(initial_formatted_obs)
         first_obs = None
-        server_debug_roots = []
+        server_action_paths = []
+        server_latent_paths = []
+        strict_grpo_artifact_paths = []
         while TASK_ENV.take_action_cnt<TASK_ENV.step_lim:
             if first:
                 observation = TASK_ENV.get_obs()
@@ -642,8 +682,12 @@ def eval_policy(task_name,
 
             ret = model.infer(dict(obs=first_obs, prompt=prompt, save_visualization=save_visualization, video_guidance_scale=video_guidance_scale, action_guidance_scale=action_guidance_scale)) #(TASK_ENV, model, observation)
             action = ret['action']
-            if ret.get("server_exp_save_root"):
-                server_debug_roots.append(ret["server_exp_save_root"])
+            if ret.get("action_path"):
+                server_action_paths.append(ret["action_path"])
+            if ret.get("latent_path"):
+                server_latent_paths.append(ret["latent_path"])
+            if ret.get("strict_grpo_path"):
+                strict_grpo_artifact_paths.append(ret["strict_grpo_path"])
             if 'video' in ret:
                 imagined_video = ret['video']
                 gen_video_list.append(imagined_video)
@@ -696,7 +740,12 @@ def eval_policy(task_name,
 
         vis_dir = Path(args['save_root']) / f'stseed-{st_seed}' / 'visualization' / task_name
         vis_dir.mkdir(parents=True, exist_ok=True)
-        video_name = f"{TASK_ENV.test_num}_{prompt.replace(' ', '_')}_{succ}.mp4"
+        rollout_suffix = ""
+        if args.get("group_index") is not None or args.get("sample_idx") is not None:
+            group_part = "na" if args.get("group_index") is None else f"{int(args['group_index']):06d}"
+            sample_part = "na" if args.get("sample_idx") is None else f"{int(args['sample_idx']):03d}"
+            rollout_suffix = f"_group_{group_part}_sample_{sample_part}"
+        video_name = f"{TASK_ENV.test_num}_{prompt.replace(' ', '_')}_{succ}{rollout_suffix}.mp4"
         out_img_file = vis_dir / video_name
         save_comparison_video(
             real_obs_list=full_obs_list,
@@ -717,7 +766,25 @@ def eval_policy(task_name,
             take_action_cnt=TASK_ENV.take_action_cnt,
             step_lim=TASK_ENV.step_lim,
             video_path=out_img_file,
-            server_debug_roots=server_debug_roots,
+            initial_obs=initial_formatted_obs,
+            server_action_paths=server_action_paths,
+            server_latent_paths=server_latent_paths,
+            strict_grpo_artifact_paths=strict_grpo_artifact_paths,
+            run_id=args.get("run_id"),
+            policy_checkpoint=args.get("policy_checkpoint"),
+            reference_checkpoint=args.get("reference_checkpoint"),
+            group_id=args.get("group_id") or build_group_id(
+                task_name=task_name,
+                env_seed=now_seed,
+                prompt=prompt,
+                group_index=int(args.get("group_index", TASK_ENV.test_num) or 0),
+            ),
+            sample_idx=args.get("sample_idx"),
+            group_size=args.get("group_size"),
+            sampling_seed=args.get("sampling_seed"),
+            video_guidance_scale=video_guidance_scale,
+            action_guidance_scale=action_guidance_scale,
+            action_num_inference_steps=args.get("action_num_inference_steps"),
         )
         if TASK_ENV.eval_video_path is not None:
             TASK_ENV._del_eval_video_ffmpeg()
@@ -765,6 +832,16 @@ def parse_args_and_config():
     parser.add_argument("--test_num", type=int, default=100)
     parser.add_argument("--robotwin_root", type=str, default=None)
     parser.add_argument("--rollout_log_dir", type=str, default=None)
+    parser.add_argument("--run_id", type=str, default=None)
+    parser.add_argument("--policy_checkpoint", type=str, default=None)
+    parser.add_argument("--reference_checkpoint", type=str, default=None)
+    parser.add_argument("--group_id", type=str, default=None)
+    parser.add_argument("--group_index", type=int, default=None)
+    parser.add_argument("--sample_idx", type=int, default=None)
+    parser.add_argument("--group_size", type=int, default=None)
+    parser.add_argument("--sampling_seed", type=int, default=None)
+    parser.add_argument("--prompt_index", type=int, default=None)
+    parser.add_argument("--action_num_inference_steps", type=int, default=None)
     args = parser.parse_args()
 
     with open(args.config, "r", encoding="utf-8") as f:
@@ -788,6 +865,21 @@ def parse_args_and_config():
         config.update(overrides)
     if args.rollout_log_dir is not None:
         config["rollout_log_dir"] = args.rollout_log_dir
+    for key in (
+        "run_id",
+        "policy_checkpoint",
+        "reference_checkpoint",
+        "group_id",
+        "group_index",
+        "sample_idx",
+        "group_size",
+        "sampling_seed",
+        "prompt_index",
+        "action_num_inference_steps",
+    ):
+        value = getattr(args, key)
+        if value is not None:
+            config[key] = value
 
     return config
 

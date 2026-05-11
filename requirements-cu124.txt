@@ -1,0 +1,39 @@
+# WAM-RL base Python dependencies for Ubuntu 22.04 + CUDA 12.4 images.
+#
+# Install PyTorch separately before this file so the CUDA wheel index is
+# explicit and reproducible:
+#
+#   python -m pip install \
+#     torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 \
+#     --index-url https://download.pytorch.org/whl/cu124
+#   python -m pip install -r requirements-cu124.txt
+#
+# The repo's Myriad Apptainer path may use newer PyTorch builds. This file is
+# for a portable company-built CUDA 12.4 image with the provider-reported
+# driver/GPU stack.
+
+diffusers==0.36.0
+transformers==4.55.2
+tokenizers>=0.21.4
+accelerate
+einops
+easydict
+numpy>=1.26.4,<2
+tqdm
+imageio[ffmpeg]
+websockets
+msgpack
+opencv-python
+matplotlib
+ftfy
+safetensors
+Pillow
+scipy
+wandb
+huggingface-hub[cli]==0.36.2
+ninja
+packaging
+
+# Post-training dataset loader. Install without dependencies if it tries to
+# downgrade core packages in the company mirror.
+lerobot==0.3.3
