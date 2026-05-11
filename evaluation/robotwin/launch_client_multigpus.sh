@@ -77,6 +77,13 @@ for i in "${!task_names[@]}"; do
 
     PYTHONWARNINGS=ignore::UserWarning \
     XLA_PYTHON_CLIENT_MEM_FRACTION=0.9 python -m evaluation.robotwin.eval_polict_client_openpi --config policy/$policy_name/deploy_policy.yml \
+        --port ${port} \
+        --save_root ${save_root} \
+        --video_guidance_scale 5 \
+        --action_guidance_scale 1 \
+        --test_num ${test_num} \
+        --rollout_log_dir ${rollout_log_dir} \
+        "${extra_args[@]}" \
         --overrides \
         --task_name ${task_name} \
         --task_config ${task_config} \
@@ -84,14 +91,7 @@ for i in "${!task_names[@]}"; do
         --model_name ${model_name} \
         --ckpt_setting ${model_name} \
         --seed ${seed} \
-        --policy_name ${policy_name} \
-        --save_root ${save_root} \
-        --video_guidance_scale 5 \
-        --action_guidance_scale 1 \
-        --test_num ${test_num} \
-        --port ${port} \
-        --rollout_log_dir ${rollout_log_dir} \
-        "${extra_args[@]}" > "$log_file" 2>&1 &
+        --policy_name ${policy_name} > "$log_file" 2>&1 &
 
     pid=$!
     echo "${pid}" | tee -a "$pid_file"

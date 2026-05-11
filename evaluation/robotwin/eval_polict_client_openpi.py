@@ -64,6 +64,21 @@ from pathlib import Path
 from evaluation.robotwin.websocket_client_policy import WebsocketClientPolicy
 from evaluation.robotwin.test_render import Sapien_TEST
 
+ROLLOUT_CONFIG_KEYS = (
+    "rollout_log_dir",
+    "run_id",
+    "policy_checkpoint",
+    "reference_checkpoint",
+    "group_id",
+    "group_index",
+    "sample_idx",
+    "group_size",
+    "sampling_seed",
+    "prompt_index",
+    "action_num_inference_steps",
+)
+
+
 def get_ffmpeg_executable() -> str:
     ffmpeg = shutil.which("ffmpeg")
     if ffmpeg:
@@ -424,6 +439,9 @@ def main(usr_args):
     args["task_config"] = task_config
     args["ckpt_setting"] = ckpt_setting
     args["save_root"] = save_root
+    for key in ROLLOUT_CONFIG_KEYS:
+        if key in usr_args:
+            args[key] = usr_args[key]
 
     embodiment_type = args.get("embodiment")
     embodiment_config_path = os.path.join(CONFIGS_PATH, "_embodiment_config.yml")
@@ -866,16 +884,7 @@ def parse_args_and_config():
     if args.rollout_log_dir is not None:
         config["rollout_log_dir"] = args.rollout_log_dir
     for key in (
-        "run_id",
-        "policy_checkpoint",
-        "reference_checkpoint",
-        "group_id",
-        "group_index",
-        "sample_idx",
-        "group_size",
-        "sampling_seed",
-        "prompt_index",
-        "action_num_inference_steps",
+        *ROLLOUT_CONFIG_KEYS[1:],
     ):
         value = getattr(args, key)
         if value is not None:
