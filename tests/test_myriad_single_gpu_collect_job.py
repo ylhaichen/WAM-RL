@@ -23,3 +23,5 @@ def test_single_gpu_collect_job_has_safe_defaults():
     assert 'CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"' in text
     assert 'bash evaluation/robotwin/launch_client_multigpus.sh "${RESULTS_ROOT}" 0 "${seed}" 1' in text
     assert "tools/collect_robotwin_rollouts.py" in text
+    assert "tools/build_grpo_groups.py" in text
+    assert "--expected-group-size \"${GROUP_SIZE}\"" in text

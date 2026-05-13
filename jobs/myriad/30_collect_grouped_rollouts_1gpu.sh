@@ -286,6 +286,13 @@ done
     --out-jsonl "${RESULTS_ROOT}/groups/rollouts_flat.jsonl" \
     --out-csv "${RESULTS_ROOT}/groups/rollouts_flat.csv"
 
+"${PYTHON_BIN}" tools/build_grpo_groups.py \
+    "${RESULTS_ROOT}" \
+    --expected-group-size "${GROUP_SIZE}" \
+    --require-strict-artifacts \
+    --out-jsonl "${RESULTS_ROOT}/groups/grpo_groups.jsonl" \
+    --out-summary "${RESULTS_ROOT}/groups/grpo_summary.json"
+
 echo "Rollout JSON count:"
 find "${RESULTS_ROOT}/rollouts" -type f -name "*.json" | wc -l
 echo "Strict GRPO artifact count:"
