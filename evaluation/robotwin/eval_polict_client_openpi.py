@@ -78,6 +78,14 @@ ROLLOUT_CONFIG_KEYS = (
     "action_num_inference_steps",
 )
 
+CLI_CONFIG_KEYS = (
+    "save_root",
+    "video_guidance_scale",
+    "action_guidance_scale",
+    "test_num",
+    "robotwin_root",
+)
+
 
 def get_ffmpeg_executable() -> str:
     ffmpeg = shutil.which("ffmpeg")
@@ -881,6 +889,10 @@ def parse_args_and_config():
     if args.overrides:
         overrides = parse_override_pairs(args.overrides)
         config.update(overrides)
+    for key in CLI_CONFIG_KEYS:
+        value = getattr(args, key)
+        if value is not None:
+            config[key] = value
     if args.rollout_log_dir is not None:
         config["rollout_log_dir"] = args.rollout_log_dir
     for key in (
