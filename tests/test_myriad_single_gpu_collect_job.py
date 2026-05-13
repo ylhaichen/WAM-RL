@@ -8,6 +8,13 @@ def test_single_gpu_collect_job_has_safe_defaults():
     assert "#$" not in text
     assert "container_exec_gpu" not in text
     assert "qsub" not in text
+    assert "docker run" in text
+    assert 'DOCKER_IMAGE="${DOCKER_IMAGE:-pytorch/pytorch:2.9.0-cuda12.6-cudnn9-devel}"' in text
+    assert 'DOCKER_GPUS="${DOCKER_GPUS:-device=${CUDA_VISIBLE_DEVICES}}"' in text
+    assert "--gpus" in text
+    assert "--network host" in text
+    assert "--ipc host" in text
+    assert 'DOCKER_RUN_AS_USER="${DOCKER_RUN_AS_USER:-1}"' in text
     assert "PYTHON_BIN=" in text
     assert 'NUM_GPUS="${NUM_GPUS:-1}"' in text
     assert 'GROUP_SIZE="${GROUP_SIZE:-2}"' in text
