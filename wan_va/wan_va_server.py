@@ -33,6 +33,7 @@ from modules.utils import (
 from utils import (
     FlowMatchScheduler,
     data_seq_to_patch,
+    flush_async_saves,
     get_mesh_id,
     init_logger,
     logger,
@@ -629,6 +630,7 @@ class VA_Server:
         if strict_grpo_artifact is not None:
             strict_grpo_path = os.path.join(self.exp_save_root, f'strict_grpo_{frame_st_id}.pt')
             save_async(strict_grpo_artifact, strict_grpo_path)
+        flush_async_saves()
 
         actions = self.postprocess_action(actions)
         torch.cuda.empty_cache()

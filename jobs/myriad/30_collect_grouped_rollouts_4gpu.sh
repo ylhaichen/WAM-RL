@@ -193,8 +193,17 @@ python tools/build_grpo_groups.py \
     "${RESULTS_ROOT}" \
     --expected-group-size "${GROUP_SIZE}" \
     --require-strict-artifacts \
+    --require-existing-artifacts \
+    --wait-for-artifacts-seconds 120 \
+    --fail-on-validation-errors \
     --out-jsonl "${RESULTS_ROOT}/groups/grpo_groups.jsonl" \
-    --out-summary "${RESULTS_ROOT}/groups/grpo_summary.json"
+    --out-summary "${RESULTS_ROOT}/groups/grpo_summary.json" \
+    --out-manifest "${RESULTS_ROOT}/groups/grpo_manifest.json"
+
+python tools/validate_grpo_dataset.py \
+    "${RESULTS_ROOT}/groups/grpo_groups.jsonl" \
+    --out-summary "${RESULTS_ROOT}/groups/grpo_dataset_validation.json" \
+    --fail-on-error
 
 echo "Rollout JSON count:"
 find "${RESULTS_ROOT}/rollouts" -type f -name "*.json" | wc -l

@@ -5,8 +5,9 @@ import numpy as np
 import torch
 
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+_save_futures = []
 
-__all__ = ['get_mesh_id', 'save_async', 'data_seq_to_patch']
+__all__ = ['get_mesh_id', 'save_async', 'flush_async_saves', 'data_seq_to_patch']
 
 
 def data_seq_to_patch(
@@ -67,12 +68,19 @@ def save_async(obj, file_path):
                 k: v.cpu() if torch.is_tensor(v) else v
                 for k, v in obj.items()
             }
-        executor.submit(torch.save, obj, file_path)
+        _save_futures.append(executor.submit(torch.save, obj, file_path))
     elif isinstance(obj, np.ndarray):
         obj_copy = obj.copy()
-        executor.submit(np.save, file_path, obj_copy)
+        _save_futures.append(executor.submit(np.save, file_path, obj_copy))
     else:
-        executor.submit(torch.save, obj, file_path)
+        _save_futures.append(executor.submit(torch.save, obj, file_path))
+
+
+def flush_async_saves():
+    """Block until all currently queued async saves have completed."""
+    while _save_futures:
+        future = _save_futures.pop(0)
+        future.result()
 
 def sample_timestep_id(
     batch_size: int = 1,
