@@ -6,6 +6,7 @@ def test_robotwin_client_propagates_required_cli_args_to_config():
 
     assert "CLI_CONFIG_KEYS" in source
     for key in (
+        "port",
         "save_root",
         "video_guidance_scale",
         "action_guidance_scale",

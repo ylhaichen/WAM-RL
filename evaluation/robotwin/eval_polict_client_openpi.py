@@ -79,6 +79,7 @@ ROLLOUT_CONFIG_KEYS = (
 )
 
 CLI_CONFIG_KEYS = (
+    "port",
     "save_root",
     "video_guidance_scale",
     "action_guidance_scale",
