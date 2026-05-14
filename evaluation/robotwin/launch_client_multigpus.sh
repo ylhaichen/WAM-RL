@@ -80,6 +80,9 @@ for i in "${!task_names[@]}"; do
     [ -n "${SAMPLING_SEED:-}" ] && extra_args+=(--sampling_seed "$SAMPLING_SEED")
     [ -n "${PROMPT_INDEX:-}" ] && extra_args+=(--prompt_index "$PROMPT_INDEX")
     [ -n "${ACTION_NUM_INFERENCE_STEPS:-}" ] && extra_args+=(--action_num_inference_steps "$ACTION_NUM_INFERENCE_STEPS")
+    [ -n "${GROUP_SEED_SEARCH:-}" ] && extra_args+=(--group_seed_search "$GROUP_SEED_SEARCH")
+    [ -n "${GROUP_SEED_SEARCH_MAX_ATTEMPTS:-}" ] && extra_args+=(--group_seed_search_max_attempts "$GROUP_SEED_SEARCH_MAX_ATTEMPTS")
+    [ -n "${STABLE_SEED_CACHE_DIR:-}" ] && extra_args+=(--stable_seed_cache_dir "$STABLE_SEED_CACHE_DIR")
 
     PYTHONWARNINGS=ignore::UserWarning \
     XLA_PYTHON_CLIENT_MEM_FRACTION=0.9 python -m evaluation.robotwin.eval_polict_client_openpi --config policy/$policy_name/deploy_policy.yml \

@@ -76,6 +76,9 @@ ROLLOUT_CONFIG_KEYS = (
     "sampling_seed",
     "prompt_index",
     "action_num_inference_steps",
+    "group_seed_search",
+    "group_seed_search_max_attempts",
+    "stable_seed_cache_dir",
 )
 
 CLI_CONFIG_KEYS = (
@@ -115,6 +118,51 @@ def write_json(data: dict, fpath: Path) -> None:
     fpath.parent.mkdir(exist_ok=True, parents=True)
     with open(fpath, "w") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
+
+
+def _as_bool(value) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _group_seed_cache_path(args: dict, task_name: str) -> Path | None:
+    group_index = args.get("group_index")
+    if group_index is None:
+        return None
+    cache_root = args.get("stable_seed_cache_dir")
+    if cache_root is None:
+        rollout_log_dir = args.get("rollout_log_dir")
+        if not rollout_log_dir:
+            return None
+        cache_root = Path(rollout_log_dir).parent / "groups" / "stable_seeds"
+    return Path(cache_root) / f"{task_name}_group_{int(group_index):06d}.json"
+
+
+def _load_cached_group_env_seed(args: dict, task_name: str) -> int | None:
+    path = _group_seed_cache_path(args, task_name)
+    if path is None or not path.exists():
+        return None
+    with path.open("r", encoding="utf-8") as f:
+        data = json.load(f)
+    return int(data["env_seed"])
+
+
+def _write_cached_group_env_seed(args: dict, task_name: str, planned_seed: int, env_seed: int) -> None:
+    path = _group_seed_cache_path(args, task_name)
+    if path is None:
+        raise ValueError("stable_seed_cache_dir or rollout_log_dir is required for group_seed_search")
+    write_json(
+        {
+            "task_name": task_name,
+            "group_index": int(args["group_index"]),
+            "planned_seed": int(planned_seed),
+            "env_seed": int(env_seed),
+        },
+        path,
+    )
 
 
 def save_rollout_record(
@@ -596,8 +644,9 @@ def eval_policy(task_name,
     print(f"\033[34mPolicy Name: {args['policy_name']}\033[0m")
 
     grouped_rollout = args.get("group_index") is not None or args.get("sample_idx") is not None
+    group_seed_search = grouped_rollout and _as_bool(args.get("group_seed_search"))
+    group_seed_search_max_attempts = int(args.get("group_seed_search_max_attempts", 50) or 50)
     expert_check = True
-    skip_failed_expert_seed = not grouped_rollout
     TASK_ENV.suc = 0
     TASK_ENV.test_num = 0
 
@@ -607,6 +656,13 @@ def eval_policy(task_name,
 
 
     now_seed = st_seed
+    cached_group_env_seed = None
+    if group_seed_search:
+        cached_group_env_seed = _load_cached_group_env_seed(args, task_name)
+        if cached_group_env_seed is not None:
+            now_seed = cached_group_env_seed
+    allow_group_seed_search = group_seed_search and cached_group_env_seed is None
+    seed_search_attempts = 0
     clear_cache_freq = args["clear_cache_freq"]
 
     args["eval_mode"] = True
@@ -616,31 +672,52 @@ def eval_policy(task_name,
         args["render_freq"] = 0
 
         if expert_check:
+            seed_search_attempts += 1
             try:
                 TASK_ENV.setup_demo(now_ep_num=now_id, seed=now_seed, is_test=True, **args)
                 episode_info = TASK_ENV.play_once()
                 TASK_ENV.close_env()
             except UnStableError as e:
                 TASK_ENV.close_env()
-                if grouped_rollout:
+                if grouped_rollout and not allow_group_seed_search:
                     raise RuntimeError(f"grouped rollout seed {now_seed} is unstable") from e
+                if allow_group_seed_search and seed_search_attempts >= group_seed_search_max_attempts:
+                    raise RuntimeError(
+                        f"grouped rollout seed search exhausted {group_seed_search_max_attempts} attempts "
+                        f"from planned seed {st_seed}"
+                    ) from e
                 now_seed += 1
                 args["render_freq"] = render_freq
                 continue
             except Exception as e:
                 TASK_ENV.close_env()
-                if grouped_rollout:
+                if grouped_rollout and not allow_group_seed_search:
                     raise RuntimeError(f"grouped rollout seed {now_seed} failed during expert precheck") from e
+                if allow_group_seed_search and seed_search_attempts >= group_seed_search_max_attempts:
+                    raise RuntimeError(
+                        f"grouped rollout seed search exhausted {group_seed_search_max_attempts} attempts "
+                        f"from planned seed {st_seed}"
+                    ) from e
                 now_seed += 1
                 args["render_freq"] = render_freq
                 print(f"error occurs ! {e}")
                 traceback.print_exc()
                 continue
 
-        if (not skip_failed_expert_seed) or (TASK_ENV.plan_success and TASK_ENV.check_success()):
+        if (not expert_check) or (TASK_ENV.plan_success and TASK_ENV.check_success()):
+            if allow_group_seed_search:
+                _write_cached_group_env_seed(args, task_name, planned_seed=st_seed, env_seed=now_seed)
+                allow_group_seed_search = False
             succ_seed += 1
             suc_test_seed_list.append(now_seed)
         else:
+            if grouped_rollout and not allow_group_seed_search:
+                raise RuntimeError(f"grouped rollout seed {now_seed} did not pass expert precheck")
+            if allow_group_seed_search and seed_search_attempts >= group_seed_search_max_attempts:
+                raise RuntimeError(
+                    f"grouped rollout seed search exhausted {group_seed_search_max_attempts} attempts "
+                    f"from planned seed {st_seed}"
+                )
             now_seed += 1
             args["render_freq"] = render_freq
             continue
@@ -885,6 +962,9 @@ def parse_args_and_config():
     parser.add_argument("--sampling_seed", type=int, default=None)
     parser.add_argument("--prompt_index", type=int, default=None)
     parser.add_argument("--action_num_inference_steps", type=int, default=None)
+    parser.add_argument("--group_seed_search", type=str, default=None)
+    parser.add_argument("--group_seed_search_max_attempts", type=int, default=None)
+    parser.add_argument("--stable_seed_cache_dir", type=str, default=None)
     args = parser.parse_args()
 
     with open(args.config, "r", encoding="utf-8") as f:
