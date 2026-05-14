@@ -20,11 +20,14 @@ class RolloutRecord:
     task: str
     seed: int
     env_seed: int
+    planned_seed: int | None
     episode_index: int
     group_id: str
+    group_index: int | None
     sample_idx: int | None
     group_size: int | None
     sampling_seed: int | None
+    prompt_index: int | None
     success: bool
     reward: float
     prompt: str
@@ -78,11 +81,14 @@ def iter_rollout_records(root: Path, tasks: set[str] | None = None) -> Iterable[
             task=task,
             seed=int(data["seed"]),
             env_seed=int(data.get("env_seed", data["seed"])),
+            planned_seed=_optional_int(data.get("planned_seed")),
             episode_index=int(data["episode_index"]),
             group_id=str(data.get("group_id", "")),
+            group_index=_optional_int(data.get("group_index")),
             sample_idx=_optional_int(data.get("sample_idx")),
             group_size=_optional_int(data.get("group_size")),
             sampling_seed=_optional_int(data.get("sampling_seed")),
+            prompt_index=_optional_int(data.get("prompt_index")),
             success=bool(data["success"]),
             reward=float(data.get("reward", 1.0 if data["success"] else 0.0)),
             prompt=str(data.get("prompt", "")),

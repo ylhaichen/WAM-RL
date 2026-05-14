@@ -7,6 +7,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterable
 
+from .group_builder import canonicalize_legacy_group_id
+
 
 @dataclass(frozen=True)
 class ValidationIssue:
@@ -56,6 +58,7 @@ def validate_rollout_records(
     expected_group_size: int | None = None,
     require_strict_artifacts: bool = False,
     require_existing_artifacts: bool = False,
+    canonicalize_legacy_group_ids: bool = False,
 ) -> ValidationReport:
     items = list(records)
     issues: list[ValidationIssue] = []
@@ -69,6 +72,8 @@ def validate_rollout_records(
         if not group_id:
             issues.append(_issue("error", "missing_group_id", "rollout record is missing group_id", record))
             continue
+        if canonicalize_legacy_group_ids:
+            group_id = canonicalize_legacy_group_id(group_id)
         by_group[group_id].append(record)
 
         if sample_idx is None:
@@ -124,6 +129,17 @@ def validate_rollout_records(
                     severity="error",
                     code="inconsistent_group_size",
                     message=f"group has inconsistent group_size values: {sorted(group_sizes)}",
+                    group_id=group_id,
+                )
+            )
+
+        env_seeds = {_optional_int_attr(record, "env_seed") for record in group_items if _optional_int_attr(record, "env_seed") is not None}
+        if len(env_seeds) > 1:
+            issues.append(
+                ValidationIssue(
+                    severity="error",
+                    code="inconsistent_env_seed",
+                    message=f"group has inconsistent env_seed values: {sorted(env_seeds)}",
                     group_id=group_id,
                 )
             )

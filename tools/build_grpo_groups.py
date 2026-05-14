@@ -27,6 +27,7 @@ def build_groups_from_roots(
     *,
     expected_group_size: int | None = None,
     require_strict_artifacts: bool = False,
+    canonicalize_legacy_group_ids: bool = False,
     tasks: set[str] | None = None,
 ) -> GrpoGroupBuildResult:
     records = collect_records_from_roots(roots, tasks=tasks)
@@ -34,6 +35,7 @@ def build_groups_from_roots(
         records,
         expected_group_size=expected_group_size,
         require_strict_artifacts=require_strict_artifacts,
+        canonicalize_legacy_ids=canonicalize_legacy_group_ids,
     )
 
 
@@ -54,6 +56,7 @@ def write_group_outputs(
     expected_group_size: int | None = None,
     require_strict_artifacts: bool = False,
     require_existing_artifacts: bool = False,
+    canonicalize_legacy_group_ids: bool = False,
     records: list[object] | None = None,
 ) -> None:
     out_jsonl.parent.mkdir(parents=True, exist_ok=True)
@@ -75,6 +78,7 @@ def write_group_outputs(
             expected_group_size=expected_group_size,
             require_strict_artifacts=require_strict_artifacts,
             require_existing_artifacts=require_existing_artifacts,
+            canonicalize_legacy_group_ids=canonicalize_legacy_group_ids,
         )
         manifest = build_grpo_manifest(
             roots=roots,
@@ -121,6 +125,7 @@ def main() -> None:
     parser.add_argument("--expected-group-size", type=int, help="Drop groups that do not contain exactly this many samples.")
     parser.add_argument("--require-strict-artifacts", action="store_true", help="Drop groups missing strict GRPO tensor artifacts.")
     parser.add_argument("--require-existing-artifacts", action="store_true", help="Require strict GRPO artifact paths to exist on disk.")
+    parser.add_argument("--canonicalize-legacy-group-ids", action="store_true", help="Repair legacy prompt-hash group ids before grouping and validating rollout records.")
     parser.add_argument("--wait-for-artifacts-seconds", type=float, default=0.0, help="Poll for async strict GRPO artifact writes before validating.")
     parser.add_argument("--fail-on-validation-errors", action="store_true", help="Exit nonzero if rollout validation reports errors.")
     parser.add_argument("--tasks", nargs="*", help="Optional selected task names.")
@@ -143,6 +148,7 @@ def main() -> None:
         records,
         expected_group_size=args.expected_group_size,
         require_strict_artifacts=args.require_strict_artifacts,
+        canonicalize_legacy_ids=args.canonicalize_legacy_group_ids,
     )
     write_group_outputs(
         result,
@@ -153,6 +159,7 @@ def main() -> None:
         expected_group_size=args.expected_group_size,
         require_strict_artifacts=args.require_strict_artifacts,
         require_existing_artifacts=args.require_existing_artifacts,
+        canonicalize_legacy_group_ids=args.canonicalize_legacy_group_ids,
         records=records,
     )
 
@@ -162,6 +169,7 @@ def main() -> None:
         expected_group_size=args.expected_group_size,
         require_strict_artifacts=args.require_strict_artifacts,
         require_existing_artifacts=args.require_existing_artifacts,
+        canonicalize_legacy_group_ids=args.canonicalize_legacy_group_ids,
     )
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     print(json.dumps(validation.to_dict(), ensure_ascii=False, indent=2))

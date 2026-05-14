@@ -288,6 +288,7 @@ done
 
 "${PYTHON_BIN}" tools/build_grpo_groups.py \
     "${RESULTS_ROOT}" \
+    --canonicalize-legacy-group-ids \
     --expected-group-size "${GROUP_SIZE}" \
     --require-strict-artifacts \
     --require-existing-artifacts \

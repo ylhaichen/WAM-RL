@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from math import sqrt
 from typing import Iterable
 
 from .trajectory_schema import GrpoGroup, GrpoGroupBuildResult, GrpoSample, GrpoSummary
+
+_LEGACY_PROMPT_HASH_SUFFIX = re.compile(r"^(?P<prefix>.+_group\d{6})_[0-9a-f]{10}$")
 
 
 def build_grpo_groups(
@@ -14,6 +17,7 @@ def build_grpo_groups(
     *,
     expected_group_size: int | None = None,
     require_strict_artifacts: bool = False,
+    canonicalize_legacy_ids: bool = False,
     advantage_eps: float = 1e-6,
     advantage_clip: float = 2.0,
 ) -> GrpoGroupBuildResult:
@@ -22,6 +26,8 @@ def build_grpo_groups(
         group_id = str(getattr(record, "group_id", ""))
         if not group_id:
             continue
+        if canonicalize_legacy_ids:
+            group_id = canonicalize_legacy_group_id(group_id)
         by_group[group_id].append(record)
 
     groups: list[GrpoGroup] = []
@@ -88,6 +94,21 @@ def build_grpo_groups(
         skipped_missing_artifacts=skipped_missing_artifacts,
     )
     return GrpoGroupBuildResult(groups=tuple(groups), summary=summary)
+
+
+def canonicalize_legacy_group_id(group_id: str) -> str:
+    """Strip the legacy prompt-hash suffix from generated rollout group ids.
+
+    Early grouped rollout jobs generated ids from the rendered prompt text:
+    ``task_seed<env>_group<idx>_<sha1-prefix>``. Prompt rendering can differ
+    across samples, so those ids split one intended dynamic-sampling group into
+    many one-record groups. The canonicalizer only removes that exact suffix
+    shape and leaves all other ids untouched.
+    """
+    match = _LEGACY_PROMPT_HASH_SUFFIX.match(group_id)
+    if match is None:
+        return group_id
+    return match.group("prefix")
 
 
 def _sample_idx(record: object) -> int:

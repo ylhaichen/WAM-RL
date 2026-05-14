@@ -69,3 +69,61 @@ def test_validate_rollout_records_reports_duplicate_missing_and_incomplete_group
     assert "missing_sample_idx" in codes
     assert "missing_artifact_path" in codes
     assert "incomplete_group" in codes
+
+
+def test_validate_rollout_records_reports_inconsistent_env_seed():
+    report = validate_rollout_records(
+        [
+            _record("g0", 0, 0.0),
+            DummyRollout(
+                task="open_microwave",
+                group_id="g0",
+                sample_idx=1,
+                group_size=2,
+                reward=1.0,
+                success=True,
+                record_path="/tmp/g0_1.json",
+                strict_grpo_artifact_paths=["/tmp/a.pt"],
+                env_seed=10001,
+            ),
+        ],
+        expected_group_size=2,
+        require_strict_artifacts=False,
+    )
+
+    assert report.ok is False
+    assert "inconsistent_env_seed" in {issue.code for issue in report.issues}
+
+
+def test_validate_rollout_records_can_canonicalize_legacy_group_ids():
+    report = validate_rollout_records(
+        [
+            DummyRollout(
+                task="open_microwave",
+                group_id="open_microwave_seed10000_group000000_a000000000",
+                sample_idx=0,
+                group_size=2,
+                reward=0.0,
+                success=False,
+                record_path="/tmp/g0.json",
+                strict_grpo_artifact_paths=["/tmp/a.pt"],
+                env_seed=10000,
+            ),
+            DummyRollout(
+                task="open_microwave",
+                group_id="open_microwave_seed10000_group000000_b000000000",
+                sample_idx=1,
+                group_size=2,
+                reward=1.0,
+                success=True,
+                record_path="/tmp/g1.json",
+                strict_grpo_artifact_paths=["/tmp/a.pt"],
+                env_seed=10000,
+            ),
+        ],
+        expected_group_size=2,
+        canonicalize_legacy_group_ids=True,
+    )
+
+    assert report.ok
+    assert report.group_count == 1

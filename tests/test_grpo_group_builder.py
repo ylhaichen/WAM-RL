@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from wan_va.rl.group_builder import build_grpo_groups
+from wan_va.rl.group_builder import build_grpo_groups, canonicalize_legacy_group_id
 
 
 @dataclass
@@ -64,6 +64,28 @@ def test_build_grpo_groups_keeps_mixed_groups_and_computes_advantages():
     assert [sample.sample_idx for sample in group.samples] == [0, 1, 2, 3]
     assert [sample.reward for sample in group.samples] == [0.0, 1.0, 1.0, 0.0]
     assert [sample.advantage for sample in group.samples] == [-1.0, 1.0, 1.0, -1.0]
+
+
+def test_canonicalize_legacy_group_id_strips_prompt_hash_suffix():
+    assert (
+        canonicalize_legacy_group_id("open_microwave_seed200010000_group000000_3afe141b81")
+        == "open_microwave_seed200010000_group000000"
+    )
+    assert canonicalize_legacy_group_id("already_stable_group") == "already_stable_group"
+
+
+def test_build_grpo_groups_can_repair_legacy_hashed_group_ids():
+    records = [
+        _record("open_microwave_seed1_group000000_a000000000", 0, 0.0),
+        _record("open_microwave_seed1_group000000_b000000000", 1, 1.0),
+        _record("open_microwave_seed1_group000000_c000000000", 2, 0.0),
+        _record("open_microwave_seed1_group000000_d000000000", 3, 1.0),
+    ]
+
+    result = build_grpo_groups(records, expected_group_size=4, canonicalize_legacy_ids=True)
+
+    assert result.summary.mixed_groups == 1
+    assert result.groups[0].group_id == "open_microwave_seed1_group000000"
 
 
 def test_build_grpo_groups_can_require_strict_artifacts_and_skip_incomplete_groups():

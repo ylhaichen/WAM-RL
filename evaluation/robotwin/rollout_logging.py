@@ -24,9 +24,11 @@ def build_group_id(
     env_seed: int,
     prompt: str,
     group_index: int,
+    prompt_key: str | None = None,
 ) -> str:
     """Create a stable, path-safe group id for one GRPO context."""
-    digest = hashlib.sha1(prompt.encode("utf-8")).hexdigest()[:10]
+    digest_source = prompt if prompt_key is None else prompt_key
+    digest = hashlib.sha1(digest_source.encode("utf-8")).hexdigest()[:10]
     return f"{task_name}_seed{int(env_seed)}_group{int(group_index):06d}_{digest}"
 
 
@@ -48,9 +50,12 @@ def build_rollout_metadata(
     policy_checkpoint: str | None = None,
     reference_checkpoint: str | None = None,
     group_id: str | None = None,
+    group_index: int | None = None,
     sample_idx: int | None = None,
     group_size: int | None = None,
     sampling_seed: int | None = None,
+    prompt_index: int | None = None,
+    planned_seed: int | None = None,
     video_guidance_scale: float | None = None,
     action_guidance_scale: float | None = None,
     action_num_inference_steps: int | None = None,
@@ -72,11 +77,14 @@ def build_rollout_metadata(
         "episode_index": int(episode_index),
         "seed": int(env_seed),
         "env_seed": int(env_seed),
+        "planned_seed": None if planned_seed is None else int(planned_seed),
         "sampling_seed": None if sampling_seed is None else int(sampling_seed),
         "prompt": prompt,
         "group_id": group_id or "",
+        "group_index": None if group_index is None else int(group_index),
         "sample_idx": None if sample_idx is None else int(sample_idx),
         "group_size": None if group_size is None else int(group_size),
+        "prompt_index": None if prompt_index is None else int(prompt_index),
         "success": bool(success),
         "reward": 1.0 if success else 0.0,
         "obs_count": int(obs_count),

@@ -19,6 +19,25 @@ def test_build_group_id_is_stable_and_path_safe():
     assert "." not in group_id
 
 
+def test_build_group_id_can_use_stable_prompt_key_instead_of_prompt_text():
+    first = build_group_id(
+        task_name="open_microwave",
+        env_seed=10042,
+        prompt="Open the microwave door.",
+        group_index=3,
+        prompt_key="prompt0",
+    )
+    second = build_group_id(
+        task_name="open_microwave",
+        env_seed=10042,
+        prompt="A slightly different rendered instruction.",
+        group_index=3,
+        prompt_key="prompt0",
+    )
+
+    assert first == second
+
+
 def test_build_rollout_metadata_includes_pseudo_and_strict_artifacts(tmp_path):
     action_path = tmp_path / "episode_000003_actions.npy"
     action_path.write_bytes(b"npy")

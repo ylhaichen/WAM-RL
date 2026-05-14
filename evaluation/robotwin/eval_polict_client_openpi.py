@@ -137,9 +137,12 @@ def save_rollout_record(
     policy_checkpoint=None,
     reference_checkpoint=None,
     group_id=None,
+    group_index=None,
     sample_idx=None,
     group_size=None,
     sampling_seed=None,
+    prompt_index=None,
+    planned_seed=None,
     video_guidance_scale=None,
     action_guidance_scale=None,
     action_num_inference_steps=None,
@@ -175,9 +178,12 @@ def save_rollout_record(
         policy_checkpoint=policy_checkpoint,
         reference_checkpoint=reference_checkpoint,
         group_id=group_id,
+        group_index=group_index,
         sample_idx=sample_idx,
         group_size=group_size,
         sampling_seed=sampling_seed,
+        prompt_index=prompt_index,
+        planned_seed=planned_seed,
         video_guidance_scale=video_guidance_scale,
         action_guidance_scale=action_guidance_scale,
         action_num_inference_steps=action_num_inference_steps,
@@ -589,7 +595,9 @@ def eval_policy(task_name,
     print(f"\033[34mTask Name: {args['task_name']}\033[0m")
     print(f"\033[34mPolicy Name: {args['policy_name']}\033[0m")
 
+    grouped_rollout = args.get("group_index") is not None or args.get("sample_idx") is not None
     expert_check = True
+    skip_failed_expert_seed = not grouped_rollout
     TASK_ENV.suc = 0
     TASK_ENV.test_num = 0
 
@@ -614,18 +622,22 @@ def eval_policy(task_name,
                 TASK_ENV.close_env()
             except UnStableError as e:
                 TASK_ENV.close_env()
+                if grouped_rollout:
+                    raise RuntimeError(f"grouped rollout seed {now_seed} is unstable") from e
                 now_seed += 1
                 args["render_freq"] = render_freq
                 continue
             except Exception as e:
                 TASK_ENV.close_env()
+                if grouped_rollout:
+                    raise RuntimeError(f"grouped rollout seed {now_seed} failed during expert precheck") from e
                 now_seed += 1
                 args["render_freq"] = render_freq
                 print(f"error occurs ! {e}")
                 traceback.print_exc()
                 continue
 
-        if (not expert_check) or (TASK_ENV.plan_success and TASK_ENV.check_success()):
+        if (not skip_failed_expert_seed) or (TASK_ENV.plan_success and TASK_ENV.check_success()):
             succ_seed += 1
             suc_test_seed_list.append(now_seed)
         else:
@@ -805,10 +817,14 @@ def eval_policy(task_name,
                 env_seed=now_seed,
                 prompt=prompt,
                 group_index=int(args.get("group_index", TASK_ENV.test_num) or 0),
+                prompt_key=None if args.get("prompt_index") is None else f"prompt{int(args['prompt_index'])}",
             ),
+            group_index=args.get("group_index"),
             sample_idx=args.get("sample_idx"),
             group_size=args.get("group_size"),
             sampling_seed=args.get("sampling_seed"),
+            prompt_index=args.get("prompt_index"),
+            planned_seed=st_seed,
             video_guidance_scale=video_guidance_scale,
             action_guidance_scale=action_guidance_scale,
             action_num_inference_steps=args.get("action_num_inference_steps"),

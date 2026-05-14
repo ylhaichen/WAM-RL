@@ -67,7 +67,13 @@ for i in "${!task_names[@]}"; do
     [ -n "${RUN_ID:-}" ] && extra_args+=(--run_id "$RUN_ID")
     [ -n "${POLICY_CHECKPOINT:-}" ] && extra_args+=(--policy_checkpoint "$POLICY_CHECKPOINT")
     [ -n "${REFERENCE_CHECKPOINT:-}" ] && extra_args+=(--reference_checkpoint "$REFERENCE_CHECKPOINT")
-    [ -n "${GROUP_ID:-}" ] && extra_args+=(--group_id "$GROUP_ID")
+    effective_group_id="${GROUP_ID:-}"
+    if [ -z "${effective_group_id}" ] && [ -n "${GROUP_INDEX:-}" ]; then
+        group_part=$(printf "%06d" "${GROUP_INDEX}")
+        prompt_part="${PROMPT_INDEX:-na}"
+        effective_group_id="${task_name}_seed${seed}_prompt${prompt_part}_group${group_part}"
+    fi
+    [ -n "${effective_group_id}" ] && extra_args+=(--group_id "$effective_group_id")
     [ -n "${GROUP_INDEX:-}" ] && extra_args+=(--group_index "$GROUP_INDEX")
     [ -n "${SAMPLE_IDX:-}" ] && extra_args+=(--sample_idx "$SAMPLE_IDX")
     [ -n "${GROUP_SIZE:-}" ] && extra_args+=(--group_size "$GROUP_SIZE")
