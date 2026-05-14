@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+
+# Submit a large 4-GPU grouped rollout collection job for the current
+# seed-search GRPO task set. This is a thin qsub wrapper around
+# jobs/myriad/30_collect_grouped_rollouts_4gpu.sh.
+
+set -euo pipefail
+
+REPO_ROOT="${REPO_ROOT:-"$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"}"
+cd "${REPO_ROOT}"
+
+JOB_SCRIPT="${JOB_SCRIPT:-jobs/myriad/30_collect_grouped_rollouts_4gpu.sh}"
+JOB_NAME="${JOB_NAME:-wam_grpo_s8}"
+NUM_GPUS="${NUM_GPUS:-4}"
+GROUP_SIZE="${GROUP_SIZE:-4}"
+GROUPS_PER_TASK="${GROUPS_PER_TASK:-8}"
+START_SEED="${START_SEED:-60000}"
+PROMPT_INDEX="${PROMPT_INDEX:-0}"
+GROUP_SEED_SEARCH="${GROUP_SEED_SEARCH:-true}"
+GROUP_SEED_SEARCH_MAX_ATTEMPTS="${GROUP_SEED_SEARCH_MAX_ATTEMPTS:-100}"
+STRICT_GRPO_CAPTURE="${STRICT_GRPO_CAPTURE:-true}"
+STRICT_GRPO_TRANSITION_STD="${STRICT_GRPO_TRANSITION_STD:-0.01}"
+ACTION_NUM_INFERENCE_STEPS="${ACTION_NUM_INFERENCE_STEPS:-50}"
+TASK_NAMES="${TASK_NAMES:-hanging_mug open_microwave turn_switch move_stapler_pad place_mouse_pad adjust_bottle pick_dual_bottles click_bell}"
+RUN_ID="${RUN_ID:-grpo_scale_8tasks_k${GROUP_SIZE}_g${GROUPS_PER_TASK}_seedsearch_$(date +%Y%m%d_%H%M%S)}"
+
+if ! command -v qsub >/dev/null 2>&1; then
+    echo "qsub is not available on PATH. Run this on a Myriad login node." >&2
+    exit 2
+fi
+
+if [ ! -f "${JOB_SCRIPT}" ]; then
+    echo "Missing job script: ${JOB_SCRIPT}" >&2
+    exit 2
+fi
+
+read -r -a TASK_ARRAY <<< "${TASK_NAMES}"
+TASK_COUNT="${#TASK_ARRAY[@]}"
+if [ "${TASK_COUNT}" -eq 0 ]; then
+    echo "TASK_NAMES is empty." >&2
+    exit 2
+fi
+
+BATCHES_PER_SAMPLE=$(((TASK_COUNT + NUM_GPUS - 1) / NUM_GPUS))
+TOTAL_ROLLOUTS=$((TASK_COUNT * GROUPS_PER_TASK * GROUP_SIZE))
+TOTAL_CLIENT_BATCHES=$((GROUPS_PER_TASK * GROUP_SIZE * BATCHES_PER_SAMPLE))
+
+mkdir -p logs/jobs
+
+export REPO_ROOT
+export NUM_GPUS
+export GROUP_SIZE
+export GROUPS_PER_TASK
+export START_SEED
+export PROMPT_INDEX
+export GROUP_SEED_SEARCH
+export GROUP_SEED_SEARCH_MAX_ATTEMPTS
+export STRICT_GRPO_CAPTURE
+export STRICT_GRPO_TRANSITION_STD
+export ACTION_NUM_INFERENCE_STEPS
+export TASK_NAMES
+export RUN_ID
+
+if [ -z "${RESULTS_ROOT:-}" ]; then
+    unset RESULTS_ROOT
+else
+    export RESULTS_ROOT
+fi
+
+if [ -z "${STABLE_SEED_CACHE_DIR:-}" ]; then
+    unset STABLE_SEED_CACHE_DIR
+else
+    export STABLE_SEED_CACHE_DIR
+fi
+
+cat <<EOF
+Submitting grouped rollout scale job
+  JOB_NAME=${JOB_NAME}
+  RUN_ID=${RUN_ID}
+  REPO_ROOT=${REPO_ROOT}
+  TASK_COUNT=${TASK_COUNT}
+  TASK_NAMES=${TASK_NAMES}
+  NUM_GPUS=${NUM_GPUS}
+  GROUP_SIZE=${GROUP_SIZE}
+  GROUPS_PER_TASK=${GROUPS_PER_TASK}
+  START_SEED=${START_SEED}
+  GROUP_SEED_SEARCH=${GROUP_SEED_SEARCH}
+  GROUP_SEED_SEARCH_MAX_ATTEMPTS=${GROUP_SEED_SEARCH_MAX_ATTEMPTS}
+  TOTAL_ROLLOUTS=${TOTAL_ROLLOUTS}
+  TOTAL_CLIENT_BATCHES=${TOTAL_CLIENT_BATCHES}
+EOF
+
+qsub -V -N "${JOB_NAME}" "${JOB_SCRIPT}"
