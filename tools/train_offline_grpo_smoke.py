@@ -11,7 +11,12 @@ import argparse
 import json
 from pathlib import Path
 
-from wan_va.rl.trainer import OfflineGrpoTrainer, OfflineGrpoTrainerConfig
+try:
+    from tools._repo_root import ensure_repo_root_on_path
+except ModuleNotFoundError:
+    from _repo_root import ensure_repo_root_on_path
+
+ensure_repo_root_on_path()
 
 
 def run_smoke_training(
@@ -25,6 +30,8 @@ def run_smoke_training(
     device: str = "cpu",
     seed: int = 0,
 ) -> dict:
+    from wan_va.rl.trainer import OfflineGrpoTrainer, OfflineGrpoTrainerConfig
+
     config = OfflineGrpoTrainerConfig(
         groups_jsonl=groups_jsonl.expanduser(),
         output_dir=output_dir.expanduser(),

@@ -7,6 +7,13 @@ import argparse
 import json
 from pathlib import Path
 
+try:
+    from tools._repo_root import ensure_repo_root_on_path
+except ModuleNotFoundError:
+    from _repo_root import ensure_repo_root_on_path
+
+ensure_repo_root_on_path()
+
 from wan_va.rl.dataset import (
     DatasetValidationReport,
     inspect_strict_artifacts,

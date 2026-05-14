@@ -8,6 +8,13 @@ import json
 import time
 from pathlib import Path
 
+try:
+    from tools._repo_root import ensure_repo_root_on_path
+except ModuleNotFoundError:
+    from _repo_root import ensure_repo_root_on_path
+
+ensure_repo_root_on_path()
+
 from tools.collect_robotwin_rollouts import iter_rollout_records
 from wan_va.rl.group_builder import build_grpo_groups
 from wan_va.rl.manifest import build_grpo_manifest, write_grpo_manifest
