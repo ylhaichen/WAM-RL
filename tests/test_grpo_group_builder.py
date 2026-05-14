@@ -88,6 +88,19 @@ def test_build_grpo_groups_can_repair_legacy_hashed_group_ids():
     assert result.groups[0].group_id == "open_microwave_seed1_group000000"
 
 
+def test_build_grpo_groups_skips_non_contiguous_sample_indices():
+    result = build_grpo_groups(
+        [
+            _record("bad_indices", 0, 0.0),
+            _record("bad_indices", 2, 1.0),
+        ],
+        expected_group_size=2,
+    )
+
+    assert result.summary.mixed_groups == 0
+    assert result.summary.skipped_incomplete == 1
+
+
 def test_build_grpo_groups_can_require_strict_artifacts_and_skip_incomplete_groups():
     result = build_grpo_groups(
         [

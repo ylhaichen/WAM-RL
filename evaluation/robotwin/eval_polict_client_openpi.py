@@ -46,6 +46,7 @@ import yaml
 from datetime import datetime
 import importlib
 import argparse
+import ast
 import pdb
 from evaluation.robotwin.geometry import euler2quat
 from evaluation.robotwin.rollout_logging import build_group_id, build_rollout_metadata
@@ -449,10 +450,9 @@ def class_decorator(task_name):
     envs_module = importlib.import_module(f"envs.{task_name}")
     try:
         env_class = getattr(envs_module, task_name)
-        env_instance = env_class()
-    except:
-        raise SystemExit("No Task")
-    return env_instance
+    except AttributeError as exc:
+        raise SystemExit(f"No Task: {task_name}") from exc
+    return env_class()
 
 
 def eval_function_decorator(policy_name, model_name):
@@ -837,7 +837,7 @@ def eval_policy(task_name,
                             ee_action[15:16]
                         ])
                     else:
-                        raise NotImplementedError
+                        raise NotImplementedError(f"unsupported action dimension: {action.shape[0]}")
                     TASK_ENV.take_action(ee_action, action_type='ee')
                    
                     if (j+1) % action_per_frame == 0:
@@ -972,13 +972,15 @@ def parse_args_and_config():
 
     # Parse overrides
     def parse_override_pairs(pairs):
+        if len(pairs) % 2 != 0:
+            raise ValueError("--overrides expects key/value pairs")
         override_dict = {}
         for i in range(0, len(pairs), 2):
             key = pairs[i].lstrip("--")
             value = pairs[i + 1]
             try:
-                value = eval(value)
-            except:
+                value = ast.literal_eval(value)
+            except (SyntaxError, ValueError):
                 pass
             override_dict[key] = value
         return override_dict

@@ -23,6 +23,8 @@ STRICT_GRPO_TRANSITION_STD="${STRICT_GRPO_TRANSITION_STD:-0.01}"
 ACTION_NUM_INFERENCE_STEPS="${ACTION_NUM_INFERENCE_STEPS:-50}"
 TASK_NAMES="${TASK_NAMES:-hanging_mug open_microwave turn_switch move_stapler_pad place_mouse_pad adjust_bottle pick_dual_bottles click_bell}"
 RUN_ID="${RUN_ID:-grpo_scale_8tasks_k${GROUP_SIZE}_g${GROUPS_PER_TASK}_seedsearch_$(date +%Y%m%d_%H%M%S)}"
+USE_EXISTING_RESULTS_ROOT="${USE_EXISTING_RESULTS_ROOT:-0}"
+USE_EXISTING_STABLE_SEED_CACHE_DIR="${USE_EXISTING_STABLE_SEED_CACHE_DIR:-0}"
 
 if ! command -v qsub >/dev/null 2>&1; then
     echo "qsub is not available on PATH. Run this on a Myriad login node." >&2
@@ -61,16 +63,16 @@ export ACTION_NUM_INFERENCE_STEPS
 export TASK_NAMES
 export RUN_ID
 
-if [ -z "${RESULTS_ROOT:-}" ]; then
-    unset RESULTS_ROOT
-else
+if [ "${USE_EXISTING_RESULTS_ROOT}" = "1" ] && [ -n "${RESULTS_ROOT:-}" ]; then
     export RESULTS_ROOT
+else
+    unset RESULTS_ROOT
 fi
 
-if [ -z "${STABLE_SEED_CACHE_DIR:-}" ]; then
-    unset STABLE_SEED_CACHE_DIR
-else
+if [ "${USE_EXISTING_STABLE_SEED_CACHE_DIR}" = "1" ] && [ -n "${STABLE_SEED_CACHE_DIR:-}" ]; then
     export STABLE_SEED_CACHE_DIR
+else
+    unset STABLE_SEED_CACHE_DIR
 fi
 
 cat <<EOF
@@ -88,6 +90,7 @@ Submitting grouped rollout scale job
   GROUP_SEED_SEARCH_MAX_ATTEMPTS=${GROUP_SEED_SEARCH_MAX_ATTEMPTS}
   TOTAL_ROLLOUTS=${TOTAL_ROLLOUTS}
   TOTAL_CLIENT_BATCHES=${TOTAL_CLIENT_BATCHES}
+  USE_EXISTING_RESULTS_ROOT=${USE_EXISTING_RESULTS_ROOT}
 EOF
 
 qsub -V -N "${JOB_NAME}" "${JOB_SCRIPT}"

@@ -127,3 +127,16 @@ def test_validate_rollout_records_can_canonicalize_legacy_group_ids():
 
     assert report.ok
     assert report.group_count == 1
+
+
+def test_validate_rollout_records_reports_invalid_sample_idx_set():
+    report = validate_rollout_records(
+        [
+            _record("g0", 0, 0.0),
+            _record("g0", 2, 1.0),
+        ],
+        expected_group_size=2,
+    )
+
+    assert report.ok is False
+    assert "invalid_sample_idx_set" in {issue.code for issue in report.issues}

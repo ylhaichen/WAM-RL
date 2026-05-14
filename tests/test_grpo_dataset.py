@@ -9,6 +9,36 @@ from wan_va.rl.dataset import (
 )
 
 
+class ShapeOnly:
+    def __init__(self, shape):
+        self.shape = shape
+
+
+def _strict_artifact_with_shapes(
+    *,
+    state_shape=(1, 2, 3),
+    next_shape=None,
+    mask_shape=None,
+    vector_shape=(1,),
+):
+    next_shape = state_shape if next_shape is None else next_shape
+    mask_shape = state_shape if mask_shape is None else mask_shape
+    artifact = {key: object() for key in REQUIRED_STRICT_ARTIFACT_KEYS}
+    artifact.update(
+        {
+            "action_xt": ShapeOnly(state_shape),
+            "action_xt_next": ShapeOnly(next_shape),
+            "transition_mean": ShapeOnly(state_shape),
+            "logprob_mask": ShapeOnly(mask_shape),
+            "transition_std": ShapeOnly(()),
+            "old_logprob_sum": ShapeOnly(vector_shape),
+            "old_logprob_mean": ShapeOnly(vector_shape),
+            "old_logprob_count": ShapeOnly(vector_shape),
+        }
+    )
+    return artifact
+
+
 def test_read_transition_refs_flattens_group_samples(tmp_path):
     path = tmp_path / "grpo_groups.jsonl"
     path.write_text(
@@ -61,6 +91,30 @@ def test_load_strict_artifact_rejects_missing_keys(tmp_path):
         assert "missing required strict artifact keys" in str(exc)
     else:
         raise AssertionError("expected missing-key ValueError")
+
+
+def test_load_strict_artifact_rejects_incompatible_state_shapes(tmp_path):
+    try:
+        load_strict_artifact(
+            tmp_path / "strict.pt",
+            loader=lambda path: _strict_artifact_with_shapes(next_shape=(1, 2, 4)),
+        )
+    except ValueError as exc:
+        assert "incompatible state tensor shapes" in str(exc)
+    else:
+        raise AssertionError("expected incompatible-shape ValueError")
+
+
+def test_load_strict_artifact_rejects_bad_logprob_vector_shape(tmp_path):
+    try:
+        load_strict_artifact(
+            tmp_path / "strict.pt",
+            loader=lambda path: _strict_artifact_with_shapes(vector_shape=(2,)),
+        )
+    except ValueError as exc:
+        assert "old_logprob_sum" in str(exc)
+    else:
+        raise AssertionError("expected bad-vector-shape ValueError")
 
 
 def test_validate_transition_refs_reports_missing_files(tmp_path):

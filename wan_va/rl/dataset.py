@@ -115,7 +115,67 @@ def load_strict_artifact(path: Path, *, loader: Callable[[Path], dict] | None = 
     missing = sorted(REQUIRED_STRICT_ARTIFACT_KEYS - set(data))
     if missing:
         raise ValueError(f"strict artifact {expanded} missing required strict artifact keys: {missing}")
+    _validate_strict_artifact_shapes(data, expanded)
+    _validate_strict_artifact_values(data, expanded)
     return data
+
+
+def _validate_strict_artifact_shapes(data: dict, path: Path) -> None:
+    state_keys = ("action_xt", "action_xt_next", "transition_mean", "logprob_mask")
+    state_shapes = {key: _shape_of(data[key]) for key in state_keys}
+    known_state_shapes = {shape for shape in state_shapes.values() if shape is not None}
+    if len(known_state_shapes) > 1:
+        raise ValueError(f"strict artifact {path} has incompatible state tensor shapes: {state_shapes}")
+
+    state_shape = next(iter(known_state_shapes), None)
+    if state_shape is not None and len(state_shape) == 0:
+        raise ValueError(f"strict artifact {path} state tensors must have a batch dimension")
+    batch_size = None if state_shape is None else state_shape[0]
+
+    for key in ("transition_std", "old_logprob_sum", "old_logprob_mean", "old_logprob_count"):
+        shape = _shape_of(data[key])
+        if shape is None or batch_size is None:
+            continue
+        if shape not in {(), (batch_size,)}:
+            raise ValueError(
+                f"strict artifact {path} field {key} must be scalar or batch vector of length {batch_size}; "
+                f"got shape {shape}"
+            )
+
+
+def _validate_strict_artifact_values(data: dict, path: Path) -> None:
+    for key in ("action_xt", "action_xt_next", "transition_mean", "old_logprob_sum", "old_logprob_mean", "old_logprob_count"):
+        _validate_tensor_finite(data[key], path=path, key=key)
+    _validate_tensor_finite(data["transition_std"], path=path, key="transition_std", positive=True)
+
+
+def _shape_of(value: object) -> tuple[int, ...] | None:
+    shape = getattr(value, "shape", None)
+    if shape is None:
+        return None
+    try:
+        return tuple(int(dim) for dim in shape)
+    except TypeError:
+        return None
+
+
+def _validate_tensor_finite(value: object, *, path: Path, key: str, positive: bool = False) -> None:
+    try:
+        import torch
+    except ImportError:
+        return
+
+    try:
+        tensor = torch.as_tensor(value)
+    except Exception:
+        return
+    if tensor.numel() == 0:
+        raise ValueError(f"strict artifact {path} field {key} must not be empty")
+    numeric = tensor.float()
+    if not torch.isfinite(numeric).all():
+        raise ValueError(f"strict artifact {path} field {key} contains non-finite values")
+    if positive and not (numeric > 0).all():
+        raise ValueError(f"strict artifact {path} field {key} must be positive")
 
 
 def validate_transition_refs(

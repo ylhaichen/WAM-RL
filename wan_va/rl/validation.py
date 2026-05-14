@@ -156,6 +156,21 @@ def validate_rollout_records(
                     group_id=group_id,
                 )
             )
+        if target_size is not None and len(group_items) == target_size:
+            expected_indices = set(range(target_size))
+            known_index_set = set(known_indices)
+            if known_index_set and known_index_set != expected_indices:
+                issues.append(
+                    ValidationIssue(
+                        severity="error",
+                        code="invalid_sample_idx_set",
+                        message=(
+                            f"group sample_idx values must be 0..{target_size - 1}; "
+                            f"got {sorted(known_index_set)}"
+                        ),
+                        group_id=group_id,
+                    )
+                )
 
     return ValidationReport(
         record_count=len(items),

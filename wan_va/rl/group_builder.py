@@ -42,6 +42,9 @@ def build_grpo_groups(
         if expected_group_size is not None and len(items) != expected_group_size:
             skipped_incomplete += 1
             continue
+        if expected_group_size is not None and {_sample_idx(item) for item in items} != set(range(expected_group_size)):
+            skipped_incomplete += 1
+            continue
 
         if require_strict_artifacts and not all(_has_strict_artifacts(item) for item in items):
             skipped_missing_artifacts += 1

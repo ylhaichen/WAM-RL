@@ -39,3 +39,12 @@ def test_robotwin_eval_client_searches_and_caches_group_stable_seed():
     assert "_write_cached_group_env_seed" in text
     assert "grouped rollout seed search exhausted" in text
     assert "grouped rollout seed {now_seed} failed during expert precheck" in text
+
+
+def test_scale_submit_wrapper_does_not_inherit_stale_output_roots_by_default():
+    text = Path("jobs/myriad/32_submit_grpo_scale_8tasks_4gpu.sh").read_text()
+
+    assert 'USE_EXISTING_RESULTS_ROOT="${USE_EXISTING_RESULTS_ROOT:-0}"' in text
+    assert 'USE_EXISTING_STABLE_SEED_CACHE_DIR="${USE_EXISTING_STABLE_SEED_CACHE_DIR:-0}"' in text
+    assert 'unset RESULTS_ROOT' in text
+    assert 'unset STABLE_SEED_CACHE_DIR' in text
