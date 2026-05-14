@@ -15,9 +15,24 @@ def test_four_gpu_grouped_rollout_job_builds_grpo_groups():
     assert "--out-manifest \"${RESULTS_ROOT}/groups/grpo_manifest.json\"" in text
     assert "GROUP_SEED_SEARCH=\"${GROUP_SEED_SEARCH:-true}\"" in text
     assert "STABLE_SEED_CACHE_DIR=\"${STABLE_SEED_CACHE_DIR:-${RESULTS_ROOT}/groups/stable_seeds}\"" in text
+    assert "SUCCESSFUL_ROOTS_FILE=\"${RESULTS_ROOT}/groups/successful_attempt_roots.txt\"" in text
+    assert "FAILED_ROOTS_FILE=\"${RESULTS_ROOT}/groups/failed_attempt_roots.txt\"" in text
+    assert "while (( completed_groups < GROUPS_PER_TASK && attempt_index < GROUP_MAX_ATTEMPTS ))" in text
+    assert "Discarding failed group attempt" in text
+    assert "\"${SUCCESSFUL_ATTEMPT_ROOTS[@]}\"" in text
     assert "tools/validate_grpo_dataset.py" in text
     assert "--out-summary \"${RESULTS_ROOT}/groups/grpo_dataset_validation.json\"" in text
     assert "--fail-on-error" in text
+
+
+def test_one_gpu_grouped_rollout_job_uses_successful_attempt_roots():
+    text = Path("jobs/myriad/30_collect_grouped_rollouts_1gpu.sh").read_text()
+
+    assert "SUCCESSFUL_ROOTS_FILE=\"${RESULTS_ROOT}/groups/successful_attempt_roots.txt\"" in text
+    assert "FAILED_ROOTS_FILE=\"${RESULTS_ROOT}/groups/failed_attempt_roots.txt\"" in text
+    assert "while (( completed_groups < GROUPS_PER_TASK && attempt_index < GROUP_MAX_ATTEMPTS ))" in text
+    assert "Discarding failed group attempt" in text
+    assert "\"${SUCCESSFUL_ATTEMPT_ROOTS[@]}\"" in text
 
 
 def test_robotwin_client_launcher_generates_task_specific_group_ids():
@@ -46,5 +61,7 @@ def test_scale_submit_wrapper_does_not_inherit_stale_output_roots_by_default():
 
     assert 'USE_EXISTING_RESULTS_ROOT="${USE_EXISTING_RESULTS_ROOT:-0}"' in text
     assert 'USE_EXISTING_STABLE_SEED_CACHE_DIR="${USE_EXISTING_STABLE_SEED_CACHE_DIR:-0}"' in text
+    assert 'GROUP_MAX_ATTEMPTS="${GROUP_MAX_ATTEMPTS:-$((GROUPS_PER_TASK * GROUP_RETRY_MULTIPLIER))}"' in text
+    assert "export GROUP_MAX_ATTEMPTS" in text
     assert 'unset RESULTS_ROOT' in text
     assert 'unset STABLE_SEED_CACHE_DIR' in text

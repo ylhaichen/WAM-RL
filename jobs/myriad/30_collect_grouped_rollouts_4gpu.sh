@@ -37,6 +37,8 @@ STRICT_GRPO_TRANSITION_STD="${STRICT_GRPO_TRANSITION_STD:-0.01}"
 ACTION_NUM_INFERENCE_STEPS="${ACTION_NUM_INFERENCE_STEPS:-50}"
 GROUP_SEED_SEARCH="${GROUP_SEED_SEARCH:-true}"
 GROUP_SEED_SEARCH_MAX_ATTEMPTS="${GROUP_SEED_SEARCH_MAX_ATTEMPTS:-50}"
+GROUP_RETRY_MULTIPLIER="${GROUP_RETRY_MULTIPLIER:-4}"
+GROUP_MAX_ATTEMPTS="${GROUP_MAX_ATTEMPTS:-$((GROUPS_PER_TASK * GROUP_RETRY_MULTIPLIER))}"
 RUN_ID="${RUN_ID:-grouped_rollouts_${JOB_ID:-manual}}"
 RESULTS_ROOT="${RESULTS_ROOT:-${WAM_ROOT}/results_grouped_rollouts/${RUN_ID}}"
 STABLE_SEED_CACHE_DIR="${STABLE_SEED_CACHE_DIR:-${RESULTS_ROOT}/groups/stable_seeds}"
@@ -51,6 +53,7 @@ export NUM_GPUS GROUP_SIZE GROUPS_PER_TASK START_SEED PROMPT_INDEX
 export START_PORT MASTER_PORT SERVER_WAIT_SECONDS RESULTS_ROOT SELECTED_TASKS
 export STRICT_GRPO_CAPTURE STRICT_GRPO_CAPTURE_PY STRICT_GRPO_TRANSITION_STD
 export ACTION_NUM_INFERENCE_STEPS GROUP_SEED_SEARCH GROUP_SEED_SEARCH_MAX_ATTEMPTS
+export GROUP_RETRY_MULTIPLIER GROUP_MAX_ATTEMPTS
 export RUN_ID STABLE_SEED_CACHE_DIR
 
 print_job_context
@@ -66,6 +69,7 @@ echo "STRICT_GRPO_CAPTURE=${STRICT_GRPO_CAPTURE_PY}"
 echo "STRICT_GRPO_TRANSITION_STD=${STRICT_GRPO_TRANSITION_STD}"
 echo "GROUP_SEED_SEARCH=${GROUP_SEED_SEARCH}"
 echo "GROUP_SEED_SEARCH_MAX_ATTEMPTS=${GROUP_SEED_SEARCH_MAX_ATTEMPTS}"
+echo "GROUP_MAX_ATTEMPTS=${GROUP_MAX_ATTEMPTS}"
 echo "STABLE_SEED_CACHE_DIR=${STABLE_SEED_CACHE_DIR}"
 
 container_exec_gpu <<'CONTAINER'
@@ -174,9 +178,24 @@ export GROUP_SEED_SEARCH
 export GROUP_SEED_SEARCH_MAX_ATTEMPTS
 export STABLE_SEED_CACHE_DIR
 
-for ((group_index=0; group_index<GROUPS_PER_TASK; group_index++)); do
-    seed=$((START_SEED + group_index))
+SUCCESSFUL_ROOTS_FILE="${RESULTS_ROOT}/groups/successful_attempt_roots.txt"
+FAILED_ROOTS_FILE="${RESULTS_ROOT}/groups/failed_attempt_roots.txt"
+: > "${SUCCESSFUL_ROOTS_FILE}"
+: > "${FAILED_ROOTS_FILE}"
+
+completed_groups=0
+attempt_index=0
+while (( completed_groups < GROUPS_PER_TASK && attempt_index < GROUP_MAX_ATTEMPTS )); do
+    seed=$((START_SEED + attempt_index))
+    group_index=${attempt_index}
+    attempt_root="${RESULTS_ROOT}/attempts/group_${completed_groups}/attempt_${attempt_index}_seed_${seed}"
+    mkdir -p "${attempt_root}/rollouts" "${attempt_root}/logs/clients"
+
     export GROUP_INDEX="${group_index}"
+    export ROLLOUT_LOG_DIR="${attempt_root}/rollouts"
+
+    echo "Starting group attempt logical_group=${completed_groups} physical_group=${group_index} seed=${seed} root=${attempt_root}"
+    group_failed=0
     for ((sample_idx=0; sample_idx<GROUP_SIZE; sample_idx++)); do
         export SAMPLE_IDX="${sample_idx}"
         export SAMPLING_SEED=$((START_SEED * 1000000 + group_index * GROUP_SIZE + sample_idx))
@@ -185,22 +204,48 @@ for ((group_index=0; group_index<GROUPS_PER_TASK; group_index++)); do
         for ((task_start=0; task_start<${#all_tasks[@]}; task_start+=NUM_GPUS)); do
             batch_tasks=("${all_tasks[@]:task_start:NUM_GPUS}")
             export TASK_NAMES="${batch_tasks[*]}"
-            export CLIENT_LOG_DIR="${RESULTS_ROOT}/logs/clients/group_${group_index}/sample_${sample_idx}/batch_${batch_index}"
+            export CLIENT_LOG_DIR="${attempt_root}/logs/clients/sample_${sample_idx}/batch_${batch_index}"
 
-            echo "Running group=${group_index} sample=${sample_idx} seed=${seed} tasks=${TASK_NAMES}"
-            bash evaluation/robotwin/launch_client_multigpus.sh "${RESULTS_ROOT}" 0 "${seed}" 1
+            echo "Running logical_group=${completed_groups} physical_group=${group_index} sample=${sample_idx} seed=${seed} tasks=${TASK_NAMES}"
+            if ! bash evaluation/robotwin/launch_client_multigpus.sh "${attempt_root}" 0 "${seed}" 1; then
+                group_failed=1
+                break
+            fi
             batch_index=$((batch_index + 1))
         done
+        if (( group_failed != 0 )); then
+            break
+        fi
     done
+
+    if (( group_failed != 0 )); then
+        echo "Discarding failed group attempt logical_group=${completed_groups} physical_group=${group_index} seed=${seed}; logs remain under ${attempt_root}" >&2
+        echo "${attempt_root}" >> "${FAILED_ROOTS_FILE}"
+        attempt_index=$((attempt_index + 1))
+        continue
+    fi
+
+    echo "Accepted group attempt logical_group=${completed_groups} physical_group=${group_index} seed=${seed}"
+    echo "${attempt_root}" >> "${SUCCESSFUL_ROOTS_FILE}"
+    completed_groups=$((completed_groups + 1))
+    attempt_index=$((attempt_index + 1))
 done
 
+if (( completed_groups < GROUPS_PER_TASK )); then
+    echo "Only completed ${completed_groups}/${GROUPS_PER_TASK} grouped rollout attempts after ${attempt_index}/${GROUP_MAX_ATTEMPTS} attempts." >&2
+    echo "Failed roots are listed in ${FAILED_ROOTS_FILE}" >&2
+    exit 1
+fi
+
+mapfile -t SUCCESSFUL_ATTEMPT_ROOTS < "${SUCCESSFUL_ROOTS_FILE}"
+
 python tools/collect_robotwin_rollouts.py \
-    "${RESULTS_ROOT}" \
+    "${SUCCESSFUL_ATTEMPT_ROOTS[@]}" \
     --out-jsonl "${RESULTS_ROOT}/groups/rollouts_flat.jsonl" \
     --out-csv "${RESULTS_ROOT}/groups/rollouts_flat.csv"
 
 python tools/build_grpo_groups.py \
-    "${RESULTS_ROOT}" \
+    "${SUCCESSFUL_ATTEMPT_ROOTS[@]}" \
     --canonicalize-legacy-group-ids \
     --expected-group-size "${GROUP_SIZE}" \
     --require-strict-artifacts \
@@ -217,7 +262,9 @@ python tools/validate_grpo_dataset.py \
     --fail-on-error
 
 echo "Rollout JSON count:"
-find "${RESULTS_ROOT}/rollouts" -type f -name "*.json" | wc -l
+for root in "${SUCCESSFUL_ATTEMPT_ROOTS[@]}"; do
+    find "${root}/rollouts" -type f -name "*.json"
+done | wc -l
 echo "Strict GRPO artifact count:"
 find "${RESULTS_ROOT}/server_vis" -type f -name "strict_grpo_*.pt" | wc -l
 echo "Grouped rollout collection complete: ${RESULTS_ROOT}"
