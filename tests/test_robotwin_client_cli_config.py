@@ -37,3 +37,14 @@ def test_robotwin_eval_client_has_diagnostic_exceptions():
     for node in ast.walk(tree):
         if isinstance(node, ast.ExceptHandler):
             assert node.type is not None
+
+
+def test_robotwin_eval_client_seeds_process_before_env_setup():
+    source = Path("evaluation/robotwin/eval_polict_client_openpi.py").read_text()
+
+    assert "import random" in source
+    assert "def _seed_eval_process" in source
+    assert "random.seed(seed)" in source
+    assert "np.random.seed(seed % (2**32 - 1))" in source
+    assert "torch.manual_seed(seed)" in source
+    assert source.count("_seed_eval_process(now_seed)") >= 2

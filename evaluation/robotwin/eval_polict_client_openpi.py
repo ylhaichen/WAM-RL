@@ -2,6 +2,7 @@ import sys
 import os
 import subprocess
 import shutil
+import random
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import cv2
@@ -127,6 +128,20 @@ def _as_bool(value) -> bool:
     if value is None:
         return False
     return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _seed_eval_process(seed: int) -> None:
+    """Synchronize process-level RNGs before RoboTwin env construction."""
+    seed = int(seed)
+    random.seed(seed)
+    np.random.seed(seed % (2**32 - 1))
+    try:
+        import torch
+    except ImportError:
+        return
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
 
 
 def _group_seed_cache_path(args: dict, task_name: str) -> Path | None:
@@ -674,6 +689,7 @@ def eval_policy(task_name,
         if expert_check:
             seed_search_attempts += 1
             try:
+                _seed_eval_process(now_seed)
                 TASK_ENV.setup_demo(now_ep_num=now_id, seed=now_seed, is_test=True, **args)
                 episode_info = TASK_ENV.play_once()
                 TASK_ENV.close_env()
@@ -724,6 +740,7 @@ def eval_policy(task_name,
 
         args["render_freq"] = render_freq
 
+        _seed_eval_process(now_seed)
         TASK_ENV.setup_demo(now_ep_num=now_id, seed=now_seed, is_test=True, **args)
         episode_info_list = [episode_info["info"]]
         results = generate_episode_descriptions(args["task_name"], episode_info_list, test_num)
