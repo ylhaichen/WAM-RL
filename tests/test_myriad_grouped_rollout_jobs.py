@@ -65,3 +65,16 @@ def test_scale_submit_wrapper_does_not_inherit_stale_output_roots_by_default():
     assert "export GROUP_MAX_ATTEMPTS" in text
     assert 'unset RESULTS_ROOT' in text
     assert 'unset STABLE_SEED_CACHE_DIR' in text
+
+
+def test_next_round_submit_wrapper_targets_hard_medium_tasks():
+    text = Path("jobs/myriad/33_submit_grpo_next_round_4gpu.sh").read_text()
+
+    assert 'GROUP_SIZE="${GROUP_SIZE:-8}"' in text
+    assert 'GROUPS_PER_TASK="${GROUPS_PER_TASK:-8}"' in text
+    assert "hanging_mug turn_switch open_microwave put_bottles_dustbin" in text
+    assert "move_stapler_pad press_stapler place_dual_shoes place_fan" in text
+    assert 'CORE_GROUP_RETRY_MULTIPLIER="${CORE_GROUP_RETRY_MULTIPLIER:-12}"' in text
+    assert 'SECONDARY_GROUP_RETRY_MULTIPLIER="${SECONDARY_GROUP_RETRY_MULTIPLIER:-6}"' in text
+    assert 'DRY_RUN="${DRY_RUN:-0}"' in text
+    assert 'bash "${SUBMIT_SCRIPT}"' in text
