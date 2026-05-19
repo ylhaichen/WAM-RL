@@ -21,8 +21,11 @@ def test_four_gpu_grouped_rollout_job_builds_grpo_groups():
     assert "Discarding failed group attempt" in text
     assert "\"${SUCCESSFUL_ATTEMPT_ROOTS[@]}\"" in text
     assert "tools/validate_grpo_dataset.py" in text
+    assert "--inspect-artifacts" in text
     assert "--out-summary \"${RESULTS_ROOT}/groups/grpo_dataset_validation.json\"" in text
     assert "--fail-on-error" in text
+    assert 'STRICT_GRPO_CAPTURE_SCOPE="${STRICT_GRPO_CAPTURE_SCOPE:-action_denoising_trajectory}"' in text
+    assert 'strict_grpo_capture_scope="${STRICT_GRPO_CAPTURE_SCOPE}"' in text
 
 
 def test_one_gpu_grouped_rollout_job_uses_successful_attempt_roots():
@@ -33,6 +36,9 @@ def test_one_gpu_grouped_rollout_job_uses_successful_attempt_roots():
     assert "while (( completed_groups < GROUPS_PER_TASK && attempt_index < GROUP_MAX_ATTEMPTS ))" in text
     assert "Discarding failed group attempt" in text
     assert "\"${SUCCESSFUL_ATTEMPT_ROOTS[@]}\"" in text
+    assert "--inspect-artifacts" in text
+    assert 'STRICT_GRPO_CAPTURE_SCOPE="${STRICT_GRPO_CAPTURE_SCOPE:-action_denoising_trajectory}"' in text
+    assert 'strict_grpo_capture_scope="${STRICT_GRPO_CAPTURE_SCOPE}"' in text
 
 
 def test_robotwin_client_launcher_generates_task_specific_group_ids():
@@ -63,6 +69,7 @@ def test_scale_submit_wrapper_does_not_inherit_stale_output_roots_by_default():
     assert 'USE_EXISTING_STABLE_SEED_CACHE_DIR="${USE_EXISTING_STABLE_SEED_CACHE_DIR:-0}"' in text
     assert 'GROUP_MAX_ATTEMPTS="${GROUP_MAX_ATTEMPTS:-$((GROUPS_PER_TASK * GROUP_RETRY_MULTIPLIER))}"' in text
     assert "export GROUP_MAX_ATTEMPTS" in text
+    assert "export STRICT_GRPO_CAPTURE_SCOPE" in text
     assert 'unset RESULTS_ROOT' in text
     assert 'unset STABLE_SEED_CACHE_DIR' in text
 
@@ -77,4 +84,5 @@ def test_next_round_submit_wrapper_targets_hard_medium_tasks():
     assert 'CORE_GROUP_RETRY_MULTIPLIER="${CORE_GROUP_RETRY_MULTIPLIER:-12}"' in text
     assert 'SECONDARY_GROUP_RETRY_MULTIPLIER="${SECONDARY_GROUP_RETRY_MULTIPLIER:-6}"' in text
     assert 'DRY_RUN="${DRY_RUN:-0}"' in text
+    assert 'STRICT_GRPO_CAPTURE_SCOPE="${STRICT_GRPO_CAPTURE_SCOPE:-action_denoising_trajectory}"' in text
     assert 'bash "${SUBMIT_SCRIPT}"' in text

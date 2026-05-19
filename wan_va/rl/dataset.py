@@ -8,12 +8,42 @@ from pathlib import Path
 from typing import Callable, Iterable
 
 
+STRICT_ARTIFACT_SCHEMA_SINGLE = 1
+STRICT_ARTIFACT_SCHEMA_TRAJECTORY = 2
+STRICT_ARTIFACT_SCOPE_SINGLE = "first_action_denoising_step"
+STRICT_ARTIFACT_SCOPE_TRAJECTORY = "action_denoising_trajectory"
+
 REQUIRED_STRICT_ARTIFACT_KEYS = frozenset(
     {
         "schema_version",
         "scope",
         "sampling_seed",
         "frame_st_id",
+        "timestep",
+        "action_xt",
+        "action_xt_next",
+        "transition_mean",
+        "transition_std",
+        "old_logprob_sum",
+        "old_logprob_mean",
+        "old_logprob_count",
+        "logprob_mask",
+    }
+)
+
+REQUIRED_STRICT_TRAJECTORY_ARTIFACT_KEYS = frozenset(
+    {
+        "schema_version",
+        "scope",
+        "sampling_seed",
+        "frame_st_id",
+        "num_transitions",
+        "transitions",
+    }
+)
+
+REQUIRED_STRICT_TRANSITION_KEYS = frozenset(
+    {
         "timestep",
         "action_xt",
         "action_xt_next",
@@ -112,24 +142,104 @@ def load_strict_artifact(path: Path, *, loader: Callable[[Path], dict] | None = 
 
     if not isinstance(data, dict):
         raise ValueError(f"strict artifact must be a dict: {expanded}")
-    missing = sorted(REQUIRED_STRICT_ARTIFACT_KEYS - set(data))
-    if missing:
-        raise ValueError(f"strict artifact {expanded} missing required strict artifact keys: {missing}")
-    _validate_strict_artifact_shapes(data, expanded)
-    _validate_strict_artifact_values(data, expanded)
+    _validate_strict_artifact_schema(data, str(expanded))
     return data
 
 
-def _validate_strict_artifact_shapes(data: dict, path: Path) -> None:
+def _validate_strict_artifact_schema(data: dict, path_label: str) -> None:
+    schema_version = data.get("schema_version")
+    scope = data.get("scope")
+
+    if schema_version == STRICT_ARTIFACT_SCHEMA_SINGLE and scope in {None, STRICT_ARTIFACT_SCOPE_SINGLE}:
+        missing = sorted(REQUIRED_STRICT_ARTIFACT_KEYS - set(data))
+        if missing:
+            raise ValueError(f"strict artifact {path_label} missing required strict artifact keys: {missing}")
+        _validate_strict_transition(data, f"{path_label}:transition")
+        return
+
+    if schema_version == STRICT_ARTIFACT_SCHEMA_TRAJECTORY and scope in {None, STRICT_ARTIFACT_SCOPE_TRAJECTORY}:
+        missing = sorted(REQUIRED_STRICT_TRAJECTORY_ARTIFACT_KEYS - set(data))
+        if missing:
+            raise ValueError(f"strict artifact {path_label} missing required trajectory artifact keys: {missing}")
+        transitions = data["transitions"]
+        if not isinstance(transitions, list):
+            raise ValueError(f"strict artifact {path_label} field transitions must be a list")
+        if not transitions:
+            raise ValueError(f"strict artifact {path_label} field transitions must not be empty")
+        try:
+            expected_count = int(data["num_transitions"])
+        except Exception as exc:
+            raise ValueError(f"strict artifact {path_label} field num_transitions must be an integer") from exc
+        if expected_count != len(transitions):
+            raise ValueError(
+                f"strict artifact {path_label} num_transitions={expected_count} "
+                f"does not match transitions length {len(transitions)}"
+            )
+        for index, transition in enumerate(transitions):
+            if not isinstance(transition, dict):
+                raise ValueError(f"strict artifact {path_label} transition {index} must be a dict")
+            _validate_strict_transition(transition, f"{path_label}:transition[{index}]")
+        return
+
+    raise ValueError(
+        f"strict artifact {path_label} has unsupported schema/scope: "
+        f"schema_version={schema_version!r}, scope={scope!r}"
+    )
+
+
+def _validate_strict_transition(data: dict, path_label: str) -> None:
+    missing = sorted(REQUIRED_STRICT_TRANSITION_KEYS - set(data))
+    if missing:
+        raise ValueError(f"strict artifact {path_label} missing required transition keys: {missing}")
+    _validate_strict_artifact_shapes(data, path_label)
+    _validate_strict_artifact_values(data, path_label)
+
+
+def iter_strict_artifact_transitions(data: dict) -> Iterable[dict]:
+    """Yield normalized transition dictionaries from v1 or v2 strict artifacts."""
+
+    schema_version = data.get("schema_version")
+    scope = data.get("scope")
+    if schema_version == STRICT_ARTIFACT_SCHEMA_SINGLE and scope == STRICT_ARTIFACT_SCOPE_SINGLE:
+        yield data
+        return
+
+    if schema_version == STRICT_ARTIFACT_SCHEMA_TRAJECTORY and scope == STRICT_ARTIFACT_SCOPE_TRAJECTORY:
+        for index, transition in enumerate(data.get("transitions", [])):
+            normalized = dict(transition)
+            normalized.setdefault("schema_version", schema_version)
+            normalized.setdefault("scope", scope)
+            normalized.setdefault("sampling_seed", data.get("sampling_seed"))
+            normalized.setdefault("frame_st_id", data.get("frame_st_id"))
+            normalized.setdefault("denoising_step_index", index)
+            yield normalized
+        return
+
+    raise ValueError(f"unsupported strict artifact schema/scope: schema_version={schema_version!r}, scope={scope!r}")
+
+
+def count_strict_artifact_transitions(data: dict) -> int:
+    """Return the number of denoising transitions represented by a strict artifact."""
+
+    schema_version = data.get("schema_version")
+    scope = data.get("scope")
+    if schema_version == STRICT_ARTIFACT_SCHEMA_SINGLE and scope == STRICT_ARTIFACT_SCOPE_SINGLE:
+        return 1
+    if schema_version == STRICT_ARTIFACT_SCHEMA_TRAJECTORY and scope == STRICT_ARTIFACT_SCOPE_TRAJECTORY:
+        return len(data.get("transitions", []))
+    raise ValueError(f"unsupported strict artifact schema/scope: schema_version={schema_version!r}, scope={scope!r}")
+
+
+def _validate_strict_artifact_shapes(data: dict, path_label: str) -> None:
     state_keys = ("action_xt", "action_xt_next", "transition_mean", "logprob_mask")
     state_shapes = {key: _shape_of(data[key]) for key in state_keys}
     known_state_shapes = {shape for shape in state_shapes.values() if shape is not None}
     if len(known_state_shapes) > 1:
-        raise ValueError(f"strict artifact {path} has incompatible state tensor shapes: {state_shapes}")
+        raise ValueError(f"strict artifact {path_label} has incompatible state tensor shapes: {state_shapes}")
 
     state_shape = next(iter(known_state_shapes), None)
     if state_shape is not None and len(state_shape) == 0:
-        raise ValueError(f"strict artifact {path} state tensors must have a batch dimension")
+        raise ValueError(f"strict artifact {path_label} state tensors must have a batch dimension")
     batch_size = None if state_shape is None else state_shape[0]
 
     for key in ("transition_std", "old_logprob_sum", "old_logprob_mean", "old_logprob_count"):
@@ -138,15 +248,15 @@ def _validate_strict_artifact_shapes(data: dict, path: Path) -> None:
             continue
         if shape not in {(), (batch_size,)}:
             raise ValueError(
-                f"strict artifact {path} field {key} must be scalar or batch vector of length {batch_size}; "
+                f"strict artifact {path_label} field {key} must be scalar or batch vector of length {batch_size}; "
                 f"got shape {shape}"
             )
 
 
-def _validate_strict_artifact_values(data: dict, path: Path) -> None:
+def _validate_strict_artifact_values(data: dict, path_label: str) -> None:
     for key in ("action_xt", "action_xt_next", "transition_mean", "old_logprob_sum", "old_logprob_mean", "old_logprob_count"):
-        _validate_tensor_finite(data[key], path=path, key=key)
-    _validate_tensor_finite(data["transition_std"], path=path, key="transition_std", positive=True)
+        _validate_tensor_finite(data[key], path_label=path_label, key=key)
+    _validate_tensor_finite(data["transition_std"], path_label=path_label, key="transition_std", positive=True)
 
 
 def _shape_of(value: object) -> tuple[int, ...] | None:
@@ -159,7 +269,7 @@ def _shape_of(value: object) -> tuple[int, ...] | None:
         return None
 
 
-def _validate_tensor_finite(value: object, *, path: Path, key: str, positive: bool = False) -> None:
+def _validate_tensor_finite(value: object, *, path_label: str, key: str, positive: bool = False) -> None:
     try:
         import torch
     except ImportError:
@@ -170,12 +280,12 @@ def _validate_tensor_finite(value: object, *, path: Path, key: str, positive: bo
     except Exception:
         return
     if tensor.numel() == 0:
-        raise ValueError(f"strict artifact {path} field {key} must not be empty")
+        raise ValueError(f"strict artifact {path_label} field {key} must not be empty")
     numeric = tensor.float()
     if not torch.isfinite(numeric).all():
-        raise ValueError(f"strict artifact {path} field {key} contains non-finite values")
+        raise ValueError(f"strict artifact {path_label} field {key} contains non-finite values")
     if positive and not (numeric > 0).all():
-        raise ValueError(f"strict artifact {path} field {key} must be positive")
+        raise ValueError(f"strict artifact {path_label} field {key} must be positive")
 
 
 def validate_transition_refs(
@@ -207,9 +317,11 @@ def inspect_strict_artifacts(
 ) -> DatasetValidationReport:
     items = list(refs)
     issues: list[DatasetIssue] = []
+    transition_count = 0
     for ref in items:
         try:
-            load_strict_artifact(Path(ref.artifact_path), loader=loader)
+            artifact = load_strict_artifact(Path(ref.artifact_path), loader=loader)
+            transition_count += count_strict_artifact_transitions(artifact)
         except Exception as exc:
             issues.append(
                 DatasetIssue(
@@ -221,4 +333,4 @@ def inspect_strict_artifacts(
                     artifact_path=ref.artifact_path,
                 )
             )
-    return DatasetValidationReport(transition_count=len(items), issues=tuple(issues))
+    return DatasetValidationReport(transition_count=transition_count, issues=tuple(issues))

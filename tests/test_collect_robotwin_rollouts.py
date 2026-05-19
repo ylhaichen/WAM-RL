@@ -26,6 +26,8 @@ def test_collect_rollouts_preserves_group_and_strict_fields(tmp_path):
                 "server_action_paths": ["/tmp/server/actions_0.pt"],
                 "server_latent_paths": ["/tmp/server/latents_0.pt"],
                 "strict_grpo_ready": True,
+                "strict_grpo_scope": "action_denoising_trajectory",
+                "strict_grpo_artifact_count": 1,
                 "strict_grpo_artifact_paths": ["/tmp/server/strict_grpo_0.pt"],
                 "action_count": 12,
                 "obs_count": 4,
@@ -46,4 +48,6 @@ def test_collect_rollouts_preserves_group_and_strict_fields(tmp_path):
     assert record.sampling_seed == 10000000000
     assert record.initial_obs_path == "/tmp/initial_obs.npy"
     assert record.strict_grpo_ready is True
+    assert record.strict_grpo_scope == "action_denoising_trajectory"
+    assert record.strict_grpo_artifact_count == 1
     assert record.strict_grpo_artifact_paths == ["/tmp/server/strict_grpo_0.pt"]

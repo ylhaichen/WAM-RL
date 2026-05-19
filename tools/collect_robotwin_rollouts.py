@@ -39,6 +39,7 @@ class RolloutRecord:
     server_latent_paths: list[str]
     strict_grpo_ready: bool
     strict_grpo_scope: str
+    strict_grpo_artifact_count: int
     strict_grpo_artifact_paths: list[str]
     video_guidance_scale: float | None = None
     action_guidance_scale: float | None = None
@@ -100,6 +101,9 @@ def iter_rollout_records(root: Path, tasks: set[str] | None = None) -> Iterable[
             server_latent_paths=_string_list(data.get("server_latent_paths")),
             strict_grpo_ready=bool(data.get("strict_grpo_ready", False)),
             strict_grpo_scope=str(data.get("strict_grpo_scope", "")),
+            strict_grpo_artifact_count=int(
+                data.get("strict_grpo_artifact_count", len(_string_list(data.get("strict_grpo_artifact_paths"))))
+            ),
             strict_grpo_artifact_paths=_string_list(data.get("strict_grpo_artifact_paths")),
             video_guidance_scale=_optional_float(data.get("video_guidance_scale")),
             action_guidance_scale=_optional_float(data.get("action_guidance_scale")),

@@ -197,6 +197,7 @@ def save_rollout_record(
     server_action_paths,
     server_latent_paths,
     strict_grpo_artifact_paths,
+    strict_grpo_scope=None,
     run_id=None,
     policy_checkpoint=None,
     reference_checkpoint=None,
@@ -254,6 +255,7 @@ def save_rollout_record(
         server_action_paths=sorted(set(server_action_paths)),
         server_latent_paths=sorted(set(server_latent_paths)),
         strict_grpo_artifact_paths=sorted(set(strict_grpo_artifact_paths)),
+        strict_grpo_scope=strict_grpo_scope,
     )
     write_json(metadata, out_dir / f"{stem}.json")
 
@@ -808,6 +810,7 @@ def eval_policy(task_name,
         server_action_paths = []
         server_latent_paths = []
         strict_grpo_artifact_paths = []
+        strict_grpo_scope = None
         while TASK_ENV.take_action_cnt<TASK_ENV.step_lim:
             if first:
                 observation = TASK_ENV.get_obs()
@@ -819,8 +822,12 @@ def eval_policy(task_name,
                 server_action_paths.append(ret["action_path"])
             if ret.get("latent_path"):
                 server_latent_paths.append(ret["latent_path"])
-            if ret.get("strict_grpo_path"):
+            if ret.get("strict_grpo_paths"):
+                strict_grpo_artifact_paths.extend(ret["strict_grpo_paths"])
+            elif ret.get("strict_grpo_path"):
                 strict_grpo_artifact_paths.append(ret["strict_grpo_path"])
+            if ret.get("strict_grpo_scope"):
+                strict_grpo_scope = ret["strict_grpo_scope"]
             if 'video' in ret:
                 imagined_video = ret['video']
                 gen_video_list.append(imagined_video)
@@ -903,6 +910,7 @@ def eval_policy(task_name,
             server_action_paths=server_action_paths,
             server_latent_paths=server_latent_paths,
             strict_grpo_artifact_paths=strict_grpo_artifact_paths,
+            strict_grpo_scope=strict_grpo_scope,
             run_id=args.get("run_id"),
             policy_checkpoint=args.get("policy_checkpoint"),
             reference_checkpoint=args.get("reference_checkpoint"),

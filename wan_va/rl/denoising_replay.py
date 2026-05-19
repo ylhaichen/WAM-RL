@@ -7,7 +7,12 @@ from pathlib import Path
 
 import torch
 
-from .dataset import GrpoTransitionRef, load_strict_artifact, read_transition_refs
+from .dataset import (
+    GrpoTransitionRef,
+    iter_strict_artifact_transitions,
+    load_strict_artifact,
+    read_transition_refs,
+)
 
 
 @dataclass(frozen=True)
@@ -84,10 +89,11 @@ def load_transition_batch(
     """Load all strict GRPO artifacts referenced by grouped rollout JSONL."""
 
     target_device = torch.device(device or "cpu")
-    refs = tuple(read_transition_refs(groups_jsonl))
-    if not refs:
+    artifact_refs = tuple(read_transition_refs(groups_jsonl))
+    if not artifact_refs:
         raise ValueError(f"no transition artifacts referenced by {groups_jsonl}")
 
+    refs: list[GrpoTransitionRef] = []
     advantages: list[torch.Tensor] = []
     rewards: list[torch.Tensor] = []
     old_logprob_sum: list[torch.Tensor] = []
@@ -97,23 +103,25 @@ def load_transition_batch(
     transition_std: list[torch.Tensor] = []
     logprob_mask: list[torch.Tensor] = []
 
-    for ref in refs:
+    for ref in artifact_refs:
         artifact = load_strict_artifact(Path(ref.artifact_path), loader=loader)
-        mean = _ensure_batch_dim(artifact["transition_mean"]).to(target_device).float()
-        next_state = _ensure_batch_dim(artifact["action_xt_next"]).to(target_device).float()
-        mask = _ensure_batch_dim(artifact["logprob_mask"]).to(target_device).bool()
-        batch_size = mean.shape[0]
-        transition_mean.append(mean)
-        action_xt_next.append(next_state)
-        logprob_mask.append(mask)
-        old_logprob_sum.append(_as_batch_vector(artifact["old_logprob_sum"], batch_size, target_device))
-        old_logprob_count.append(_as_batch_vector(artifact["old_logprob_count"], batch_size, target_device))
-        transition_std.append(_as_batch_vector(artifact["transition_std"], batch_size, target_device))
-        advantages.append(torch.full((batch_size,), float(ref.advantage), dtype=torch.float32, device=target_device))
-        rewards.append(torch.full((batch_size,), float(ref.reward), dtype=torch.float32, device=target_device))
+        for transition in iter_strict_artifact_transitions(artifact):
+            mean = _ensure_batch_dim(transition["transition_mean"]).to(target_device).float()
+            next_state = _ensure_batch_dim(transition["action_xt_next"]).to(target_device).float()
+            mask = _ensure_batch_dim(transition["logprob_mask"]).to(target_device).bool()
+            batch_size = mean.shape[0]
+            refs.append(ref)
+            transition_mean.append(mean)
+            action_xt_next.append(next_state)
+            logprob_mask.append(mask)
+            old_logprob_sum.append(_as_batch_vector(transition["old_logprob_sum"], batch_size, target_device))
+            old_logprob_count.append(_as_batch_vector(transition["old_logprob_count"], batch_size, target_device))
+            transition_std.append(_as_batch_vector(transition["transition_std"], batch_size, target_device))
+            advantages.append(torch.full((batch_size,), float(ref.advantage), dtype=torch.float32, device=target_device))
+            rewards.append(torch.full((batch_size,), float(ref.reward), dtype=torch.float32, device=target_device))
 
     return TransitionBatch(
-        refs=refs,
+        refs=tuple(refs),
         advantages=torch.cat(advantages),
         rewards=torch.cat(rewards),
         old_logprob_sum=torch.cat(old_logprob_sum),

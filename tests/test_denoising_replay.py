@@ -30,6 +30,26 @@ def _artifact(mean, next_state, std=0.5):
     }
 
 
+def _trajectory_artifact(transitions):
+    payload = []
+    for index, artifact in enumerate(transitions):
+        item = dict(artifact)
+        item.pop("schema_version", None)
+        item.pop("scope", None)
+        item.pop("sampling_seed", None)
+        item.pop("frame_st_id", None)
+        item["denoising_step_index"] = index
+        payload.append(item)
+    return {
+        "schema_version": 2,
+        "scope": "action_denoising_trajectory",
+        "sampling_seed": 123,
+        "frame_st_id": 0,
+        "num_transitions": len(payload),
+        "transitions": payload,
+    }
+
+
 def test_compute_gaussian_transition_logprob_matches_saved_old_logprob():
     mean = torch.zeros(1, 2, 1, 2, 1)
     next_state = torch.full_like(mean, 0.25)
@@ -76,3 +96,37 @@ def test_load_transition_batch_reads_group_jsonl_and_artifacts(tmp_path):
     assert batch.advantages.tolist() == [1.0]
     assert batch.old_logprob_sum.shape == (1,)
     assert batch.transition_mean.shape[0] == 1
+
+
+def test_load_transition_batch_expands_trajectory_artifacts(tmp_path):
+    artifact_path = tmp_path / "strict_trajectory.pt"
+    first = _artifact(torch.zeros(1, 1, 1, 1, 1), torch.ones(1, 1, 1, 1, 1) * 0.1)
+    second = _artifact(torch.zeros(1, 1, 1, 1, 1), torch.ones(1, 1, 1, 1, 1) * 0.2)
+    torch.save(_trajectory_artifact([first, second]), artifact_path)
+    group_path = tmp_path / "grpo_groups.jsonl"
+    group_path.write_text(
+        json.dumps(
+            {
+                "group_id": "g0",
+                "task": "open_microwave",
+                "samples": [
+                    {
+                        "sample_idx": 0,
+                        "reward": 0.0,
+                        "advantage": -1.0,
+                        "record_path": str(tmp_path / "r0.json"),
+                        "strict_grpo_artifact_paths": [str(artifact_path)],
+                    }
+                ],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    batch = load_transition_batch(group_path)
+
+    assert batch.transition_count == 2
+    assert len(batch.refs) == 2
+    assert batch.advantages.tolist() == [-1.0, -1.0]
+    assert torch.allclose(batch.action_xt_next.flatten(), torch.tensor([0.1, 0.2]))

@@ -40,6 +40,12 @@ from utils import (
     run_async_server_mode,
     save_async,
 )
+from wan_va.rl.dataset import (
+    STRICT_ARTIFACT_SCHEMA_SINGLE,
+    STRICT_ARTIFACT_SCHEMA_TRAJECTORY,
+    STRICT_ARTIFACT_SCOPE_SINGLE,
+    STRICT_ARTIFACT_SCOPE_TRAJECTORY,
+)
 
 
 class VA_Server:
@@ -538,7 +544,26 @@ class VA_Server:
 
                 latents[:, :, 0:1] = latent_cond if frame_st_id == 0 else latents[:, :, 0:1]
 
-            strict_grpo_artifact = None
+            strict_grpo_capture = bool(getattr(self.job_config, "strict_grpo_capture", False))
+            strict_grpo_capture_scope = str(
+                getattr(self.job_config, "strict_grpo_capture_scope", STRICT_ARTIFACT_SCOPE_SINGLE)
+            )
+            first_step_scopes = {"first", "first_action_denoising_step"}
+            trajectory_scopes = {
+                "all",
+                "full",
+                "action_denoising_steps",
+                "full_action_denoising_steps",
+                "action_denoising_trajectory",
+            }
+            if strict_grpo_capture_scope in first_step_scopes:
+                strict_grpo_capture_scope = STRICT_ARTIFACT_SCOPE_SINGLE
+            elif strict_grpo_capture_scope in trajectory_scopes:
+                strict_grpo_capture_scope = STRICT_ARTIFACT_SCOPE_TRAJECTORY
+            elif strict_grpo_capture:
+                raise ValueError(f"Unsupported strict_grpo_capture_scope: {strict_grpo_capture_scope}")
+
+            strict_grpo_transitions = []
             for i, t in enumerate(tqdm(action_timesteps)):
                 last_step = i == len(action_timesteps) - 1
                 action_cond = torch.zeros(
@@ -575,7 +600,11 @@ class VA_Server:
                                                                  t,
                                                                  actions,
                                                                  return_dict=False)
-                    if i == 0 and bool(getattr(self.job_config, "strict_grpo_capture", False)):
+                    capture_this_step = strict_grpo_capture and (
+                        strict_grpo_capture_scope == STRICT_ARTIFACT_SCOPE_TRAJECTORY
+                        or (strict_grpo_capture_scope == STRICT_ARTIFACT_SCOPE_SINGLE and i == 0)
+                    )
+                    if capture_this_step:
                         transition_std = float(getattr(self.job_config, "strict_grpo_transition_std", 0.01))
                         transition_std = max(transition_std, 1e-8)
                         transition_noise = self._randn(
@@ -600,11 +629,8 @@ class VA_Server:
                         reduce_dims = tuple(range(1, log_prob.ndim))
                         log_prob_count = log_prob_mask.sum(dim=reduce_dims).clamp_min(1)
                         old_logprob_sum = log_prob.sum(dim=reduce_dims)
-                        strict_grpo_artifact = {
-                            "schema_version": 1,
-                            "scope": "first_action_denoising_step",
-                            "sampling_seed": self.sampling_seed,
-                            "frame_st_id": int(frame_st_id),
+                        strict_grpo_transitions.append({
+                            "denoising_step_index": int(i),
                             "timestep": t.detach().cpu(),
                             "action_xt": action_xt.detach().cpu(),
                             "action_xt_next": actions.detach().cpu(),
@@ -614,7 +640,7 @@ class VA_Server:
                             "old_logprob_mean": (old_logprob_sum / log_prob_count).detach().cpu(),
                             "old_logprob_count": log_prob_count.detach().cpu(),
                             "logprob_mask": log_prob_mask.detach().cpu(),
-                        }
+                        })
                     else:
                         actions = transition_mean
 
@@ -625,10 +651,30 @@ class VA_Server:
         latent_path = os.path.join(self.exp_save_root, f'latents_{frame_st_id}.pt')
         action_path = os.path.join(self.exp_save_root, f'actions_{frame_st_id}.pt')
         strict_grpo_path = None
+        strict_grpo_scope = None
         save_async(latents, latent_path)
         save_async(actions, action_path)
-        if strict_grpo_artifact is not None:
+        if strict_grpo_transitions:
             strict_grpo_path = os.path.join(self.exp_save_root, f'strict_grpo_{frame_st_id}.pt')
+            if strict_grpo_capture_scope == STRICT_ARTIFACT_SCOPE_TRAJECTORY:
+                strict_grpo_scope = STRICT_ARTIFACT_SCOPE_TRAJECTORY
+                strict_grpo_artifact = {
+                    "schema_version": STRICT_ARTIFACT_SCHEMA_TRAJECTORY,
+                    "scope": strict_grpo_scope,
+                    "sampling_seed": self.sampling_seed,
+                    "frame_st_id": int(frame_st_id),
+                    "num_transitions": len(strict_grpo_transitions),
+                    "transitions": strict_grpo_transitions,
+                }
+            else:
+                strict_grpo_scope = STRICT_ARTIFACT_SCOPE_SINGLE
+                strict_grpo_artifact = {
+                    "schema_version": STRICT_ARTIFACT_SCHEMA_SINGLE,
+                    "scope": strict_grpo_scope,
+                    "sampling_seed": self.sampling_seed,
+                    "frame_st_id": int(frame_st_id),
+                    **strict_grpo_transitions[0],
+                }
             save_async(strict_grpo_artifact, strict_grpo_path)
         flush_async_saves()
 
@@ -638,6 +684,8 @@ class VA_Server:
             "latent_path": latent_path,
             "action_path": action_path,
             "strict_grpo_path": strict_grpo_path,
+            "strict_grpo_paths": [strict_grpo_path] if strict_grpo_path else [],
+            "strict_grpo_scope": strict_grpo_scope or "",
             "server_exp_save_root": self.exp_save_root,
         }
 

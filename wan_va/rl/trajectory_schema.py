@@ -16,6 +16,8 @@ class GrpoSample:
     record_path: str
     env_seed: int | None = None
     sampling_seed: int | None = None
+    strict_grpo_scope: str = ""
+    strict_grpo_artifact_count: int = 0
     strict_grpo_artifact_paths: tuple[str, ...] = ()
 
     def to_dict(self) -> dict:

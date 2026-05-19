@@ -8,3 +8,4 @@ def test_server_flushes_async_saves_before_returning_artifact_paths():
     assert "def flush_async_saves" in utils_source
     assert "flush_async_saves" in server_source
     assert "strict_grpo_path" in server_source
+    assert "strict_grpo_paths" in server_source

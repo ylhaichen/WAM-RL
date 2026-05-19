@@ -39,7 +39,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Validate GRPO groups from the trainer/dataset perspective.")
     parser.add_argument("groups_jsonl", type=Path, help="Path to groups/grpo_groups.jsonl.")
     parser.add_argument("--allow-missing-artifacts", action="store_true", help="Do not require artifact paths to exist.")
-    parser.add_argument("--inspect-artifacts", action="store_true", help="Load .pt artifacts with torch and validate schema keys.")
+    parser.add_argument(
+        "--inspect-artifacts",
+        action="store_true",
+        help="Load .pt artifacts with torch, validate schema/tensors, and count expanded v2 transitions.",
+    )
     parser.add_argument("--out-summary", type=Path, help="Optional output validation summary JSON.")
     parser.add_argument("--fail-on-error", action="store_true", help="Exit nonzero if validation reports errors.")
     args = parser.parse_args()

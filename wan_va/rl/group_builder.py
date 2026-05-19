@@ -73,6 +73,8 @@ def build_grpo_groups(
                 record_path=str(getattr(item, "record_path")),
                 env_seed=_optional_int(getattr(item, "env_seed", None)),
                 sampling_seed=_optional_int(getattr(item, "sampling_seed", None)),
+                strict_grpo_scope=str(getattr(item, "strict_grpo_scope", "")),
+                strict_grpo_artifact_count=len(getattr(item, "strict_grpo_artifact_paths", None) or []),
                 strict_grpo_artifact_paths=tuple(str(path) for path in (getattr(item, "strict_grpo_artifact_paths", None) or [])),
             )
             for item in items

@@ -62,6 +62,7 @@ def build_rollout_metadata(
     server_action_paths: Iterable[str | Path] | None = None,
     server_latent_paths: Iterable[str | Path] | None = None,
     strict_grpo_artifact_paths: Iterable[str | Path] | None = None,
+    strict_grpo_scope: str | None = None,
 ) -> dict:
     """Build one JSON-serializable rollout record."""
     server_action_path_list = _as_path_strings(server_action_paths)
@@ -98,7 +99,8 @@ def build_rollout_metadata(
         "server_action_paths": server_action_path_list,
         "server_latent_paths": server_latent_path_list,
         "strict_grpo_ready": bool(strict_path_list),
-        "strict_grpo_scope": "first_action_denoising_step",
+        "strict_grpo_scope": strict_grpo_scope or ("first_action_denoising_step" if strict_path_list else ""),
+        "strict_grpo_artifact_count": len(strict_path_list),
         "strict_grpo_artifact_paths": strict_path_list,
         "video_guidance_scale": video_guidance_scale,
         "action_guidance_scale": action_guidance_scale,

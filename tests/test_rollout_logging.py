@@ -79,6 +79,7 @@ def test_build_rollout_metadata_includes_pseudo_and_strict_artifacts(tmp_path):
         server_action_paths=[server_action],
         server_latent_paths=[server_latent],
         strict_grpo_artifact_paths=[strict_path],
+        strict_grpo_scope="action_denoising_trajectory",
     )
 
     assert data["reward"] == 1.0
@@ -88,7 +89,8 @@ def test_build_rollout_metadata_includes_pseudo_and_strict_artifacts(tmp_path):
     assert data["group_size"] == 4
     assert data["strict_grpo_ready"] is True
     assert data["initial_obs_path"] == str(initial_obs_path)
-    assert data["strict_grpo_scope"] == "first_action_denoising_step"
+    assert data["strict_grpo_scope"] == "action_denoising_trajectory"
+    assert data["strict_grpo_artifact_count"] == 1
     assert data["server_action_paths"] == [str(server_action)]
     assert data["server_latent_paths"] == [str(server_latent)]
     assert data["strict_grpo_artifact_paths"] == [str(strict_path)]

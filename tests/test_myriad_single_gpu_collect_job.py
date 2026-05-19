@@ -21,6 +21,8 @@ def test_single_gpu_collect_job_has_safe_defaults():
     assert 'GROUPS_PER_TASK="${GROUPS_PER_TASK:-1}"' in text
     assert 'SELECTED_TASKS="${TASK_NAMES:-hanging_mug}"' in text
     assert 'CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"' in text
+    assert 'STRICT_GRPO_CAPTURE_SCOPE="${STRICT_GRPO_CAPTURE_SCOPE:-action_denoising_trajectory}"' in text
+    assert 'strict_grpo_capture_scope="${STRICT_GRPO_CAPTURE_SCOPE}"' in text
     assert 'bash evaluation/robotwin/launch_client_multigpus.sh "${RESULTS_ROOT}" 0 "${seed}" 1' in text
     assert "tools/collect_robotwin_rollouts.py" in text
     assert "tools/build_grpo_groups.py" in text
@@ -30,5 +32,6 @@ def test_single_gpu_collect_job_has_safe_defaults():
     assert "--fail-on-validation-errors" in text
     assert "--out-manifest \"${RESULTS_ROOT}/groups/grpo_manifest.json\"" in text
     assert "tools/validate_grpo_dataset.py" in text
+    assert "--inspect-artifacts" in text
     assert "--out-summary \"${RESULTS_ROOT}/groups/grpo_dataset_validation.json\"" in text
     assert "--fail-on-error" in text

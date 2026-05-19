@@ -1,7 +1,7 @@
 #!/bin/bash -l
 
 # Four-GPU grouped rollout collection for pseudo-GRPO training while saving
-# first-step strict-GRPO artifacts. This is a data collection job, not a
+# full denoising strict-GRPO artifacts. This is a data collection job, not a
 # baseline evaluation job.
 
 #$ -S /bin/bash
@@ -34,6 +34,7 @@ MASTER_PORT="${MASTER_PORT:-30261}"
 SERVER_WAIT_SECONDS="${SERVER_WAIT_SECONDS:-1800}"
 STRICT_GRPO_CAPTURE="${STRICT_GRPO_CAPTURE:-true}"
 STRICT_GRPO_TRANSITION_STD="${STRICT_GRPO_TRANSITION_STD:-0.01}"
+STRICT_GRPO_CAPTURE_SCOPE="${STRICT_GRPO_CAPTURE_SCOPE:-action_denoising_trajectory}"
 ACTION_NUM_INFERENCE_STEPS="${ACTION_NUM_INFERENCE_STEPS:-50}"
 GROUP_SEED_SEARCH="${GROUP_SEED_SEARCH:-true}"
 GROUP_SEED_SEARCH_MAX_ATTEMPTS="${GROUP_SEED_SEARCH_MAX_ATTEMPTS:-50}"
@@ -51,7 +52,7 @@ esac
 
 export NUM_GPUS GROUP_SIZE GROUPS_PER_TASK START_SEED PROMPT_INDEX
 export START_PORT MASTER_PORT SERVER_WAIT_SECONDS RESULTS_ROOT SELECTED_TASKS
-export STRICT_GRPO_CAPTURE STRICT_GRPO_CAPTURE_PY STRICT_GRPO_TRANSITION_STD
+export STRICT_GRPO_CAPTURE STRICT_GRPO_CAPTURE_PY STRICT_GRPO_TRANSITION_STD STRICT_GRPO_CAPTURE_SCOPE
 export ACTION_NUM_INFERENCE_STEPS GROUP_SEED_SEARCH GROUP_SEED_SEARCH_MAX_ATTEMPTS
 export GROUP_RETRY_MULTIPLIER GROUP_MAX_ATTEMPTS
 export RUN_ID STABLE_SEED_CACHE_DIR
@@ -67,6 +68,7 @@ echo "PROMPT_INDEX=${PROMPT_INDEX}"
 echo "SELECTED_TASKS=${SELECTED_TASKS}"
 echo "STRICT_GRPO_CAPTURE=${STRICT_GRPO_CAPTURE_PY}"
 echo "STRICT_GRPO_TRANSITION_STD=${STRICT_GRPO_TRANSITION_STD}"
+echo "STRICT_GRPO_CAPTURE_SCOPE=${STRICT_GRPO_CAPTURE_SCOPE}"
 echo "GROUP_SEED_SEARCH=${GROUP_SEED_SEARCH}"
 echo "GROUP_SEED_SEARCH_MAX_ATTEMPTS=${GROUP_SEED_SEARCH_MAX_ATTEMPTS}"
 echo "GROUP_MAX_ATTEMPTS=${GROUP_MAX_ATTEMPTS}"
@@ -125,6 +127,7 @@ for ((gpu_id=0; gpu_id<NUM_GPUS; gpu_id++)); do
         --opts \
         strict_grpo_capture="${STRICT_GRPO_CAPTURE_PY}" \
         strict_grpo_transition_std="${STRICT_GRPO_TRANSITION_STD}" \
+        strict_grpo_capture_scope="${STRICT_GRPO_CAPTURE_SCOPE}" \
         action_num_inference_steps="${ACTION_NUM_INFERENCE_STEPS}" \
         > "${RESULTS_ROOT}/logs/server_${gpu_id}_${current_port}.log" 2>&1 &
     SERVER_PIDS+=("$!")
@@ -258,6 +261,7 @@ python tools/build_grpo_groups.py \
 
 python tools/validate_grpo_dataset.py \
     "${RESULTS_ROOT}/groups/grpo_groups.jsonl" \
+    --inspect-artifacts \
     --out-summary "${RESULTS_ROOT}/groups/grpo_dataset_validation.json" \
     --fail-on-error
 

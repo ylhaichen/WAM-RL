@@ -11,6 +11,13 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from statistics import mean
 
+try:
+    from tools._repo_root import ensure_repo_root_on_path
+except ModuleNotFoundError:
+    from _repo_root import ensure_repo_root_on_path
+
+ensure_repo_root_on_path()
+
 
 @dataclass(frozen=True)
 class TaskGrpoStats:
@@ -69,7 +76,7 @@ def read_group_dicts(paths: list[Path]) -> list[dict]:
     return groups
 
 
-def summarize_groups(paths: list[Path]) -> GrpoGroupSummary:
+def summarize_groups(paths: list[Path], *, inspect_artifacts: bool = False) -> GrpoGroupSummary:
     groups = read_group_dicts(paths)
     group_ids = [str(group.get("group_id", "")) for group in groups]
     duplicate_group_id_count = sum(count - 1 for count in Counter(group_ids).values() if count > 1)
@@ -80,7 +87,7 @@ def summarize_groups(paths: list[Path]) -> GrpoGroupSummary:
         task_groups[task].append(group)
 
     task_stats = tuple(
-        _summarize_task(task, task_groups[task])
+        _summarize_task(task, task_groups[task], inspect_artifacts=inspect_artifacts)
         for task in sorted(task_groups)
     )
     sample_count = sum(item.sample_count for item in task_stats)
@@ -100,7 +107,7 @@ def summarize_groups(paths: list[Path]) -> GrpoGroupSummary:
     )
 
 
-def _summarize_task(task: str, groups: list[dict]) -> TaskGrpoStats:
+def _summarize_task(task: str, groups: list[dict], *, inspect_artifacts: bool = False) -> TaskGrpoStats:
     sample_count = 0
     success_count = 0
     transition_count = 0
@@ -112,7 +119,7 @@ def _summarize_task(task: str, groups: list[dict]) -> TaskGrpoStats:
             reward = float(sample.get("reward", 1.0 if sample.get("success") else 0.0))
             if reward > 0.0:
                 success_count += 1
-            transition_count += len(sample.get("strict_grpo_artifact_paths", []) or [])
+            transition_count += _count_sample_transitions(sample, inspect_artifacts=inspect_artifacts)
     failure_count = sample_count - success_count
     return TaskGrpoStats(
         task=task,
@@ -126,6 +133,20 @@ def _summarize_task(task: str, groups: list[dict]) -> TaskGrpoStats:
         mean_reward_std=mean(reward_stds) if reward_stds else 0.0,
         balance_rate=_safe_div(min(success_count, failure_count), sample_count),
     )
+
+
+def _count_sample_transitions(sample: dict, *, inspect_artifacts: bool) -> int:
+    artifact_paths = sample.get("strict_grpo_artifact_paths", []) or []
+    if not inspect_artifacts:
+        return len(artifact_paths)
+
+    from wan_va.rl.dataset import count_strict_artifact_transitions, load_strict_artifact
+
+    transition_count = 0
+    for artifact_path in artifact_paths:
+        artifact = load_strict_artifact(Path(artifact_path))
+        transition_count += count_strict_artifact_transitions(artifact)
+    return transition_count
 
 
 def _safe_div(numerator: float, denominator: float) -> float:
@@ -185,12 +206,17 @@ def write_csv(path: Path, summary: GrpoGroupSummary) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Summarize GRPO group JSONL files for paper tables.")
     parser.add_argument("groups_jsonl", nargs="+", type=Path, help="One or more grpo_groups.jsonl files.")
+    parser.add_argument(
+        "--inspect-artifacts",
+        action="store_true",
+        help="Load strict GRPO .pt artifacts and count v2 trajectory transitions instead of only artifact paths.",
+    )
     parser.add_argument("--out-json", type=Path, help="Optional summary JSON output.")
     parser.add_argument("--out-csv", type=Path, help="Optional per-task CSV output.")
     parser.add_argument("--out-markdown", type=Path, help="Optional Markdown table output.")
     args = parser.parse_args()
 
-    summary = summarize_groups([path.expanduser() for path in args.groups_jsonl])
+    summary = summarize_groups([path.expanduser() for path in args.groups_jsonl], inspect_artifacts=args.inspect_artifacts)
     payload = summary.to_dict()
     print(json.dumps(payload, ensure_ascii=False, indent=2))
 
