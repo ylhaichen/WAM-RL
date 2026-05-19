@@ -36,3 +36,15 @@ def test_train_offline_grpo_smoke_help_does_not_require_external_pythonpath():
 
     assert result.returncode == 0, result.stderr
     assert "strict-artifact offline GRPO smoke training" in result.stdout
+
+
+def test_summarize_grpo_groups_help_does_not_require_external_pythonpath():
+    result = subprocess.run(
+        [sys.executable, "tools/summarize_grpo_groups.py", "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "Summarize GRPO group JSONL files" in result.stdout
