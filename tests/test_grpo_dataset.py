@@ -66,6 +66,28 @@ def _strict_trajectory_artifact_with_shapes(transition_count=2, **kwargs):
     }
 
 
+def _strict_trajectory_artifact_with_replay_context(transition_count=2):
+    artifact = _strict_trajectory_artifact_with_shapes(transition_count=transition_count)
+    for transition in artifact["transitions"]:
+        transition["replay_input"] = {
+            "noisy_latents": ShapeOnly((1, 2, 3)),
+            "timesteps": ShapeOnly((1,)),
+        }
+    artifact["replay_context"] = {
+        "schema_version": 1,
+        "cache_name": "pos",
+        "transformer_cache": [{"k": ShapeOnly((1, 1)), "v": ShapeOnly((1, 1))}],
+        "grid_id": ShapeOnly((1, 3)),
+        "text_emb": ShapeOnly((1, 1, 1)),
+        "negative_text_emb": None,
+        "use_cfg": False,
+        "action_guidance_scale": 1.0,
+        "action_num_inference_steps": 50,
+        "frame_chunk_size": 1,
+    }
+    return artifact
+
+
 def test_read_transition_refs_flattens_group_samples(tmp_path):
     path = tmp_path / "grpo_groups.jsonl"
     path.write_text(
@@ -266,3 +288,45 @@ def test_inspect_strict_artifacts_counts_trajectory_transitions(tmp_path):
 
     assert report.ok is True
     assert report.transition_count == 4
+
+
+def test_inspect_strict_artifacts_can_require_replay_context(tmp_path):
+    path = tmp_path / "grpo_groups.jsonl"
+    artifact_path = tmp_path / "strict.pt"
+    artifact_path.write_bytes(b"pt")
+    path.write_text(
+        json.dumps(
+            {
+                "group_id": "g0",
+                "task": "open_microwave",
+                "samples": [
+                    {
+                        "sample_idx": 0,
+                        "reward": 1.0,
+                        "advantage": 1.0,
+                        "record_path": "/tmp/r0.json",
+                        "strict_grpo_artifact_paths": [str(artifact_path)],
+                    }
+                ],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    missing_report = inspect_strict_artifacts(
+        read_transition_refs(path),
+        loader=lambda _: _strict_trajectory_artifact_with_shapes(transition_count=2),
+        require_replay_context=True,
+    )
+    valid_report = inspect_strict_artifacts(
+        read_transition_refs(path),
+        loader=lambda _: _strict_trajectory_artifact_with_replay_context(transition_count=2),
+        require_replay_context=True,
+    )
+
+    assert missing_report.ok is False
+    assert missing_report.issues[0].code == "invalid_transition_artifact"
+    assert "replay_context" in missing_report.issues[0].message
+    assert valid_report.ok is True
+    assert valid_report.transition_count == 2

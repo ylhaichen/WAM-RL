@@ -11,6 +11,8 @@ grouped RoboTwin rollout collection and offline GRPO replay.
   Myriad.
 - Make validation and replay count true denoising transitions, not just artifact
   paths.
+- Optionally capture enough actor replay context to recompute current LingBot-VA
+  transition log probabilities for real actor updates.
 
 ## Rollout Metadata Contract
 
@@ -79,13 +81,37 @@ New collection jobs default to v2:
             "old_logprob_mean": Tensor,
             "old_logprob_count": Tensor,
             "logprob_mask": Tensor,
+            # Present only when STRICT_GRPO_SAVE_REPLAY_CONTEXT=true:
+            "replay_input": {
+                "noisy_latents": Tensor,
+                "timesteps": Tensor,
+            },
         }
     ],
+    # Present only when STRICT_GRPO_SAVE_REPLAY_CONTEXT=true:
+    "replay_context": {
+        "schema_version": 1,
+        "cache_name": str,
+        "transformer_cache": list[dict[str, Tensor]],
+        "grid_id": Tensor,
+        "text_emb": Tensor,
+        "negative_text_emb": Tensor | None,
+        "use_cfg": bool,
+        "action_guidance_scale": float,
+        "action_num_inference_steps": int,
+        "frame_chunk_size": int,
+    },
 }
 ```
 
 Each v2 artifact represents one action chunk and stores every captured
 non-terminal action denoising transition for that chunk.
+
+`replay_context` and per-transition `replay_input` are not required for dataset
+validation or scalar smoke training. They are required for the real actor replay
+trainer because that trainer recomputes current transition log probabilities by
+running the saved denoising state through the current LingBot-VA transformer.
+Old artifacts without these fields must fail fast in the actor trainer.
 
 ## Validation
 
@@ -108,6 +134,17 @@ python tools/validate_grpo_dataset.py \
 
 With `--inspect-artifacts`, `transition_count` is the true denoising transition
 count after expanding v2 trajectory artifacts.
+
+For actor replay datasets, require replay fields explicitly:
+
+```bash
+python tools/validate_grpo_dataset.py \
+  groups/grpo_groups.jsonl \
+  --inspect-artifacts \
+  --require-replay-context \
+  --out-summary groups/grpo_dataset_validation_actor_replay.json \
+  --fail-on-error
+```
 
 ## Summary
 
@@ -135,6 +172,7 @@ STRICT_GRPO_CAPTURE=true
 STRICT_GRPO_TRANSITION_STD=0.01
 STRICT_GRPO_CAPTURE_SCOPE=action_denoising_trajectory
 ACTION_NUM_INFERENCE_STEPS=50
+STRICT_GRPO_SAVE_REPLAY_CONTEXT=false
 ```
 
 To reproduce old first-step capture:
@@ -144,9 +182,22 @@ STRICT_GRPO_CAPTURE_SCOPE=first_action_denoising_step \
 bash jobs/myriad/30_collect_grouped_rollouts_4gpu.sh
 ```
 
+To collect data for real actor replay training:
+
+```bash
+STRICT_GRPO_CAPTURE_SCOPE=action_denoising_trajectory \
+STRICT_GRPO_SAVE_REPLAY_CONTEXT=true \
+bash jobs/myriad/30_collect_grouped_rollouts_4gpu.sh
+```
+
 ## Replay
 
 `wan_va.rl.denoising_replay.load_transition_batch()` expands both schemas into a
 single `TransitionBatch`. v1 contributes one transition per artifact path; v2
 contributes `num_transitions` transitions per artifact path.
 
+`wan_va.rl.actor_replay.ActorReplayGrpoTrainer` is the real actor replay path.
+It requires v2 artifacts with `replay_context` and `replay_input`, restores the
+saved transformer KV cache, reruns the current actor on the saved denoising
+state, and updates trainable actor parameters such as `action_embedder`,
+`condition_embedder_action`, and `action_proj_out`.

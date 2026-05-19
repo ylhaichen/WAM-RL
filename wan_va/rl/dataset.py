@@ -56,6 +56,22 @@ REQUIRED_STRICT_TRANSITION_KEYS = frozenset(
     }
 )
 
+REQUIRED_REPLAY_CONTEXT_KEYS = frozenset(
+    {
+        "schema_version",
+        "cache_name",
+        "transformer_cache",
+        "grid_id",
+        "text_emb",
+        "use_cfg",
+        "action_guidance_scale",
+        "action_num_inference_steps",
+        "frame_chunk_size",
+    }
+)
+
+REQUIRED_REPLAY_INPUT_KEYS = frozenset({"noisy_latents", "timesteps"})
+
 
 @dataclass(frozen=True)
 class GrpoTransitionRef:
@@ -314,6 +330,7 @@ def inspect_strict_artifacts(
     refs: Iterable[GrpoTransitionRef],
     *,
     loader: Callable[[Path], dict] | None = None,
+    require_replay_context: bool = False,
 ) -> DatasetValidationReport:
     items = list(refs)
     issues: list[DatasetIssue] = []
@@ -321,6 +338,8 @@ def inspect_strict_artifacts(
     for ref in items:
         try:
             artifact = load_strict_artifact(Path(ref.artifact_path), loader=loader)
+            if require_replay_context:
+                _validate_actor_replay_fields(artifact, ref.artifact_path)
             transition_count += count_strict_artifact_transitions(artifact)
         except Exception as exc:
             issues.append(
@@ -334,3 +353,36 @@ def inspect_strict_artifacts(
                 )
             )
     return DatasetValidationReport(transition_count=transition_count, issues=tuple(issues))
+
+
+def _validate_actor_replay_fields(data: dict, path_label: str) -> None:
+    replay_context = data.get("replay_context")
+    if not isinstance(replay_context, dict):
+        raise ValueError(f"strict artifact {path_label} missing replay_context required for actor replay")
+
+    missing_context = sorted(REQUIRED_REPLAY_CONTEXT_KEYS - set(replay_context))
+    if missing_context:
+        raise ValueError(f"strict artifact {path_label} replay_context missing keys: {missing_context}")
+
+    transformer_cache = replay_context["transformer_cache"]
+    if not isinstance(transformer_cache, list) or not transformer_cache:
+        raise ValueError(f"strict artifact {path_label} replay_context transformer_cache must be a non-empty list")
+
+    if bool(replay_context.get("use_cfg", False)) and replay_context.get("negative_text_emb") is None:
+        raise ValueError(f"strict artifact {path_label} replay_context has use_cfg=True but missing negative_text_emb")
+
+    for key in ("action_guidance_scale", "action_num_inference_steps", "frame_chunk_size"):
+        try:
+            float(replay_context[key])
+        except Exception as exc:
+            raise ValueError(f"strict artifact {path_label} replay_context field {key} must be numeric") from exc
+
+    for index, transition in enumerate(iter_strict_artifact_transitions(data)):
+        replay_input = transition.get("replay_input")
+        if not isinstance(replay_input, dict):
+            raise ValueError(f"strict artifact {path_label} transition {index} missing replay_input")
+        missing_input = sorted(REQUIRED_REPLAY_INPUT_KEYS - set(replay_input))
+        if missing_input:
+            raise ValueError(f"strict artifact {path_label} transition {index} replay_input missing keys: {missing_input}")
+        _validate_tensor_finite(replay_input["noisy_latents"], path_label=path_label, key=f"replay_input[{index}].noisy_latents")
+        _validate_tensor_finite(replay_input["timesteps"], path_label=path_label, key=f"replay_input[{index}].timesteps")

@@ -26,6 +26,8 @@ def test_four_gpu_grouped_rollout_job_builds_grpo_groups():
     assert "--fail-on-error" in text
     assert 'STRICT_GRPO_CAPTURE_SCOPE="${STRICT_GRPO_CAPTURE_SCOPE:-action_denoising_trajectory}"' in text
     assert 'strict_grpo_capture_scope="${STRICT_GRPO_CAPTURE_SCOPE}"' in text
+    assert 'STRICT_GRPO_SAVE_REPLAY_CONTEXT="${STRICT_GRPO_SAVE_REPLAY_CONTEXT:-false}"' in text
+    assert 'strict_grpo_save_replay_context="${STRICT_GRPO_SAVE_REPLAY_CONTEXT}"' in text
 
 
 def test_one_gpu_grouped_rollout_job_uses_successful_attempt_roots():
@@ -39,6 +41,8 @@ def test_one_gpu_grouped_rollout_job_uses_successful_attempt_roots():
     assert "--inspect-artifacts" in text
     assert 'STRICT_GRPO_CAPTURE_SCOPE="${STRICT_GRPO_CAPTURE_SCOPE:-action_denoising_trajectory}"' in text
     assert 'strict_grpo_capture_scope="${STRICT_GRPO_CAPTURE_SCOPE}"' in text
+    assert 'STRICT_GRPO_SAVE_REPLAY_CONTEXT="${STRICT_GRPO_SAVE_REPLAY_CONTEXT:-false}"' in text
+    assert 'strict_grpo_save_replay_context="${STRICT_GRPO_SAVE_REPLAY_CONTEXT}"' in text
 
 
 def test_robotwin_client_launcher_generates_task_specific_group_ids():
@@ -70,6 +74,7 @@ def test_scale_submit_wrapper_does_not_inherit_stale_output_roots_by_default():
     assert 'GROUP_MAX_ATTEMPTS="${GROUP_MAX_ATTEMPTS:-$((GROUPS_PER_TASK * GROUP_RETRY_MULTIPLIER))}"' in text
     assert "export GROUP_MAX_ATTEMPTS" in text
     assert "export STRICT_GRPO_CAPTURE_SCOPE" in text
+    assert "export STRICT_GRPO_SAVE_REPLAY_CONTEXT" in text
     assert 'unset RESULTS_ROOT' in text
     assert 'unset STABLE_SEED_CACHE_DIR' in text
 
@@ -85,4 +90,17 @@ def test_next_round_submit_wrapper_targets_hard_medium_tasks():
     assert 'SECONDARY_GROUP_RETRY_MULTIPLIER="${SECONDARY_GROUP_RETRY_MULTIPLIER:-6}"' in text
     assert 'DRY_RUN="${DRY_RUN:-0}"' in text
     assert 'STRICT_GRPO_CAPTURE_SCOPE="${STRICT_GRPO_CAPTURE_SCOPE:-action_denoising_trajectory}"' in text
+    assert 'STRICT_GRPO_SAVE_REPLAY_CONTEXT="${STRICT_GRPO_SAVE_REPLAY_CONTEXT:-false}"' in text
     assert 'bash "${SUBMIT_SCRIPT}"' in text
+
+
+def test_actor_replay_training_job_runs_real_actor_trainer():
+    text = Path("jobs/myriad/34_train_actor_replay_grpo_robotwin.sh").read_text()
+
+    assert "tools/train_actor_replay_grpo.py" in text
+    assert "--groups-jsonl \"${GRPO_GROUPS_PATH}\"" in text
+    assert "--trainable-mode \"${GRPO_TRAINABLE_MODE}\"" in text
+    assert "tools/validate_grpo_dataset.py" in text
+    assert "--inspect-artifacts" in text
+    assert "--require-replay-context" in text
+    assert "STRICT_GRPO_SAVE_REPLAY_CONTEXT=true" in text

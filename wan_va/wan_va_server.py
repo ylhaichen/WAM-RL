@@ -46,6 +46,7 @@ from wan_va.rl.dataset import (
     STRICT_ARTIFACT_SCOPE_SINGLE,
     STRICT_ARTIFACT_SCOPE_TRAJECTORY,
 )
+from wan_va.rl.actor_replay import build_replay_context, build_transition_replay_input
 
 
 class VA_Server:
@@ -545,6 +546,7 @@ class VA_Server:
                 latents[:, :, 0:1] = latent_cond if frame_st_id == 0 else latents[:, :, 0:1]
 
             strict_grpo_capture = bool(getattr(self.job_config, "strict_grpo_capture", False))
+            strict_grpo_save_replay_context = bool(getattr(self.job_config, "strict_grpo_save_replay_context", False))
             strict_grpo_capture_scope = str(
                 getattr(self.job_config, "strict_grpo_capture_scope", STRICT_ARTIFACT_SCOPE_SINGLE)
             )
@@ -564,6 +566,7 @@ class VA_Server:
                 raise ValueError(f"Unsupported strict_grpo_capture_scope: {strict_grpo_capture_scope}")
 
             strict_grpo_transitions = []
+            strict_grpo_replay_context = None
             for i, t in enumerate(tqdm(action_timesteps)):
                 last_step = i == len(action_timesteps) - 1
                 action_cond = torch.zeros(
@@ -582,6 +585,24 @@ class VA_Server:
                     None,
                     action_cond,
                     frame_st_id=frame_st_id)
+                capture_this_step = strict_grpo_capture and (not last_step) and (
+                    strict_grpo_capture_scope == STRICT_ARTIFACT_SCOPE_TRAJECTORY
+                    or (strict_grpo_capture_scope == STRICT_ARTIFACT_SCOPE_SINGLE and i == 0)
+                )
+                transition_replay_input = None
+                if capture_this_step and strict_grpo_save_replay_context:
+                    if strict_grpo_replay_context is None:
+                        strict_grpo_replay_context = build_replay_context(
+                            transformer=self.transformer,
+                            cache_name=self.cache_name,
+                            action_input_template=input_dict["action_res_lst"],
+                            negative_prompt_embeds=self.negative_prompt_embeds,
+                            use_cfg=self.use_cfg,
+                            action_guidance_scale=float(self.job_config.action_guidance_scale),
+                            action_num_inference_steps=int(action_inference_step),
+                            frame_chunk_size=int(frame_chunk_size),
+                        )
+                    transition_replay_input = build_transition_replay_input(input_dict["action_res_lst"])
                 action_noise_pred = self.transformer(
                     self._repeat_input_for_cfg(input_dict['action_res_lst']),
                     update_cache=1 if last_step else 0,
@@ -600,10 +621,6 @@ class VA_Server:
                                                                  t,
                                                                  actions,
                                                                  return_dict=False)
-                    capture_this_step = strict_grpo_capture and (
-                        strict_grpo_capture_scope == STRICT_ARTIFACT_SCOPE_TRAJECTORY
-                        or (strict_grpo_capture_scope == STRICT_ARTIFACT_SCOPE_SINGLE and i == 0)
-                    )
                     if capture_this_step:
                         transition_std = float(getattr(self.job_config, "strict_grpo_transition_std", 0.01))
                         transition_std = max(transition_std, 1e-8)
@@ -615,6 +632,8 @@ class VA_Server:
                         action_xt = actions
                         actions = transition_mean + transition_noise * transition_std
                         log_prob_mask = torch.ones_like(actions, dtype=torch.bool)
+                        action_channel_mask = self.action_mask.to(device=actions.device)
+                        log_prob_mask[:, ~action_channel_mask] = False
                         if frame_st_id == 0:
                             log_prob_mask[:, :, 0:1] = False
                             actions[:, :, 0:1] = action_cond
@@ -641,12 +660,14 @@ class VA_Server:
                             "old_logprob_count": log_prob_count.detach().cpu(),
                             "logprob_mask": log_prob_mask.detach().cpu(),
                         })
+                        if transition_replay_input is not None:
+                            strict_grpo_transitions[-1]["replay_input"] = transition_replay_input
                     else:
                         actions = transition_mean
 
                 actions[:, :, 0:1] = action_cond if frame_st_id == 0 else actions[:, :, 0:1]
 
-        actions[:, ~self.action_mask] *= 0
+        actions[:, ~self.action_mask.to(device=actions.device)] *= 0
 
         latent_path = os.path.join(self.exp_save_root, f'latents_{frame_st_id}.pt')
         action_path = os.path.join(self.exp_save_root, f'actions_{frame_st_id}.pt')
@@ -666,6 +687,8 @@ class VA_Server:
                     "num_transitions": len(strict_grpo_transitions),
                     "transitions": strict_grpo_transitions,
                 }
+                if strict_grpo_replay_context is not None:
+                    strict_grpo_artifact["replay_context"] = strict_grpo_replay_context
             else:
                 strict_grpo_scope = STRICT_ARTIFACT_SCOPE_SINGLE
                 strict_grpo_artifact = {
@@ -675,6 +698,8 @@ class VA_Server:
                     "frame_st_id": int(frame_st_id),
                     **strict_grpo_transitions[0],
                 }
+                if strict_grpo_replay_context is not None:
+                    strict_grpo_artifact["replay_context"] = strict_grpo_replay_context
             save_async(strict_grpo_artifact, strict_grpo_path)
         flush_async_saves()
 

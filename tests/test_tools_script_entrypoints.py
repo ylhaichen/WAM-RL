@@ -48,3 +48,15 @@ def test_summarize_grpo_groups_help_does_not_require_external_pythonpath():
 
     assert result.returncode == 0, result.stderr
     assert "Summarize GRPO group JSONL files" in result.stdout
+
+
+def test_train_actor_replay_grpo_help_does_not_require_external_pythonpath():
+    result = subprocess.run(
+        [sys.executable, "tools/train_actor_replay_grpo.py", "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "real LingBot actor replay GRPO training" in result.stdout

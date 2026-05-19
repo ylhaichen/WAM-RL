@@ -27,11 +27,12 @@ def validate_dataset(
     *,
     require_existing_artifacts: bool = True,
     inspect_artifacts: bool = False,
+    require_replay_context: bool = False,
 ) -> DatasetValidationReport:
     refs = list(read_transition_refs(groups_jsonl.expanduser()))
     report = validate_transition_refs(refs, require_existing_artifacts=require_existing_artifacts)
     if inspect_artifacts and report.ok:
-        report = inspect_strict_artifacts(refs)
+        report = inspect_strict_artifacts(refs, require_replay_context=require_replay_context)
     return report
 
 
@@ -44,14 +45,23 @@ def main() -> None:
         action="store_true",
         help="Load .pt artifacts with torch, validate schema/tensors, and count expanded v2 transitions.",
     )
+    parser.add_argument(
+        "--require-replay-context",
+        action="store_true",
+        help="Require replay_context and per-transition replay_input fields for real actor replay training.",
+    )
     parser.add_argument("--out-summary", type=Path, help="Optional output validation summary JSON.")
     parser.add_argument("--fail-on-error", action="store_true", help="Exit nonzero if validation reports errors.")
     args = parser.parse_args()
+
+    if args.require_replay_context and not args.inspect_artifacts:
+        parser.error("--require-replay-context requires --inspect-artifacts")
 
     report = validate_dataset(
         args.groups_jsonl,
         require_existing_artifacts=not args.allow_missing_artifacts,
         inspect_artifacts=args.inspect_artifacts,
+        require_replay_context=args.require_replay_context,
     )
     payload = report.to_dict()
     print(json.dumps(payload, ensure_ascii=False, indent=2))
