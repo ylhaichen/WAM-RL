@@ -672,6 +672,7 @@ class VA_Server:
         latent_path = os.path.join(self.exp_save_root, f'latents_{frame_st_id}.pt')
         action_path = os.path.join(self.exp_save_root, f'actions_{frame_st_id}.pt')
         strict_grpo_path = None
+        strict_grpo_replay_context_path = None
         strict_grpo_scope = None
         save_async(latents, latent_path)
         save_async(actions, action_path)
@@ -687,8 +688,6 @@ class VA_Server:
                     "num_transitions": len(strict_grpo_transitions),
                     "transitions": strict_grpo_transitions,
                 }
-                if strict_grpo_replay_context is not None:
-                    strict_grpo_artifact["replay_context"] = strict_grpo_replay_context
             else:
                 strict_grpo_scope = STRICT_ARTIFACT_SCOPE_SINGLE
                 strict_grpo_artifact = {
@@ -698,8 +697,13 @@ class VA_Server:
                     "frame_st_id": int(frame_st_id),
                     **strict_grpo_transitions[0],
                 }
-                if strict_grpo_replay_context is not None:
-                    strict_grpo_artifact["replay_context"] = strict_grpo_replay_context
+            if strict_grpo_replay_context is not None:
+                strict_grpo_replay_context_name = f'strict_grpo_replay_context_{frame_st_id}.pt'
+                strict_grpo_replay_context_path = os.path.join(
+                    self.exp_save_root, strict_grpo_replay_context_name
+                )
+                strict_grpo_artifact["replay_context_path"] = strict_grpo_replay_context_name
+                save_async(strict_grpo_replay_context, strict_grpo_replay_context_path)
             save_async(strict_grpo_artifact, strict_grpo_path)
         flush_async_saves()
 
@@ -710,6 +714,7 @@ class VA_Server:
             "action_path": action_path,
             "strict_grpo_path": strict_grpo_path,
             "strict_grpo_paths": [strict_grpo_path] if strict_grpo_path else [],
+            "strict_grpo_replay_context_path": strict_grpo_replay_context_path,
             "strict_grpo_scope": strict_grpo_scope or "",
             "server_exp_save_root": self.exp_save_root,
         }

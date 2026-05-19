@@ -19,7 +19,13 @@ import torch
 from wan_va.utils.scheduler import FlowMatchScheduler
 from wan_va.utils.trainable import configure_trainable_parameters
 
-from .dataset import GrpoTransitionRef, iter_strict_artifact_transitions, load_strict_artifact, read_transition_refs
+from .dataset import (
+    GrpoTransitionRef,
+    iter_strict_artifact_transitions,
+    load_strict_artifact,
+    read_transition_refs,
+    resolve_replay_context,
+)
 from .denoising_replay import compute_gaussian_transition_logprob
 from .grpo_loss import compute_clipped_grpo_loss
 
@@ -167,7 +173,10 @@ def build_transition_replay_input(action_input: dict) -> dict:
     """Save the exact per-transition action model input needed for replay."""
 
     return {
-        "noisy_latents": tensor_tree_to_cpu(action_input["noisy_latents"]),
+        # `noisy_latents` is the same denoising state already stored as
+        # transition["action_xt"]. Keeping only timesteps avoids duplicating a
+        # large tensor while preserving frame-specific action-conditioning
+        # timesteps that cannot always be reconstructed from the scalar t.
         "timesteps": tensor_tree_to_cpu(action_input["timesteps"]),
     }
 
@@ -180,7 +189,7 @@ def iter_actor_replay_examples(
 ) -> Iterable[ActorReplayExample]:
     for ref in read_transition_refs(groups_jsonl.expanduser()):
         artifact = load_strict_artifact(Path(ref.artifact_path), loader=loader)
-        replay_context = artifact.get("replay_context")
+        replay_context = resolve_replay_context(artifact, Path(ref.artifact_path), loader=loader)
         if replay_context is None:
             if require_replay_context:
                 raise MissingReplayContextError(
@@ -229,7 +238,7 @@ class LingBotActionReplayPolicy(torch.nn.Module):
             device=self.device,
             dtype=self.dtype,
         )
-        input_dict = self._build_transformer_input(context, replay_input)
+        input_dict = self._build_transformer_input(context, transition, replay_input)
         action_noise_pred = self.transformer(
             input_dict,
             update_cache=0,
@@ -260,8 +269,9 @@ class LingBotActionReplayPolicy(torch.nn.Module):
             logprob_mask=_to_tensor(transition["logprob_mask"], device=self.device, dtype=torch.bool),
         ).logprob_sum
 
-    def _build_transformer_input(self, context: dict, replay_input: dict) -> dict:
-        noisy_latents = _to_tensor(replay_input["noisy_latents"], device=self.device, dtype=self.dtype)
+    def _build_transformer_input(self, context: dict, transition: dict, replay_input: dict) -> dict:
+        noisy_latents_source = replay_input.get("noisy_latents", transition["action_xt"])
+        noisy_latents = _to_tensor(noisy_latents_source, device=self.device, dtype=self.dtype)
         timesteps = _to_tensor(replay_input["timesteps"], device=self.device, dtype=torch.float32)
         grid_id = _to_tensor(context["grid_id"], device=self.device, dtype=torch.long)
         text_emb = _to_tensor(context["text_emb"], device=self.device, dtype=self.dtype)

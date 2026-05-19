@@ -12,8 +12,10 @@ from .dataset import (
     DatasetValidationReport,
     GrpoTransitionRef,
     inspect_strict_artifacts,
+    load_replay_context,
     load_strict_artifact,
     read_transition_refs,
+    resolve_replay_context,
     validate_transition_refs,
 )
 from .checkpoint_gate import EvalMetrics, PromotionDecision, decide_checkpoint_promotion
@@ -82,9 +84,11 @@ __all__ = [
     "compute_gaussian_transition_logprob",
     "decide_checkpoint_promotion",
     "inspect_strict_artifacts",
+    "load_replay_context",
     "load_strict_artifact",
     "load_transition_batch",
     "read_transition_refs",
+    "resolve_replay_context",
     "summarize_rollout_success",
     "stochastic_flowmatch_step",
     "validate_transition_refs",

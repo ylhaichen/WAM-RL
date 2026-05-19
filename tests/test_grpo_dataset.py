@@ -330,3 +330,45 @@ def test_inspect_strict_artifacts_can_require_replay_context(tmp_path):
     assert "replay_context" in missing_report.issues[0].message
     assert valid_report.ok is True
     assert valid_report.transition_count == 2
+
+
+def test_inspect_strict_artifacts_accepts_external_replay_context(tmp_path):
+    path = tmp_path / "grpo_groups.jsonl"
+    artifact_path = tmp_path / "strict.pt"
+    artifact_path.write_bytes(b"pt")
+    path.write_text(
+        json.dumps(
+            {
+                "group_id": "g0",
+                "task": "open_microwave",
+                "samples": [
+                    {
+                        "sample_idx": 0,
+                        "reward": 1.0,
+                        "advantage": 1.0,
+                        "record_path": "/tmp/r0.json",
+                        "strict_grpo_artifact_paths": [str(artifact_path)],
+                    }
+                ],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    inline_artifact = _strict_trajectory_artifact_with_replay_context(transition_count=2)
+    external_context = inline_artifact.pop("replay_context")
+    inline_artifact["replay_context_path"] = "context.pt"
+
+    def loader(load_path):
+        if load_path.name == "context.pt":
+            return external_context
+        return inline_artifact
+
+    report = inspect_strict_artifacts(
+        read_transition_refs(path),
+        loader=loader,
+        require_replay_context=True,
+    )
+
+    assert report.ok is True
+    assert report.transition_count == 2

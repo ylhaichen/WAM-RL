@@ -83,31 +83,48 @@ New collection jobs default to v2:
             "logprob_mask": Tensor,
             # Present only when STRICT_GRPO_SAVE_REPLAY_CONTEXT=true:
             "replay_input": {
-                "noisy_latents": Tensor,
                 "timesteps": Tensor,
+                # Older artifacts may also contain noisy_latents. New artifacts
+                # omit it because it is exactly the same denoising state already
+                # stored as transition action_xt.
+                "noisy_latents": Tensor,  # optional legacy field
             },
         }
     ],
-    # Present only when STRICT_GRPO_SAVE_REPLAY_CONTEXT=true:
-    "replay_context": {
-        "schema_version": 1,
-        "cache_name": str,
-        "transformer_cache": list[dict[str, Tensor]],
-        "grid_id": Tensor,
-        "text_emb": Tensor,
-        "negative_text_emb": Tensor | None,
-        "use_cfg": bool,
-        "action_guidance_scale": float,
-        "action_num_inference_steps": int,
-        "frame_chunk_size": int,
-    },
+    # Present only when STRICT_GRPO_SAVE_REPLAY_CONTEXT=true. New artifacts
+    # prefer replay_context_path to keep large KV-cache payloads out of the
+    # strict transition artifact. Older artifacts may still contain an inline
+    # replay_context dict with the same fields.
+    "replay_context_path": "strict_grpo_replay_context_0.pt",
 }
 ```
 
 Each v2 artifact represents one action chunk and stores every captured
 non-terminal action denoising transition for that chunk.
 
-`replay_context` and per-transition `replay_input` are not required for dataset
+The referenced replay-context file is a `torch.save` dict:
+
+```python
+{
+    "schema_version": 1,
+    "cache_name": str,
+    "transformer_cache": list[dict[str, Tensor]],
+    "grid_id": Tensor,
+    "text_emb": Tensor,
+    "negative_text_emb": Tensor | None,
+    "use_cfg": bool,
+    "action_guidance_scale": float,
+    "action_num_inference_steps": int,
+    "frame_chunk_size": int,
+}
+```
+
+`replay_context_path` may be absolute or relative to the strict artifact file.
+This is a lossless storage optimization: the replay trainer resolves the path
+and receives the same replay-context dict that older inline artifacts stored
+under `replay_context`.
+
+Replay context and per-transition `replay_input` are not required for dataset
 validation or scalar smoke training. They are required for the real actor replay
 trainer because that trainer recomputes current transition log probabilities by
 running the saved denoising state through the current LingBot-VA transformer.

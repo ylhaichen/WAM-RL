@@ -65,6 +65,14 @@ def _transition():
     }
 
 
+def _compact_transition():
+    transition = _transition()
+    transition["replay_input"] = {
+        "timesteps": transition["replay_input"]["timesteps"],
+    }
+    return transition
+
+
 def _replay_context():
     return {
         "schema_version": 1,
@@ -143,7 +151,7 @@ def test_actor_replay_trainer_updates_trainable_action_modules(tmp_path):
             "sampling_seed": 1,
             "frame_st_id": 0,
             "num_transitions": 1,
-            "transitions": [_transition()],
+            "transitions": [_compact_transition()],
             "replay_context": _replay_context(),
         },
         artifact_path,
@@ -169,3 +177,27 @@ def test_actor_replay_trainer_updates_trainable_action_modules(tmp_path):
     assert result.transition_count == 1
     assert result.trainable_param_count > 0
     assert (tmp_path / "train" / "checkpoint.pt").exists()
+
+
+def test_actor_replay_accepts_external_replay_context(tmp_path):
+    artifact_path = tmp_path / "strict.pt"
+    context_path = tmp_path / "context.pt"
+    torch.save(_replay_context(), context_path)
+    torch.save(
+        {
+            "schema_version": 2,
+            "scope": "action_denoising_trajectory",
+            "sampling_seed": 1,
+            "frame_st_id": 0,
+            "num_transitions": 1,
+            "transitions": [_compact_transition()],
+            "replay_context_path": "context.pt",
+        },
+        artifact_path,
+    )
+    group_path = _write_group(tmp_path, artifact_path)
+
+    examples = list(iter_actor_replay_examples(group_path))
+
+    assert len(examples) == 1
+    assert examples[0].replay_context["action_num_inference_steps"] == 2

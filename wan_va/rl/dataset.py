@@ -70,7 +70,10 @@ REQUIRED_REPLAY_CONTEXT_KEYS = frozenset(
     }
 )
 
-REQUIRED_REPLAY_INPUT_KEYS = frozenset({"noisy_latents", "timesteps"})
+REQUIRED_REPLAY_INPUT_KEYS = frozenset({"timesteps"})
+OPTIONAL_REPLAY_INPUT_KEYS = frozenset({"noisy_latents"})
+REPLAY_CONTEXT_INLINE_KEY = "replay_context"
+REPLAY_CONTEXT_PATH_KEY = "replay_context_path"
 
 
 @dataclass(frozen=True)
@@ -160,6 +163,46 @@ def load_strict_artifact(path: Path, *, loader: Callable[[Path], dict] | None = 
         raise ValueError(f"strict artifact must be a dict: {expanded}")
     _validate_strict_artifact_schema(data, str(expanded))
     return data
+
+
+def load_replay_context(path: Path, *, loader: Callable[[Path], dict] | None = None) -> dict:
+    expanded = path.expanduser()
+    if loader is None:
+        import torch
+
+        data = torch.load(expanded, map_location="cpu")
+    else:
+        data = loader(expanded)
+
+    if not isinstance(data, dict):
+        raise ValueError(f"replay context must be a dict: {expanded}")
+    return data
+
+
+def resolve_replay_context(
+    data: dict,
+    artifact_path: Path | str,
+    *,
+    loader: Callable[[Path], dict] | None = None,
+) -> dict | None:
+    """Return inline or externally referenced replay context for an artifact."""
+
+    replay_context = data.get(REPLAY_CONTEXT_INLINE_KEY)
+    if replay_context is not None:
+        if not isinstance(replay_context, dict):
+            raise ValueError(f"strict artifact {artifact_path} field replay_context must be a dict")
+        return replay_context
+
+    context_path_value = data.get(REPLAY_CONTEXT_PATH_KEY)
+    if context_path_value is None:
+        return None
+    if not isinstance(context_path_value, str) or not context_path_value:
+        raise ValueError(f"strict artifact {artifact_path} field replay_context_path must be a non-empty string")
+
+    context_path = Path(context_path_value).expanduser()
+    if not context_path.is_absolute():
+        context_path = Path(artifact_path).expanduser().parent / context_path
+    return load_replay_context(context_path, loader=loader)
 
 
 def _validate_strict_artifact_schema(data: dict, path_label: str) -> None:
@@ -339,7 +382,7 @@ def inspect_strict_artifacts(
         try:
             artifact = load_strict_artifact(Path(ref.artifact_path), loader=loader)
             if require_replay_context:
-                _validate_actor_replay_fields(artifact, ref.artifact_path)
+                _validate_actor_replay_fields(artifact, ref.artifact_path, loader=loader)
             transition_count += count_strict_artifact_transitions(artifact)
         except Exception as exc:
             issues.append(
@@ -355,8 +398,13 @@ def inspect_strict_artifacts(
     return DatasetValidationReport(transition_count=transition_count, issues=tuple(issues))
 
 
-def _validate_actor_replay_fields(data: dict, path_label: str) -> None:
-    replay_context = data.get("replay_context")
+def _validate_actor_replay_fields(
+    data: dict,
+    path_label: str,
+    *,
+    loader: Callable[[Path], dict] | None = None,
+) -> None:
+    replay_context = resolve_replay_context(data, path_label, loader=loader)
     if not isinstance(replay_context, dict):
         raise ValueError(f"strict artifact {path_label} missing replay_context required for actor replay")
 
@@ -384,5 +432,10 @@ def _validate_actor_replay_fields(data: dict, path_label: str) -> None:
         missing_input = sorted(REQUIRED_REPLAY_INPUT_KEYS - set(replay_input))
         if missing_input:
             raise ValueError(f"strict artifact {path_label} transition {index} replay_input missing keys: {missing_input}")
-        _validate_tensor_finite(replay_input["noisy_latents"], path_label=path_label, key=f"replay_input[{index}].noisy_latents")
         _validate_tensor_finite(replay_input["timesteps"], path_label=path_label, key=f"replay_input[{index}].timesteps")
+        if "noisy_latents" in replay_input:
+            _validate_tensor_finite(
+                replay_input["noisy_latents"],
+                path_label=path_label,
+                key=f"replay_input[{index}].noisy_latents",
+            )

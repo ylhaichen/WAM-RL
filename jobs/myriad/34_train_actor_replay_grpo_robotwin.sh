@@ -36,10 +36,11 @@ GRPO_DTYPE="${GRPO_DTYPE:-bfloat16}"
 GRPO_SEED="${GRPO_SEED:-0}"
 GRPO_TRAINABLE_MODE="${GRPO_TRAINABLE_MODE:-action_heads}"
 GRPO_CONFIG_NAME="${GRPO_CONFIG_NAME:-robotwin_grpo_train}"
+GRPO_ACTION_NUM_INFERENCE_STEPS="${GRPO_ACTION_NUM_INFERENCE_STEPS:-}"
 
 export RUN_ID RESULTS_ROOT GRPO_GROUPS_PATH GRPO_OUTPUT_DIR
 export GRPO_STEPS GRPO_LR GRPO_CLIP_LOW GRPO_CLIP_HIGH GRPO_DEVICE GRPO_DTYPE GRPO_SEED
-export GRPO_TRAINABLE_MODE GRPO_CONFIG_NAME
+export GRPO_TRAINABLE_MODE GRPO_CONFIG_NAME GRPO_ACTION_NUM_INFERENCE_STEPS
 
 print_job_context
 echo "RUN_ID=${RUN_ID}"
@@ -51,6 +52,7 @@ echo "GRPO_LR=${GRPO_LR}"
 echo "GRPO_DEVICE=${GRPO_DEVICE}"
 echo "GRPO_DTYPE=${GRPO_DTYPE}"
 echo "GRPO_TRAINABLE_MODE=${GRPO_TRAINABLE_MODE}"
+echo "GRPO_ACTION_NUM_INFERENCE_STEPS=${GRPO_ACTION_NUM_INFERENCE_STEPS}"
 
 container_exec_gpu <<'CONTAINER'
 set -euo pipefail
@@ -76,6 +78,11 @@ fi
 
 mkdir -p "${GRPO_OUTPUT_DIR}"
 
+ACTION_STEPS_ARGS=()
+if [ -n "${GRPO_ACTION_NUM_INFERENCE_STEPS}" ]; then
+    ACTION_STEPS_ARGS=(--action-num-inference-steps "${GRPO_ACTION_NUM_INFERENCE_STEPS}")
+fi
+
 python tools/validate_grpo_dataset.py \
     "${GRPO_GROUPS_PATH}" \
     --inspect-artifacts \
@@ -95,7 +102,8 @@ python tools/train_actor_replay_grpo.py \
     --device "${GRPO_DEVICE}" \
     --dtype "${GRPO_DTYPE}" \
     --seed "${GRPO_SEED}" \
-    --trainable-mode "${GRPO_TRAINABLE_MODE}"
+    --trainable-mode "${GRPO_TRAINABLE_MODE}" \
+    "${ACTION_STEPS_ARGS[@]}"
 
 echo "Actor replay GRPO training complete: ${GRPO_OUTPUT_DIR}"
 CONTAINER
