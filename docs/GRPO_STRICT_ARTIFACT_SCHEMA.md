@@ -13,6 +13,9 @@ grouped RoboTwin rollout collection and offline GRPO replay.
   paths.
 - Optionally capture enough actor replay context to recompute current LingBot-VA
   transition log probabilities for real actor updates.
+- Keep storage decisions explicit. See
+  `docs/WAM_RL_MYRIAD_STORAGE_POLICY.md` before scaling replay-context runs or
+  archiving/deleting rollout artifacts.
 
 ## Rollout Metadata Contract
 

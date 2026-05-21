@@ -11,6 +11,7 @@ Use the planning documents as the source of truth:
 - `docs/WAM_RL_RESEARCH_IMPLEMENTATION_PLAN_FRAMEWORK_FINAL.md`
 - `docs/WAM_RL_EARLY_STAGE_WORK_SUMMARY.md`
 - `docs/GRPO_STRICT_ARTIFACT_SCHEMA.md`
+- `docs/WAM_RL_MYRIAD_STORAGE_POLICY.md`
 - `docs/WAM_RL_PAPER_DATA_PLAN.md`
 
 The current route is:
@@ -99,6 +100,32 @@ Myriad/server:
 Local checks are useful but incomplete. Anything involving `torch` GPU,
 RoboTwin, SAPIEN, Apptainer, or large checkpoint loading must be verified on the
 server.
+
+## Myriad Storage Rules
+
+Treat storage as part of the experiment design. Replay-context artifacts can
+consume tens or hundreds of GB because they include transformer KV-cache state.
+
+- Active rollout collection and training must write to Myriad Scratch, not
+  directly to RDSS.
+- RDSS is a cold archive for completed results, logs, summaries, metrics, and
+  non-active datasets.
+- Do not assume moving only `groups/grpo_groups.jsonl` is enough for training:
+  the file contains artifact paths, so referenced strict artifacts and replay
+  context files must remain reachable.
+- Prefer archiving `groups/`, `attempts/`, job logs, manifests, summaries, and
+  validation JSON files before deleting large unusable `server_vis/` trees.
+- Failed replay-context runs and all-success/all-failure replay-context runs
+  with empty `grpo_groups.jsonl` are cleanup candidates after preserving small
+  debug evidence.
+- Do not delete A/B/M/N source datasets, curated combined datasets, or any
+  `server_vis/` referenced by a non-empty current `grpo_groups.jsonl` without
+  explicit user approval.
+- Check `qstat` before deleting data so no running job is writing to the target
+  directory.
+
+For concrete commands and RDSS archival patterns, use
+`docs/WAM_RL_MYRIAD_STORAGE_POLICY.md`.
 
 ## New Agent Onboarding
 
