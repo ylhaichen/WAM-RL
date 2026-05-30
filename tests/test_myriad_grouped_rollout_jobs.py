@@ -1,3 +1,5 @@
+import os
+import subprocess
 from pathlib import Path
 
 
@@ -315,6 +317,80 @@ def test_bounded_replayctx_submitter_uses_storage_safe_defaults():
     assert "DRY_RUN=1, not submitting" in text
     assert 'SAVE_SERVER_DEBUG_TENSORS="${SAVE_SERVER_DEBUG_TENSORS}"' in text
     assert 'bash "${SUBMIT_SCRIPT}"' in text
+
+
+def test_bounded_replayctx_dry_run_budgets_attempts(tmp_path):
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    qsub = fake_bin / "qsub"
+    qsub.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+    qsub.chmod(0o755)
+
+    env = os.environ.copy()
+    env.update(
+        {
+            "PATH": f"{fake_bin}:{env['PATH']}",
+            "DRY_RUN": "1",
+            "TASK_NAMES": "move_stapler_pad",
+            "GROUP_SIZE": "4",
+            "GROUPS_PER_TASK": "1",
+            "GROUP_MAX_ATTEMPTS": "3",
+            "STRICT_GRPO_CAPTURE_MAX_CHUNKS": "1",
+            "REPLAY_CONTEXT_ESTIMATE_GB": "4",
+            "CHECK_SCRATCH_HEADROOM": "0",
+        }
+    )
+
+    result = subprocess.run(
+        ["bash", "jobs/myriad/39_submit_grpo_replayctx_bounded_4gpu.sh"],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "accepted_estimate_gb=16.00" in result.stdout
+    assert "attempt_budget_estimate_gb=48.00" in result.stdout
+    assert "storage_budget_mode=attempt" in result.stdout
+    assert "storage_budget_estimate_gb=48.00" in result.stdout
+    assert "DRY_RUN=1, not submitting" in result.stdout
+
+
+def test_bounded_replayctx_dry_run_can_budget_accepted_only(tmp_path):
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    qsub = fake_bin / "qsub"
+    qsub.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+    qsub.chmod(0o755)
+
+    env = os.environ.copy()
+    env.update(
+        {
+            "PATH": f"{fake_bin}:{env['PATH']}",
+            "DRY_RUN": "1",
+            "TASK_NAMES": "move_stapler_pad",
+            "GROUP_SIZE": "4",
+            "GROUPS_PER_TASK": "1",
+            "GROUP_MAX_ATTEMPTS": "3",
+            "STRICT_GRPO_CAPTURE_MAX_CHUNKS": "1",
+            "REPLAY_CONTEXT_ESTIMATE_GB": "4",
+            "CHECK_SCRATCH_HEADROOM": "0",
+            "STORAGE_BUDGET_MODE": "accepted",
+        }
+    )
+
+    result = subprocess.run(
+        ["bash", "jobs/myriad/39_submit_grpo_replayctx_bounded_4gpu.sh"],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "storage_budget_mode=accepted" in result.stdout
+    assert "storage_budget_estimate_gb=16.00" in result.stdout
 
 
 def test_myriad_common_initializes_modules_for_interactive_shells():
