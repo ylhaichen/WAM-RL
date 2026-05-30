@@ -279,6 +279,22 @@ python tools/summarize_robotwin_repeatability.py \
 Use `flipped_count` and `flip_rate` to decide whether a policy delta is larger
 than the closed-loop repeat noise on the same matched episode keys.
 
+Before promoting an actor checkpoint beyond smoke status, gate the paired eval
+against the baseline repeatability control:
+
+```bash
+python tools/gate_actor_eval_promotion.py \
+  --comparison /path/to/comparison_dir/comparison.json \
+  --baseline-repeatability /path/to/repeatability.json \
+  --out-json /path/to/comparison_dir/promotion_gate.json \
+  --out-markdown /path/to/comparison_dir/promotion_gate.md
+```
+
+The default gate requires at least 10 matched eval episodes, at least 10 matched
+baseline-repeatability episodes, baseline `flip_rate <= 0.1`, and a candidate
+net improvement rate above the observed baseline flip rate. Lower thresholds
+are acceptable only for debugging; do not use them for improvement claims.
+
 ## 7. Cleanup Boundary
 
 Before deleting anything:

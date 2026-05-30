@@ -103,6 +103,19 @@ def test_summarize_robotwin_repeatability_help_does_not_require_external_pythonp
     assert "--run" in result.stdout
 
 
+def test_gate_actor_eval_promotion_help_does_not_require_external_pythonpath():
+    result = subprocess.run(
+        [sys.executable, "tools/gate_actor_eval_promotion.py", "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "Gate actor-replay eval promotion" in result.stdout
+    assert "--baseline-repeatability" in result.stdout
+
+
 def test_subset_grpo_groups_help_does_not_require_external_pythonpath():
     result = subprocess.run(
         [sys.executable, "tools/subset_grpo_groups.py", "--help"],

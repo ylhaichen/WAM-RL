@@ -176,6 +176,8 @@ Implemented:
   control mismatches;
 - repeatability summaries across repeated eval roots with
   `tools/summarize_robotwin_repeatability.py`;
+- conservative actor eval promotion gating with
+  `tools/gate_actor_eval_promotion.py`;
 - one-GPU eval job support for actor replay checkpoint loading.
 
 Observed behavior:
@@ -209,6 +211,9 @@ comparison output:
   /home/zcably0/Scratch/wam-rl/results_actor_eval/seed10000_controls_20260530_0422/four_way_comparison.json
 baseline repeatability output:
   /home/zcably0/Scratch/wam-rl/results_actor_eval/seed10000_controls_20260530_0422/baseline_repeatability_summary.json
+promotion gate outputs:
+  /home/zcably0/Scratch/wam-rl/results_actor_eval/seed10000_controls_20260530_0422/lr0_promotion_gate.json
+  /home/zcably0/Scratch/wam-rl/results_actor_eval/seed10000_controls_20260530_0422/actor_step_promotion_gate.json
 ```
 
 The baseline repeat and `lr=0` no-op checkpoint had the same success pattern on
@@ -221,6 +226,12 @@ The two baseline runs alone had one stable-success key and one flipped key,
 giving a baseline repeatability flip rate of `0.5` on this tiny control set.
 This is diagnostic, not a benchmark estimate, but it is enough to make `n=2`
 policy deltas non-actionable.
+
+`tools/gate_actor_eval_promotion.py` blocks both the `lr=0` control and the
+one-step actor subset under the default promotion thresholds because the matched
+eval and baseline-repeatability episode counts are below 10, the baseline
+repeatability `flip_rate` is `0.5`, and neither candidate has positive net
+matched improvement.
 
 The one-step actor subset checkpoint was compared against the `lr=0` no-op
 checkpoint at the tensor level:
@@ -354,9 +365,11 @@ GRPO_PROGRESS_EVERY=50
 2. Use `jobs/myriad/37_submit_actor_eval_pair_smoke.sh` and
    `tools/summarize_actor_eval_pair.py` for baseline-vs-actor eval comparisons
    before interpreting aggregate success rates.
-3. Run a controlled actor replay training/eval loop on `move_stapler_pad` with
+3. Gate any candidate checkpoint with `tools/gate_actor_eval_promotion.py`
+   against baseline repeatability before treating it as more than smoke.
+4. Run a controlled actor replay training/eval loop on `move_stapler_pad` with
    more than one mixed group.
-4. Only after a reliable signal appears, broaden to `turn_switch` and
+5. Only after a reliable signal appears, broaden to `turn_switch` and
    `open_microwave`.
 
 ## Bottom Line

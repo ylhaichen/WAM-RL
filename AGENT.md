@@ -217,6 +217,10 @@ current system:
 - After paired eval finishes, use `tools/summarize_actor_eval_pair.py` to
   write aggregate summaries, per-episode exports, and matched comparison files
   before interpreting any success-rate difference.
+- Before promoting a candidate actor checkpoint beyond smoke status, run
+  `tools/gate_actor_eval_promotion.py` with a paired comparison JSON and a
+  baseline repeatability JSON. The gate is intentionally conservative: tiny
+  evals or deltas no larger than baseline closed-loop flip noise stay blocked.
 - The first real update surface should be action-specific modules:
 
 ```text
