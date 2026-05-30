@@ -317,10 +317,12 @@ def test_actor_replay_subset_prepare_submitter_uses_explicit_qsub_vars():
     assert 'MATERIALIZE_PLAN_JSON="${MATERIALIZE_PLAN_JSON:-${SUBSET_ROOT}/materialize_plan.json}"' in text
     assert 'MATERIALIZE_LINK_MODE="${MATERIALIZE_LINK_MODE:-symlink}"' in text
     assert 'MATERIALIZE_INCLUDE_REPLAY_CONTEXT="${MATERIALIZE_INCLUDE_REPLAY_CONTEXT:-true}"' in text
+    assert 'SUBMIT_GIT_COMMIT="${SUBMIT_GIT_COMMIT:-$(git -C "${REPO_ROOT}" rev-parse --short HEAD' in text
     assert 'QSUB_EXPORT_CURRENT_ENV="${QSUB_EXPORT_CURRENT_ENV:-0}"' in text
     assert 'if [ "${QSUB_EXPORT_CURRENT_ENV}" = "1" ]; then' in text
     assert '"SOURCE_GROUPS_PATH=${SOURCE_GROUPS_PATH}"' in text
     assert '"SUBSET_ROOT=${SUBSET_ROOT}"' in text
+    assert '"SUBMIT_GIT_COMMIT=${SUBMIT_GIT_COMMIT}"' in text
     assert '"MATERIALIZE_PLAN_JSON=${MATERIALIZE_PLAN_JSON}"' in text
     assert '"SUBSET_MAX_ARTIFACTS_PER_SAMPLE=${SUBSET_MAX_ARTIFACTS_PER_SAMPLE}"' in text
     assert '"MATERIALIZE_LINK_MODE=${MATERIALIZE_LINK_MODE}"' in text
@@ -367,6 +369,7 @@ def test_actor_replay_subset_prepare_submitter_dry_run_does_not_call_qsub(tmp_pa
     assert "qsub" in result.stdout
     assert "qsub -V" not in result.stdout
     assert "SOURCE_GROUPS_PATH=" in result.stdout
+    assert "SUBMIT_GIT_COMMIT=" in result.stdout
     assert "SUBSET_MAX_REPLAY_CONTEXT_GB=30" in result.stdout
     assert "ACTOR_REPLAY_CHECKPOINT_PATH=/tmp/should-not-leak.pt" not in result.stdout
     assert not qsub_called.exists()
@@ -393,6 +396,7 @@ def test_actor_replay_subset_smoke_submitter_uses_low_resource_defaults():
     assert 'GRPO_AUDIT_REPLAY_CONTEXTS="${GRPO_AUDIT_REPLAY_CONTEXTS:-true}"' in text
     assert 'PRECHECK_SUBSET_AUDIT="${PRECHECK_SUBSET_AUDIT:-true}"' in text
     assert 'SUBSET_STORAGE_AUDIT_JSON="${SUBSET_STORAGE_AUDIT_JSON:-}"' in text
+    assert 'SUBMIT_GIT_COMMIT="${SUBMIT_GIT_COMMIT:-$(git -C "${REPO_ROOT}" rev-parse --short HEAD' in text
     assert "Missing GRPO groups file" in text
     assert "Subset storage audit budget failed" in text
     assert "Subset storage audit precheck ok" in text
@@ -404,6 +408,7 @@ def test_actor_replay_subset_smoke_submitter_uses_low_resource_defaults():
     assert 'if [ "${QSUB_EXPORT_CURRENT_ENV}" = "1" ]; then' in text
     assert '"GRPO_GROUPS_PATH=${GRPO_GROUPS_PATH}"' in text
     assert '"GRPO_OUTPUT_DIR=${GRPO_OUTPUT_DIR}"' in text
+    assert '"SUBMIT_GIT_COMMIT=${SUBMIT_GIT_COMMIT}"' in text
     assert '"GRPO_DEVICE=${GRPO_DEVICE}"' in text
     assert '"GRPO_STORAGE_AUDIT_JSON=${GRPO_STORAGE_AUDIT_JSON}"' in text
     assert 'DRY_RUN="${DRY_RUN:-0}"' in text
@@ -449,6 +454,7 @@ def test_actor_replay_subset_smoke_dry_run_flag_does_not_call_qsub(tmp_path):
     assert "qsub -V" not in result.stdout
     assert "GRPO_GROUPS_PATH=" in result.stdout
     assert "GRPO_OUTPUT_DIR=" in result.stdout
+    assert "SUBMIT_GIT_COMMIT=" in result.stdout
     assert "GRPO_ACTION_NUM_INFERENCE_STEPS=10" in result.stdout
     assert not qsub_called.exists()
 
@@ -469,9 +475,11 @@ def test_actor_eval_pair_smoke_submitter_uses_matched_eval_controls():
     assert 'REFERENCE_CHECKPOINT="${REFERENCE_CHECKPOINT:-${WAM_ROOT}/checkpoints/lingbot-va-posttrain-robotwin}"' in text
     assert 'BASELINE_POLICY_CHECKPOINT="${BASELINE_POLICY_CHECKPOINT:-${REFERENCE_CHECKPOINT}}"' in text
     assert 'ACTOR_POLICY_CHECKPOINT="${ACTOR_POLICY_CHECKPOINT:-${ACTOR_REPLAY_CHECKPOINT_PATH}}"' in text
+    assert 'SUBMIT_GIT_COMMIT="${SUBMIT_GIT_COMMIT:-$(git -C "${REPO_ROOT}" rev-parse --short HEAD' in text
     assert 'QSUB_EXPORT_CURRENT_ENV="${QSUB_EXPORT_CURRENT_ENV:-0}"' in text
     assert 'if [ "${QSUB_EXPORT_CURRENT_ENV}" = "1" ]; then' in text
     assert '"RUN_ID=${RUN_ID}"' in text
+    assert '"SUBMIT_GIT_COMMIT=${SUBMIT_GIT_COMMIT}"' in text
     assert '"SEED=${SEED}"' in text
     assert 'BASELINE_PORT="${BASELINE_PORT:-29656}"' in text
     assert 'ACTOR_PORT="${ACTOR_PORT:-29756}"' in text
@@ -522,6 +530,7 @@ def test_actor_eval_pair_dry_run_flag_does_not_call_qsub(tmp_path):
     assert sum(line.startswith("qsub ") for line in result.stdout.splitlines()) == 2
     assert "qsub -V" not in result.stdout
     assert "RUN_ID=actor_eval_pair_" in result.stdout
+    assert "SUBMIT_GIT_COMMIT=" in result.stdout
     assert not qsub_called.exists()
 
 
@@ -542,9 +551,11 @@ def test_eval_repeatability_pair_submitter_uses_matched_baseline_controls():
     assert 'POLICY_CHECKPOINT="${POLICY_CHECKPOINT:-${REFERENCE_CHECKPOINT}}"' in text
     assert '"POLICY_CHECKPOINT=${POLICY_CHECKPOINT}"' in text
     assert '"REFERENCE_CHECKPOINT=${REFERENCE_CHECKPOINT}"' in text
+    assert 'SUBMIT_GIT_COMMIT="${SUBMIT_GIT_COMMIT:-$(git -C "${REPO_ROOT}" rev-parse --short HEAD' in text
     assert 'QSUB_EXPORT_CURRENT_ENV="${QSUB_EXPORT_CURRENT_ENV:-0}"' in text
     assert 'if [ "${QSUB_EXPORT_CURRENT_ENV}" = "1" ]; then' in text
     assert '"RUN_ID=${RUN_ID}"' in text
+    assert '"SUBMIT_GIT_COMMIT=${SUBMIT_GIT_COMMIT}"' in text
     assert 'RUN_A_PORT="${RUN_A_PORT:-29856}"' in text
     assert 'RUN_B_PORT="${RUN_B_PORT:-29956}"' in text
     assert "RUN_A_PORT and RUN_B_PORT must differ" in text
@@ -587,6 +598,7 @@ def test_eval_repeatability_pair_dry_run_flag_does_not_call_qsub(tmp_path):
     assert sum(line.startswith("qsub ") for line in result.stdout.splitlines()) == 2
     assert "qsub -V" not in result.stdout
     assert "RUN_ID=eval_repeatability_pair_" in result.stdout
+    assert "SUBMIT_GIT_COMMIT=" in result.stdout
     assert not qsub_called.exists()
 
 

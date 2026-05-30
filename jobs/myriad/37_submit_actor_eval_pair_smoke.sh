@@ -50,6 +50,7 @@ if [ -z "${REPO_ROOT:-}" ]; then
 fi
 
 WAM_ROOT="${WAM_ROOT:-/home/zcably0/Scratch/wam-rl}"
+SUBMIT_GIT_COMMIT="${SUBMIT_GIT_COMMIT:-$(git -C "${REPO_ROOT}" rev-parse --short HEAD 2>/dev/null || echo unknown)}"
 RUN_ID="${RUN_ID:-actor_eval_pair_$(date +%Y%m%d_%H%M%S)}"
 TASK_NAME="${TASK_NAME:-move_stapler_pad}"
 TEST_NUM="${TEST_NUM:-2}"
@@ -119,6 +120,7 @@ fi
 
 COMMON_VARS=(
     "REPO_ROOT=${REPO_ROOT}"
+    "SUBMIT_GIT_COMMIT=${SUBMIT_GIT_COMMIT}"
     "RUN_ID=${RUN_ID}"
     "TASK_NAME=${TASK_NAME}"
     "TEST_NUM=${TEST_NUM}"
@@ -165,6 +167,7 @@ qsub_eval() {
 
 echo "Submitting matched actor eval pair smoke"
 echo "  RUN_ID=${RUN_ID}"
+echo "  SUBMIT_GIT_COMMIT=${SUBMIT_GIT_COMMIT}"
 echo "  TASK_NAME=${TASK_NAME}"
 echo "  TEST_NUM=${TEST_NUM}"
 echo "  ACTION_NUM_INFERENCE_STEPS=${ACTION_NUM_INFERENCE_STEPS}"

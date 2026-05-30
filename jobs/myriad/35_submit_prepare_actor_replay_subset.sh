@@ -50,6 +50,7 @@ if [ -z "${REPO_ROOT:-}" ]; then
 fi
 
 WAM_ROOT="${WAM_ROOT:-/home/zcably0/Scratch/wam-rl}"
+SUBMIT_GIT_COMMIT="${SUBMIT_GIT_COMMIT:-$(git -C "${REPO_ROOT}" rev-parse --short HEAD 2>/dev/null || echo unknown)}"
 RUN_ID="${RUN_ID:-grpo_actor_subset_$(date +%Y%m%d_%H%M%S)}"
 if [ -z "${SOURCE_GROUPS_PATH:-}" ]; then
     if [ -n "${RESULTS_ROOT:-}" ]; then
@@ -104,6 +105,7 @@ fi
 echo "Submitting actor replay subset preparation job"
 echo "  JOB_NAME=${JOB_NAME}"
 echo "  RUN_ID=${RUN_ID}"
+echo "  SUBMIT_GIT_COMMIT=${SUBMIT_GIT_COMMIT}"
 echo "  REPO_ROOT=${REPO_ROOT}"
 echo "  WAM_ROOT=${WAM_ROOT}"
 echo "  SOURCE_GROUPS_PATH=${SOURCE_GROUPS_PATH}"
@@ -138,6 +140,7 @@ fi
 QSUB_VARS=(
     "REPO_ROOT=${REPO_ROOT}"
     "WAM_ROOT=${WAM_ROOT}"
+    "SUBMIT_GIT_COMMIT=${SUBMIT_GIT_COMMIT}"
     "RUN_ID=${RUN_ID}"
     "SOURCE_GROUPS_PATH=${SOURCE_GROUPS_PATH}"
     "SUBSET_ROOT=${SUBSET_ROOT}"
