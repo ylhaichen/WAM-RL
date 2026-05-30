@@ -310,6 +310,27 @@ def test_report_grpo_run_status_infers_grouped_results_root_from_qstat_run_id(tm
     assert report["results_root"]["path"] == str(root)
     assert report["status"]["state"] == "trainable_groups_available"
     assert report["status"]["transition_count"] == 5
+    assert any("RESULTS_ROOT" in warning for warning in report["status"]["warnings"])
+
+
+def test_report_grpo_run_status_warns_on_stale_bounded_resources():
+    qstat_report = parse_qstat_job_detail_text(
+        "\n".join(
+            [
+                "job_number:                 458528",
+                "job_name:                   wam_grpo_replayctx_bounded",
+                "hard resource_list:         gpu=4,tmpfs=200G,h_rt=172800",
+                "env_list:                   RUN_ID=queued_run,GROUP_SIZE=4,GROUPS_PER_TASK=1",
+                "script_file:                jobs/myriad/30_collect_grouped_rollouts_4gpu.sh",
+            ]
+        )
+    )
+
+    report = report_grpo_run_status(qstat_job=qstat_report)
+
+    warnings = report["status"]["warnings"]
+    assert any("h_rt=172800" in warning for warning in warnings)
+    assert any("tmpfs=200G" in warning for warning in warnings)
 
 
 def test_report_grpo_run_status_cli_accepts_qstat_job_file(tmp_path):

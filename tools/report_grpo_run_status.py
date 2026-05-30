@@ -233,6 +233,12 @@ def format_markdown(report: dict[str, Any]) -> str:
         f"| disk_quota_count | {status.get('disk_quota_count', 0)} |",
         "",
     ]
+    warnings = status.get("warnings") or []
+    if warnings:
+        lines.extend(["## Warnings", ""])
+        for warning in warnings:
+            lines.append(f"- {_md(warning)}")
+        lines.append("")
 
     log_report = report.get("job_log")
     if log_report:
@@ -331,7 +337,43 @@ def _derive_status(report: dict[str, Any]) -> dict[str, Any]:
         "discarded_group_attempt_count": int(counters.get("discarded_group_attempt_count", 0) or 0),
         "qstat_job_number": qstat_job.get("job_number"),
         "qstat_job_name": qstat_job.get("job_name"),
+        "warnings": _status_warnings(qstat_job),
     }
+
+
+def _status_warnings(qstat_job: dict[str, Any]) -> list[str]:
+    if not qstat_job or not qstat_job.get("exists"):
+        return []
+    warnings: list[str] = []
+    values = qstat_job.get("values") or {}
+    resources = qstat_job.get("resources") or {}
+    job_name = str(qstat_job.get("job_name") or "")
+
+    if (
+        _looks_like_grouped_rollout_qstat(qstat_job)
+        and values.get("RUN_ID")
+        and not values.get("RESULTS_ROOT")
+        and not values.get("GRPO_GROUPS_PATH")
+    ):
+        warnings.append(
+            "qstat env does not include explicit RESULTS_ROOT/GRPO_GROUPS_PATH; "
+            "result root was inferred from RUN_ID and Myriad path conventions"
+        )
+
+    if "replayctx_bounded" in job_name:
+        h_rt_seconds = _parse_seconds(resources.get("h_rt"))
+        if h_rt_seconds is not None and h_rt_seconds > 6 * 60 * 60:
+            warnings.append(
+                f"bounded replay-context job requests h_rt={resources.get('h_rt')}, "
+                "above the current 6:00:00 smoke default"
+            )
+        tmpfs_gb = _parse_size_gb(resources.get("tmpfs"))
+        if tmpfs_gb is not None and tmpfs_gb > 80:
+            warnings.append(
+                f"bounded replay-context job requests tmpfs={resources.get('tmpfs')}, "
+                "above the current 80G smoke default"
+            )
+    return warnings
 
 
 def _summarize_results_root(root: Path, *, inspect_files: bool) -> dict[str, Any]:
@@ -606,6 +648,42 @@ def _md(value: object) -> str:
 
 def _format_key_values(values: dict[str, str]) -> str:
     return ", ".join(f"{key}={value}" for key, value in sorted(values.items()))
+
+
+def _parse_seconds(value: Any) -> int | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    if text.isdigit():
+        return int(text)
+    parts = text.split(":")
+    if len(parts) == 3 and all(part.isdigit() for part in parts):
+        hours, minutes, seconds = [int(part) for part in parts]
+        return hours * 3600 + minutes * 60 + seconds
+    return None
+
+
+def _parse_size_gb(value: Any) -> float | None:
+    if value is None:
+        return None
+    text = str(value).strip().upper()
+    if not text:
+        return None
+    multiplier = 1.0
+    if text.endswith("G"):
+        text = text[:-1]
+    elif text.endswith("M"):
+        text = text[:-1]
+        multiplier = 1.0 / 1024.0
+    elif text.endswith("K"):
+        text = text[:-1]
+        multiplier = 1.0 / (1024.0 * 1024.0)
+    try:
+        return float(text) * multiplier
+    except ValueError:
+        return None
 
 
 def main() -> None:
