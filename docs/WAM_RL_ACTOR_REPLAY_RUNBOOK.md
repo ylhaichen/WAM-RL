@@ -289,6 +289,7 @@ For a sweep table over recent actor replay runs:
 python tools/summarize_actor_replay_training.py \
   --discover-root /home/zcably0/Scratch/wam-rl/results_grpo_actor_replay \
   --latest 20 \
+  --print-format table \
   --out-json /home/zcably0/Scratch/wam-rl/results_grpo_actor_replay/recent_summary.json \
   --out-csv /home/zcably0/Scratch/wam-rl/results_grpo_actor_replay/recent_summary.csv \
   --out-markdown /home/zcably0/Scratch/wam-rl/results_grpo_actor_replay/recent_summary.md

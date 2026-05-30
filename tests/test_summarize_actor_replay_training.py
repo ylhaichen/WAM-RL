@@ -6,6 +6,7 @@ import torch
 
 from tools.summarize_actor_replay_training import (
     discover_output_dirs,
+    format_text_report,
     summarize_actor_replay_output,
     write_csv_report,
     write_markdown_report,
@@ -143,6 +144,20 @@ def test_write_csv_report(tmp_path):
     assert "learning_rate" in text
     assert "1e-07" in text
     assert "mean" in text
+
+
+def test_format_text_report_is_concise_for_terminal_triage(tmp_path):
+    root = tmp_path / "run"
+    _write_output(root)
+    summary = summarize_actor_replay_output(root)
+
+    text = format_text_report([summary])
+
+    assert "run" in text
+    assert "update_norm" in text
+    assert "yes" in text
+    assert "0.01" in text
+    assert str(root) not in text
 
 
 def test_summarize_actor_replay_output_falls_back_to_checkpoint_config(tmp_path):

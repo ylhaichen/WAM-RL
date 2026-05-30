@@ -167,6 +167,37 @@ def write_csv_report(summaries: list[dict], out_csv: Path) -> None:
             writer.writerow(row)
 
 
+def format_text_report(summaries: list[dict]) -> str:
+    """Return a compact terminal table for quick training-run triage."""
+
+    columns = [
+        ("run", lambda item: Path(item["output_dir"]).name),
+        ("ok", lambda item: _bool_cell(item["ok"])),
+        ("val", lambda item: _bool_cell(item["validation_ok"])),
+        ("trans", lambda item: _cell(item["transition_count"])),
+        ("steps", lambda item: _cell(item["steps"])),
+        ("lr", lambda item: _cell(item["learning_rate"])),
+        ("logprob", lambda item: _cell(item["logprob_reduction"])),
+        ("std_floor", lambda item: _cell(item["logprob_std_floor"])),
+        ("loss", lambda item: _cell(item["final_loss"])),
+        ("ratio", lambda item: _cell(item["final_ratio_mean"])),
+        ("update", lambda item: _bool_cell(item["parameter_update_detected"])),
+        ("update_norm", lambda item: _cell(item["final_param_update_norm"])),
+        ("warnings", lambda item: ",".join(item["warnings"])),
+    ]
+    rows = [[formatter(item) for _, formatter in columns] for item in summaries]
+    widths = [
+        max(len(header), *(len(row[idx]) for row in rows)) if rows else len(header)
+        for idx, (header, _) in enumerate(columns)
+    ]
+    header = "  ".join(name.ljust(widths[idx]) for idx, (name, _) in enumerate(columns))
+    separator = "  ".join("-" * width for width in widths)
+    lines = [header, separator]
+    for row in rows:
+        lines.append("  ".join(value.ljust(widths[idx]) for idx, value in enumerate(row)))
+    return "\n".join(lines)
+
+
 def _read_json(path: Path) -> dict:
     if not path.exists():
         return {}
@@ -296,6 +327,12 @@ def main() -> None:
     )
     parser.add_argument("--discover-pattern", default="*", help="Glob pattern for --discover-root child directories.")
     parser.add_argument("--latest", type=int, default=None, help="Keep only the latest N discovered/explicit run dirs.")
+    parser.add_argument(
+        "--print-format",
+        choices=("json", "table"),
+        default="json",
+        help="Stdout format. JSON is machine-readable; table is concise for terminal triage.",
+    )
     parser.add_argument("--out-json", type=Path, help="Optional JSON summary path.")
     parser.add_argument("--out-csv", type=Path, help="Optional CSV summary path.")
     parser.add_argument("--out-markdown", type=Path, help="Optional Markdown summary path.")
@@ -320,7 +357,10 @@ def main() -> None:
         write_csv_report(summaries, args.out_csv)
     if args.out_markdown is not None:
         write_markdown_report(summaries, args.out_markdown)
-    print(json.dumps(report, indent=2))
+    if args.print_format == "table":
+        print(format_text_report(summaries))
+    else:
+        print(json.dumps(report, indent=2))
 
 
 if __name__ == "__main__":
