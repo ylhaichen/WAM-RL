@@ -154,6 +154,9 @@ development:
   `tail`, `qstat`, and `git status`;
 - summarize GRPO job/result state with `tools/report_grpo_run_status.py`
   before hand-writing long `grep` pipelines;
+- avoid unbounded `qacct` calls during interactive debugging. Prefer `qstat`,
+  job logs, and the status reporter; if accounting is needed, query a specific
+  finished job with a shell timeout;
 - run containerized unit/tool tests that do not submit scheduler jobs;
 - edit docs/code, commit, and push when the current task clearly requires it.
 
@@ -338,7 +341,10 @@ current system:
   needs them.
 - After paired eval finishes, use `tools/summarize_actor_eval_pair.py` to
   write aggregate summaries, per-episode exports, and matched comparison files
-  before interpreting any success-rate difference.
+  before interpreting any success-rate difference. Check its
+  `provenance_warnings`; missing `run_id`, checkpoint, action-step, prompt, or
+  sampling provenance means the run is still useful for debugging but should
+  not be treated as a complete experiment record.
 - Before promoting a candidate actor checkpoint beyond smoke status, run
   `tools/gate_actor_eval_promotion.py` with a paired comparison JSON and a
   baseline repeatability JSON. The gate is intentionally conservative: tiny

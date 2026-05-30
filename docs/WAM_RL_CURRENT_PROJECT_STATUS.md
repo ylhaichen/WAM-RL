@@ -424,8 +424,8 @@ actor root:
   /home/zcably0/Scratch/wam-rl/results_actor_eval/actor_move_stapler_pad_actor_eval_pair_provenance_fixed_20260530_104124
 comparison:
   /home/zcably0/Scratch/wam-rl/results_actor_eval/actor_eval_pair_provenance_fixed_20260530_104124_comparison
-refreshed summary with explicit provenance:
-  /home/zcably0/Scratch/wam-rl/results_actor_eval/actor_eval_pair_provenance_fixed_20260530_104124_comparison_refreshed_20260530_130922/summary.md
+latest summary with explicit provenance warnings:
+  /home/zcably0/Scratch/wam-rl/results_actor_eval/actor_eval_pair_provenance_fixed_20260530_104124_comparison_warned_20260530_134055/summary.md
 baseline policy_checkpoint:
   /home/zcably0/Scratch/wam-rl/checkpoints/lingbot-va-posttrain-robotwin
 actor policy_checkpoint:
@@ -436,6 +436,9 @@ matched episodes: 2
 baseline success: 2/2
 actor success: 2/2
 actor vs baseline: improved=0, regressed=0, same_success=2, same_failure=0
+provenance warnings:
+  baseline missing run_id
+  actor missing run_id
 ```
 
 Interpretation:
@@ -443,6 +446,9 @@ Interpretation:
 - this is a wiring/provenance smoke check, not an improvement claim;
 - both episode exports contain explicit `policy_checkpoint`,
   `reference_checkpoint`, and `action_num_inference_steps`;
+- both episode exports still lack `run_id`; the paired summary now reports that
+  explicitly under `provenance_warnings`, so this missing field is visible in
+  generated reports instead of being discovered by manual JSON inspection;
 - the previous pre-fix pair jobs were cancelled because `qsub -V` let the
   baseline job inherit the actor checkpoint path from the submit shell.
 
