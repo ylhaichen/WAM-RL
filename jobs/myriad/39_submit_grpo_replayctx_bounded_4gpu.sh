@@ -6,6 +6,36 @@
 
 set -euo pipefail
 
+usage() {
+    cat <<'EOF'
+Usage: jobs/myriad/39_submit_grpo_replayctx_bounded_4gpu.sh [--dry-run]
+
+Submit a storage-bounded replay-context grouped rollout collection.
+
+Options:
+  --dry-run   Print planning output and exit without submitting.
+  -h, --help  Show this help text.
+EOF
+}
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --dry-run)
+            DRY_RUN=1
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "Unknown argument: $1" >&2
+            usage >&2
+            exit 2
+            ;;
+    esac
+    shift
+done
+
 MYRIAD_JOB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [ -z "${REPO_ROOT:-}" ]; then
     REPO_ROOT="$(cd "${MYRIAD_JOB_DIR}/../.." && pwd)"

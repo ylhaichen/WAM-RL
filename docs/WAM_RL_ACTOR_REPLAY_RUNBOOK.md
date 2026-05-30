@@ -355,8 +355,11 @@ RUN_ID=actor_eval_pair_<date> \
 TASK_NAME=move_stapler_pad \
 TEST_NUM=2 \
 SEED=0 \
-jobs/myriad/37_submit_actor_eval_pair_smoke.sh
+jobs/myriad/37_submit_actor_eval_pair_smoke.sh --dry-run
 ```
+
+Review the two printed `qsub` commands and rerun without `--dry-run` when the
+ports, output roots, seed controls, and checkpoint path are correct.
 
 After both jobs finish, summarize aggregate results, per-episode exports, and
 matched comparisons in one pass:
@@ -384,7 +387,7 @@ RUN_ID=baseline_repeatability_<date> \
 TASK_NAME=move_stapler_pad \
 TEST_NUM=10 \
 SEED=0 \
-jobs/myriad/38_submit_eval_repeatability_pair.sh
+jobs/myriad/38_submit_eval_repeatability_pair.sh --dry-run
 
 python tools/summarize_robotwin_repeatability.py \
   --run baseline_a=/path/to/baseline_eval_a \
@@ -393,6 +396,9 @@ python tools/summarize_robotwin_repeatability.py \
   --out-csv /path/to/repeatability.csv \
   --out-markdown /path/to/repeatability.md
 ```
+
+Review the printed `qsub` commands and rerun the submitter without `--dry-run`
+when the ports, output roots, and seed controls are correct.
 
 Use `flipped_count` and `flip_rate` to decide whether a policy delta is larger
 than the closed-loop repeat noise on the same matched episode keys.

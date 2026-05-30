@@ -311,7 +311,42 @@ def test_actor_eval_pair_smoke_submitter_uses_matched_eval_controls():
     assert "tools/summarize_actor_eval_pair.py" in text
     assert "tools/gate_actor_eval_promotion.py" in text
     assert 'DRY_RUN="${DRY_RUN:-0}"' in text
+    assert "--dry-run" in text
     assert '"${cmd[@]}"' in text
+
+
+def test_actor_eval_pair_dry_run_flag_does_not_call_qsub(tmp_path):
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    qsub_called = tmp_path / "qsub_called"
+    qsub = fake_bin / "qsub"
+    qsub.write_text(
+        f"#!/usr/bin/env bash\ntouch {qsub_called}\nexit 0\n",
+        encoding="utf-8",
+    )
+    qsub.chmod(0o755)
+
+    env = os.environ.copy()
+    env.update(
+        {
+            "PATH": f"{fake_bin}:{env['PATH']}",
+            "REPO_ROOT": str(Path.cwd()),
+            "ACTOR_REPLAY_CHECKPOINT_PATH": str(tmp_path / "checkpoint.pt"),
+            "WAM_ROOT": str(tmp_path),
+        }
+    )
+
+    result = subprocess.run(
+        ["bash", "jobs/myriad/37_submit_actor_eval_pair_smoke.sh", "--dry-run"],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert sum(line.startswith("qsub ") for line in result.stdout.splitlines()) == 2
+    assert not qsub_called.exists()
 
 
 def test_eval_repeatability_pair_submitter_uses_matched_baseline_controls():
@@ -333,7 +368,41 @@ def test_eval_repeatability_pair_submitter_uses_matched_baseline_controls():
     assert "tools/summarize_robotwin_repeatability.py" in text
     assert "tools/gate_actor_eval_promotion.py" in text
     assert 'DRY_RUN="${DRY_RUN:-0}"' in text
+    assert "--dry-run" in text
     assert '"${cmd[@]}"' in text
+
+
+def test_eval_repeatability_pair_dry_run_flag_does_not_call_qsub(tmp_path):
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    qsub_called = tmp_path / "qsub_called"
+    qsub = fake_bin / "qsub"
+    qsub.write_text(
+        f"#!/usr/bin/env bash\ntouch {qsub_called}\nexit 0\n",
+        encoding="utf-8",
+    )
+    qsub.chmod(0o755)
+
+    env = os.environ.copy()
+    env.update(
+        {
+            "PATH": f"{fake_bin}:{env['PATH']}",
+            "REPO_ROOT": str(Path.cwd()),
+            "WAM_ROOT": str(tmp_path),
+        }
+    )
+
+    result = subprocess.run(
+        ["bash", "jobs/myriad/38_submit_eval_repeatability_pair.sh", "--dry-run"],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert sum(line.startswith("qsub ") for line in result.stdout.splitlines()) == 2
+    assert not qsub_called.exists()
 
 
 def test_bounded_replayctx_submitter_uses_storage_safe_defaults():
@@ -364,6 +433,7 @@ def test_bounded_replayctx_submitter_uses_storage_safe_defaults():
     assert "STRICT_GRPO_REPLAY_CONTEXT_MAX_GB" in text
     assert "ALLOW_UNBOUNDED_REPLAYCTX=1" in text
     assert 'DRY_RUN="${DRY_RUN:-0}"' in text
+    assert "--dry-run" in text
     assert "DRY_RUN=1, not submitting" in text
     assert 'SAVE_SERVER_DEBUG_TENSORS="${SAVE_SERVER_DEBUG_TENSORS}"' in text
     assert 'STRICT_GRPO_REPLAY_CONTEXT_MAX_GB="${STRICT_GRPO_REPLAY_CONTEXT_MAX_GB}"' in text
@@ -381,7 +451,6 @@ def test_bounded_replayctx_dry_run_budgets_attempts(tmp_path):
     env.update(
         {
             "PATH": f"{fake_bin}:{env['PATH']}",
-            "DRY_RUN": "1",
             "TASK_NAMES": "move_stapler_pad",
             "GROUP_SIZE": "4",
             "GROUPS_PER_TASK": "1",
@@ -393,7 +462,7 @@ def test_bounded_replayctx_dry_run_budgets_attempts(tmp_path):
     )
 
     result = subprocess.run(
-        ["bash", "jobs/myriad/39_submit_grpo_replayctx_bounded_4gpu.sh"],
+        ["bash", "jobs/myriad/39_submit_grpo_replayctx_bounded_4gpu.sh", "--dry-run"],
         check=False,
         capture_output=True,
         text=True,

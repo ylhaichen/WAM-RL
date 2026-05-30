@@ -5,6 +5,37 @@
 
 set -euo pipefail
 
+usage() {
+    cat <<'EOF'
+Usage: jobs/myriad/37_submit_actor_eval_pair_smoke.sh [--dry-run]
+
+Submit matched one-GPU baseline and actor RoboTwin eval smoke jobs.
+Set ACTOR_REPLAY_CHECKPOINT_PATH before running.
+
+Options:
+  --dry-run   Print qsub commands and exit without submitting.
+  -h, --help  Show this help text.
+EOF
+}
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --dry-run)
+            DRY_RUN=1
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "Unknown argument: $1" >&2
+            usage >&2
+            exit 2
+            ;;
+    esac
+    shift
+done
+
 MYRIAD_JOB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [ -z "${REPO_ROOT:-}" ]; then
     if [ -n "${SGE_O_WORKDIR:-}" ] && [ -f "${SGE_O_WORKDIR}/jobs/myriad/common.sh" ]; then

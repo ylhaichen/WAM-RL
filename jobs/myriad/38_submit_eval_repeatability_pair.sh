@@ -5,6 +5,36 @@
 
 set -euo pipefail
 
+usage() {
+    cat <<'EOF'
+Usage: jobs/myriad/38_submit_eval_repeatability_pair.sh [--dry-run]
+
+Submit two matched one-GPU baseline RoboTwin eval jobs for repeatability checks.
+
+Options:
+  --dry-run   Print qsub commands and exit without submitting.
+  -h, --help  Show this help text.
+EOF
+}
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --dry-run)
+            DRY_RUN=1
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "Unknown argument: $1" >&2
+            usage >&2
+            exit 2
+            ;;
+    esac
+    shift
+done
+
 MYRIAD_JOB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [ -z "${REPO_ROOT:-}" ]; then
     if [ -n "${SGE_O_WORKDIR:-}" ] && [ -f "${SGE_O_WORKDIR}/jobs/myriad/common.sh" ]; then
