@@ -181,9 +181,13 @@ Implemented:
   attempt-budget-based Scratch headroom checks and optional `PLAN_JSON`
   persistence for audit records, dry-run printing of the final underlying
   `qsub` command, plus bounded queue-resource defaults (`QSUB_H_RT=6:00:00`,
-  `QSUB_TMPFS=80G`) for small smoke collections;
+  `QSUB_TMPFS=80G`) for small smoke collections, explicit canonical
+  `RESULTS_ROOT` export for queued-job status reporting, and optional
+  `SUCCESS_RATE` mixed-group probability planning;
 - standalone replay-context collection storage planning with
-  `tools/plan_replay_context_collection.py`;
+  `tools/plan_replay_context_collection.py`, including optional success-rate
+  planning that reports mixed-group probability and the chance that the
+  configured attempt budget yields at least one mixed group;
 - operational runbook in `docs/WAM_RL_ACTOR_REPLAY_RUNBOOK.md`;
 - actor replay training output summaries with
   `tools/summarize_actor_replay_training.py`, including explicit
@@ -199,7 +203,9 @@ Implemented:
   `tools/report_grpo_run_status.py`, so queued/completed rollout and training
   jobs can be summarized from job logs plus `groups/` metadata without
   hand-written `grep` pipelines, including `--job-log-glob` latest-log
-  selection to avoid brittle `find | tail` snippets;
+  selection to avoid brittle `find | tail` snippets, wrapped SGE `env_list`
+  parsing, qstat-derived path inference, and legacy grouped-rollout result-root
+  inference from `RUN_ID`;
 - real actor replay trainer over LingBot-VA transformer parameters;
 - actor replay input storage audit and optional resolved-size training budget
   through `GRPO_MAX_RESOLVED_GB`;
@@ -642,7 +648,9 @@ GRPO_PROGRESS_EVERY=50
    `tools/merge_grpo_groups.py` instead of manual `cat` so duplicate group ids
    are caught before validation/training.
 2. Use `jobs/myriad/39_submit_grpo_replayctx_bounded_4gpu.sh` for any new
-   replay-context collection smoke, with dry-run review before submission.
+   replay-context collection smoke, with dry-run review before submission. Set
+   `SUCCESS_RATE` from the latest per-task summary when available, so the dry
+   run reports both storage budget and mixed-group yield odds.
 3. Use `jobs/myriad/37_submit_actor_eval_pair_smoke.sh` and
    `tools/summarize_actor_eval_pair.py` for baseline-vs-actor eval comparisons
    before interpreting aggregate success rates.

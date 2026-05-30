@@ -139,8 +139,15 @@ Scratch or relying on full 400GB+ replay-context directories.
    GROUP_MAX_ATTEMPTS=1 \
    STRICT_GRPO_CAPTURE_MAX_CHUNKS=1 \
    ACTION_NUM_INFERENCE_STEPS=10 \
+   SUCCESS_RATE=0.625 \
    bash jobs/myriad/39_submit_grpo_replayctx_bounded_4gpu.sh
    ```
+
+   The dry-run should be reviewed for both storage pressure and mixed-group
+   odds. It should also print the canonical `RESULTS_ROOT` that will be
+   exported into qsub metadata; queued jobs can then be checked with
+   `tools/report_grpo_run_status.py --qstat-job-id <job-id>` before the stdout
+   log appears.
 
 2. After any accepted replay-context collection, validate it with replay-context
    requirements enabled:
