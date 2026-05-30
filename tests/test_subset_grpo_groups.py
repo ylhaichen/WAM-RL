@@ -62,6 +62,39 @@ def test_subset_grpo_groups_selects_balanced_samples_and_recomputes_advantages(t
     assert manifest["output_sample_count"] == 2
     assert manifest["output_artifact_ref_count"] == 4
     assert manifest["tasks"][0]["task"] == "move_stapler_pad"
+    assert manifest["selection_details"] == [
+        {
+            "group_id": "g0_subset",
+            "task": "move_stapler_pad",
+            "group_size": 2,
+            "reward_mean": 0.5,
+            "reward_std": 0.5,
+            "sample_count": 2,
+            "success_count": 1,
+            "failure_count": 1,
+            "artifact_ref_count": 4,
+            "samples": [
+                {
+                    "sample_idx": 0,
+                    "reward": 0.0,
+                    "advantage": -1.0,
+                    "success": False,
+                    "env_seed": 10000,
+                    "sampling_seed": 740000,
+                    "artifact_ref_count": 2,
+                },
+                {
+                    "sample_idx": 2,
+                    "reward": 1.0,
+                    "advantage": 1.0,
+                    "success": True,
+                    "env_seed": 10000,
+                    "sampling_seed": 740002,
+                    "artifact_ref_count": 2,
+                },
+            ],
+        }
+    ]
 
     group = groups[0]
     assert group["group_id"] == "g0_subset"

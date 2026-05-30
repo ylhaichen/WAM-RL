@@ -199,6 +199,11 @@ validation_actor_replay.json
 storage_audit.json
 ```
 
+`manifest.json` includes `selection_details`, a compact per-group/per-sample
+record of retained `sample_idx`, reward, advantage, seeds, and artifact counts.
+Use it to confirm the subset kept both success and failure samples before
+spending GPU time on actor replay training.
+
 `SUBSET_MAX_REPLAY_CONTEXT_GB` is a resolved replay-context footprint budget
 for the selected subset. It trims artifact references round-robin across the
 selected success/failure samples, which keeps a tiny actor replay smoke useful

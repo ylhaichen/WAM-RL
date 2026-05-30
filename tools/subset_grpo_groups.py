@@ -285,6 +285,7 @@ def _build_manifest(
         "skipped_empty_group_count": skipped_empty,
         "skipped_unmixed_group_count": skipped_unmixed,
         "tasks": _task_summary(selected_groups),
+        "selection_details": _selection_details(selected_groups),
     }
     if replay_context_budget.enabled:
         manifest["replay_context_budget"] = replay_context_budget.to_manifest()
@@ -434,6 +435,41 @@ def _task_summary(groups: list[dict]) -> list[dict]:
                 item["failure_count"] += 1
             item["artifact_ref_count"] += len(sample.get("strict_grpo_artifact_paths", []) or [])
     return [by_task[key] for key in sorted(by_task)]
+
+
+def _selection_details(groups: list[dict]) -> list[dict]:
+    details: list[dict] = []
+    for group in groups:
+        samples = group.get("samples", []) or []
+        details.append(
+            {
+                "group_id": str(group.get("group_id", "")),
+                "task": str(group.get("task", "")),
+                "group_size": len(samples),
+                "reward_mean": group.get("reward_mean"),
+                "reward_std": group.get("reward_std"),
+                "sample_count": len(samples),
+                "success_count": sum(1 for sample in samples if float(sample.get("reward", 0.0)) > 0.0),
+                "failure_count": sum(1 for sample in samples if float(sample.get("reward", 0.0)) <= 0.0),
+                "artifact_ref_count": sum(
+                    len(sample.get("strict_grpo_artifact_paths", []) or []) for sample in samples
+                ),
+                "samples": [_sample_selection_detail(sample) for sample in samples],
+            }
+        )
+    return details
+
+
+def _sample_selection_detail(sample: dict) -> dict:
+    return {
+        "sample_idx": sample.get("sample_idx"),
+        "reward": sample.get("reward"),
+        "advantage": sample.get("advantage"),
+        "success": bool(float(sample.get("reward", 0.0)) > 0.0),
+        "env_seed": sample.get("env_seed"),
+        "sampling_seed": sample.get("sampling_seed"),
+        "artifact_ref_count": len(sample.get("strict_grpo_artifact_paths", []) or []),
+    }
 
 
 def _task_filter(values: list[str] | None) -> set[str] | None:
