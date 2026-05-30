@@ -252,6 +252,21 @@ def test_inspect_grpo_replay_context_help_does_not_require_external_pythonpath()
     assert "--print-summary" in result.stdout
 
 
+def test_summarize_grpo_replay_contexts_help_does_not_require_external_pythonpath():
+    result = subprocess.run(
+        [sys.executable, "tools/summarize_grpo_replay_contexts.py", "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "Summarize replay-context storage and tensor metadata" in result.stdout
+    assert "--inspect-artifacts" in result.stdout
+    assert "--inspect-context-tensors" in result.stdout
+    assert "--print-summary" in result.stdout
+
+
 def test_diagnose_actor_replay_help_does_not_require_external_pythonpath():
     result = subprocess.run(
         [sys.executable, "tools/diagnose_actor_replay.py", "--help"],

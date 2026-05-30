@@ -65,8 +65,21 @@ python tools/summarize_grpo_groups.py \
   --out-json "$SOURCE/groups/grpo_group_summary_actor_replay.json" \
   --out-csv "$SOURCE/groups/grpo_group_summary_actor_replay.csv" \
   --out-markdown "$SOURCE/groups/grpo_group_summary_actor_replay.md"
+
+python tools/summarize_grpo_replay_contexts.py \
+  "$SOURCE/groups/grpo_groups.jsonl" \
+  --inspect-artifacts \
+  --print-summary \
+  --out-json "$SOURCE/groups/grpo_replay_context_summary.json" \
+  --out-csv "$SOURCE/groups/grpo_replay_context_summary.csv" \
+  --out-markdown "$SOURCE/groups/grpo_replay_context_summary.md"
 CONTAINER
 ```
+
+This command only stats replay-context files by default. Add
+`--inspect-context-tensors` only for small or carefully bounded sources; even
+metadata-only `torch.load` can cause heavy filesystem IO on multi-GB
+replay-context files.
 
 For storage-limited replay-context collection, limit capture at collection
 time instead of collecting every action chunk:

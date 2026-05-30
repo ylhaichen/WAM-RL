@@ -155,6 +155,10 @@ Implemented:
   `tools/inspect_grpo_replay_context.py`, including scalar config fields,
   top-level tensor GiB, KV-cache batch sizes, compact `--print-summary`
   output, and conditional-only branch savings estimates;
+- replay-context aggregate footprint summaries with
+  `tools/summarize_grpo_replay_contexts.py`, which reports total
+  replay-context file GiB by default and can optionally inspect context tensor
+  metadata by config with `--inspect-context-tensors` on bounded sources;
 - non-destructive Myriad storage cleanup planning with
   `tools/plan_myriad_storage_cleanup.py`, including protection for any
   non-empty `grpo_groups*.jsonl` source file;
