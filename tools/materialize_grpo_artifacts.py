@@ -27,6 +27,7 @@ def materialize_grpo_artifacts(
     link_mode: str = "symlink",
     include_replay_context: bool = False,
     overwrite: bool = False,
+    dry_run: bool = False,
 ) -> tuple[list[dict], dict]:
     """Link or copy referenced artifacts and return rewritten groups.
 
@@ -52,13 +53,15 @@ def materialize_grpo_artifacts(
             raise FileNotFoundError(f"referenced artifact does not exist: {src}")
         dest_dir = artifacts_root / _stable_parent_key(src)
         dest = dest_dir / src.name
-        _materialize_file(src, dest, link_mode=link_mode, overwrite=overwrite)
+        if not dry_run:
+            _materialize_file(src, dest, link_mode=link_mode, overwrite=overwrite)
         mapping[source_path] = str(dest)
 
         if include_replay_context:
             context_src, context_dest = _context_materialization_paths(src, dest)
             if context_src is not None and context_dest is not None:
-                _materialize_file(context_src, context_dest, link_mode=link_mode, overwrite=overwrite)
+                if not dry_run:
+                    _materialize_file(context_src, context_dest, link_mode=link_mode, overwrite=overwrite)
                 context_mapping[str(context_src)] = str(context_dest)
 
     rewritten_groups = _rewrite_artifact_paths(source_groups, mapping)
@@ -67,6 +70,7 @@ def materialize_grpo_artifacts(
         "out_root": str(expanded_out),
         "link_mode": link_mode,
         "include_replay_context": include_replay_context,
+        "dry_run": dry_run,
         "group_count": len(rewritten_groups),
         "sample_count": _sample_count(rewritten_groups),
         "artifact_ref_count": len(_artifact_paths(rewritten_groups)),
@@ -185,6 +189,7 @@ def main() -> None:
     parser.add_argument("--link-mode", choices=("symlink", "copy"), default="symlink")
     parser.add_argument("--include-replay-context", action="store_true", help="Also materialize replay_context_path files.")
     parser.add_argument("--overwrite", action="store_true", help="Replace existing materialized files.")
+    parser.add_argument("--dry-run", action="store_true", help="Resolve mappings and print the manifest without writing files.")
     args = parser.parse_args()
 
     out_root = args.out_root.expanduser()
@@ -196,9 +201,12 @@ def main() -> None:
         link_mode=args.link_mode,
         include_replay_context=args.include_replay_context,
         overwrite=args.overwrite,
+        dry_run=args.dry_run,
     )
-    write_materialized_outputs(groups, manifest, out_jsonl=out_jsonl, out_manifest=out_manifest)
-    print(json.dumps({**manifest, "output_jsonl": str(out_jsonl)}, ensure_ascii=False, indent=2))
+    payload = {**manifest, "output_jsonl": str(out_jsonl), "output_manifest": str(out_manifest)}
+    if not args.dry_run:
+        write_materialized_outputs(groups, manifest, out_jsonl=out_jsonl, out_manifest=out_manifest)
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

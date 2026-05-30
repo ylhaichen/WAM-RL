@@ -141,6 +141,7 @@ def test_materialize_grpo_artifacts_help_does_not_require_external_pythonpath():
     assert result.returncode == 0, result.stderr
     assert "Materialize referenced GRPO artifacts" in result.stdout
     assert "--include-replay-context" in result.stdout
+    assert "--dry-run" in result.stdout
 
 
 def test_audit_grpo_artifact_storage_help_does_not_require_external_pythonpath():

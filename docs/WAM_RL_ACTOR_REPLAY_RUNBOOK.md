@@ -226,6 +226,10 @@ depends on the original source `server_vis/`. Use
 `MATERIALIZE_LINK_MODE=copy` only when deliberately creating a self-contained
 subset before a reviewed source cleanup; check Scratch headroom first because a
 small two-sample subset can still copy tens of GB of replay-context tensors.
+For a no-write planning pass before such a copy, run
+`tools/materialize_grpo_artifacts.py ... --link-mode copy --include-replay-context --dry-run`;
+it prints the resolved mapping and output paths without creating the subset
+directory.
 
 ## 3. Audit Subset Storage Dependencies
 

@@ -1,4 +1,6 @@
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -80,6 +82,66 @@ def test_materialize_grpo_artifacts_can_copy_and_write_outputs(tmp_path):
     assert not rewritten_path.is_symlink()
     assert torch.load(rewritten_path, map_location="cpu") == {"schema_version": 2}
     assert json.loads(out_manifest.read_text())["output_jsonl"] == str(out_jsonl)
+
+
+def test_materialize_grpo_artifacts_dry_run_only_reports_paths(tmp_path):
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    artifact = source_dir / "strict_grpo_0.pt"
+    context = source_dir / "strict_grpo_replay_context_0.pt"
+    torch.save({"replay_context_path": context.name}, artifact)
+    torch.save({"context": True}, context)
+    groups_jsonl = tmp_path / "groups.jsonl"
+    out_root = tmp_path / "dry_run_out"
+    _write_group(groups_jsonl, artifact)
+
+    groups, manifest = materialize_grpo_artifacts(
+        groups_jsonl,
+        out_root=out_root,
+        link_mode="copy",
+        include_replay_context=True,
+        dry_run=True,
+    )
+
+    rewritten_path = Path(groups[0]["samples"][0]["strict_grpo_artifact_paths"][0])
+    assert manifest["dry_run"] is True
+    assert manifest["unique_artifact_count"] == 1
+    assert manifest["unique_replay_context_count"] == 1
+    assert rewritten_path.is_relative_to(out_root)
+    assert not out_root.exists()
+
+
+def test_materialize_grpo_artifacts_cli_dry_run_does_not_write_outputs(tmp_path):
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    artifact = source_dir / "strict_grpo_0.pt"
+    torch.save({"schema_version": 2}, artifact)
+    groups_jsonl = tmp_path / "groups.jsonl"
+    out_root = tmp_path / "cli_dry_run_out"
+    _write_group(groups_jsonl, artifact)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "tools/materialize_grpo_artifacts.py",
+            str(groups_jsonl),
+            "--out-root",
+            str(out_root),
+            "--link-mode",
+            "copy",
+            "--dry-run",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["dry_run"] is True
+    assert payload["output_jsonl"] == str(out_root / "groups" / "grpo_groups.jsonl")
+    assert payload["output_manifest"] == str(out_root / "manifest.json")
+    assert not out_root.exists()
 
 
 def test_materialize_grpo_artifacts_checks_torch_before_partial_output(tmp_path, monkeypatch):

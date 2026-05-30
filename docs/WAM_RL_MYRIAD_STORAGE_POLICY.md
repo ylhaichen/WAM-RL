@@ -195,6 +195,20 @@ training record still points through those symlinks.
 If the goal is to eventually reclaim a large source run, first prepare a
 self-contained copy subset with explicit storage headroom:
 
+Before submitting the subset job, you can also run the materializer itself in
+`--dry-run` mode. This resolves the artifact and replay-context mapping and
+prints the planned output paths without creating `SUBSET_ROOT` or copying
+files:
+
+```bash
+python tools/materialize_grpo_artifacts.py \
+  /path/to/source/groups/grpo_groups.jsonl \
+  --out-root /home/zcably0/Scratch/wam-rl/results_grpo_actor_replay_subsets/<name>_copy \
+  --link-mode copy \
+  --include-replay-context \
+  --dry-run
+```
+
 ```bash
 SOURCE_GROUPS_PATH=/path/to/source/groups/grpo_groups.jsonl \
 SUBSET_ROOT=/home/zcably0/Scratch/wam-rl/results_grpo_actor_replay_subsets/<name>_copy \
