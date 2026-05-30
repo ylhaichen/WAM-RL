@@ -385,6 +385,9 @@ ports, output roots, seed controls, and checkpoint path are correct.
 The one-GPU eval job records `POLICY_CHECKPOINT`, `REFERENCE_CHECKPOINT`, and
 `ACTION_NUM_INFERENCE_STEPS` in each episode JSON so paired summaries remain
 self-describing after logs move or get archived.
+The pair submitter also prints and passes these checkpoint labels explicitly,
+so dry-run output should be enough to audit baseline/actor provenance before
+spending GPU time.
 
 After both jobs finish, summarize aggregate results, per-episode exports, and
 matched comparisons in one pass:

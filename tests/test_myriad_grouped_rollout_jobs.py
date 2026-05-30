@@ -311,12 +311,19 @@ def test_actor_eval_pair_smoke_submitter_uses_matched_eval_controls():
     assert 'SAVE_SERVER_DEBUG_TENSORS="${SAVE_SERVER_DEBUG_TENSORS:-false}"' in text
     assert 'SEED="${SEED:-0}"' in text
     assert 'BASELINE_REPEATABILITY_JSON="${BASELINE_REPEATABILITY_JSON:-}"' in text
+    assert 'REFERENCE_CHECKPOINT="${REFERENCE_CHECKPOINT:-${WAM_ROOT}/checkpoints/lingbot-va-posttrain-robotwin}"' in text
+    assert 'BASELINE_POLICY_CHECKPOINT="${BASELINE_POLICY_CHECKPOINT:-${REFERENCE_CHECKPOINT}}"' in text
+    assert 'ACTOR_POLICY_CHECKPOINT="${ACTOR_POLICY_CHECKPOINT:-${ACTOR_REPLAY_CHECKPOINT_PATH}}"' in text
     assert '"SEED=${SEED}"' in text
     assert 'BASELINE_PORT="${BASELINE_PORT:-29656}"' in text
     assert 'ACTOR_PORT="${ACTOR_PORT:-29756}"' in text
     assert "BASELINE_PORT and ACTOR_PORT must differ" in text
     assert "Set ACTOR_REPLAY_CHECKPOINT_PATH" in text
     assert '"ACTOR_REPLAY_CHECKPOINT_PATH=${checkpoint}"' in text
+    assert '"POLICY_CHECKPOINT=${policy_checkpoint}"' in text
+    assert '"REFERENCE_CHECKPOINT=${reference_checkpoint}"' in text
+    assert '"${BASELINE_POLICY_CHECKPOINT}"' in text
+    assert '"${ACTOR_POLICY_CHECKPOINT}"' in text
     assert "tools/summarize_actor_eval_pair.py" in text
     assert "tools/gate_actor_eval_promotion.py" in text
     assert 'DRY_RUN="${DRY_RUN:-0}"' in text
