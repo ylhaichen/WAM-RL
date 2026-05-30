@@ -177,13 +177,16 @@ the explicit `-v` variable list. Keep `QSUB_EXPORT_CURRENT_ENV=0` unless you
 deliberately need `qsub -V` for manual debugging.
 
 This job writes the rewritten groups file, materialization manifest,
-actor-replay validation summary, and `storage_audit.json` under `SUBSET_ROOT`.
+`materialize_plan.json`, actor-replay validation summary, and
+`storage_audit.json` under `SUBSET_ROOT`.
 Keep `SUBSET_MAX_REPLAY_CONTEXT_GB` below the training-side
 `GRPO_MAX_RESOLVED_GB` budget; the submitter defaults are currently 30GB for
 subset preparation and 40GB for the actor replay smoke trainer.
 `SUBSET_STORAGE_MAX_RESOLVED_GB` enforces the same kind of budget during subset
 materialization by counting strict artifacts plus materialized replay-context
-symlink targets.
+symlink targets. The preparation job checks the materialization dry-run plan
+before creating symlinks or copies, so an over-budget copy subset fails before
+large files are written.
 
 ### Self-Contained Subset Before Source Cleanup
 

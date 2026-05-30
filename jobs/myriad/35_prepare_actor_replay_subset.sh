@@ -38,6 +38,7 @@ RAW_SUBSET_JSONL="${RAW_SUBSET_JSONL:-${SUBSET_ROOT}/source_subset/grpo_groups.j
 RAW_SUBSET_MANIFEST="${RAW_SUBSET_MANIFEST:-${SUBSET_ROOT}/source_subset/manifest.json}"
 MATERIALIZED_GROUPS_PATH="${MATERIALIZED_GROUPS_PATH:-${SUBSET_ROOT}/groups/grpo_groups.jsonl}"
 MATERIALIZED_MANIFEST="${MATERIALIZED_MANIFEST:-${SUBSET_ROOT}/manifest.json}"
+MATERIALIZE_PLAN_JSON="${MATERIALIZE_PLAN_JSON:-${SUBSET_ROOT}/materialize_plan.json}"
 VALIDATION_JSON="${VALIDATION_JSON:-${SUBSET_ROOT}/validation_actor_replay.json}"
 STORAGE_AUDIT_JSON="${STORAGE_AUDIT_JSON:-${SUBSET_ROOT}/storage_audit.json}"
 SUBSET_STORAGE_MAX_RESOLVED_GB="${SUBSET_STORAGE_MAX_RESOLVED_GB:-40}"
@@ -57,7 +58,7 @@ MATERIALIZE_OVERWRITE="${MATERIALIZE_OVERWRITE:-true}"
 VALIDATE_INSPECT_ARTIFACTS="${VALIDATE_INSPECT_ARTIFACTS:-true}"
 
 export RUN_ID RESULTS_ROOT SOURCE_GROUPS_PATH SUBSET_ROOT RAW_SUBSET_JSONL RAW_SUBSET_MANIFEST
-export MATERIALIZED_GROUPS_PATH MATERIALIZED_MANIFEST VALIDATION_JSON STORAGE_AUDIT_JSON
+export MATERIALIZED_GROUPS_PATH MATERIALIZED_MANIFEST MATERIALIZE_PLAN_JSON VALIDATION_JSON STORAGE_AUDIT_JSON
 export SUBSET_STORAGE_MAX_RESOLVED_GB
 export SUBSET_TASKS SUBSET_MAX_GROUPS SUBSET_SAMPLES_PER_REWARD SUBSET_MAX_ARTIFACTS_PER_SAMPLE
 export SUBSET_MAX_REPLAY_CONTEXT_GB SUBSET_REQUIRE_ARTIFACTS SUBSET_PRESERVE_ADVANTAGES SUBSET_PRESERVE_GROUP_ID SUBSET_GROUP_ID_SUFFIX
@@ -70,6 +71,7 @@ echo "SOURCE_GROUPS_PATH=${SOURCE_GROUPS_PATH}"
 echo "SUBSET_ROOT=${SUBSET_ROOT}"
 echo "RAW_SUBSET_JSONL=${RAW_SUBSET_JSONL}"
 echo "MATERIALIZED_GROUPS_PATH=${MATERIALIZED_GROUPS_PATH}"
+echo "MATERIALIZE_PLAN_JSON=${MATERIALIZE_PLAN_JSON}"
 echo "STORAGE_AUDIT_JSON=${STORAGE_AUDIT_JSON}"
 echo "SUBSET_STORAGE_MAX_RESOLVED_GB=${SUBSET_STORAGE_MAX_RESOLVED_GB}"
 echo "SUBSET_TASKS=${SUBSET_TASKS}"
@@ -99,7 +101,11 @@ if [ ! -f "${SOURCE_GROUPS_PATH}" ]; then
     exit 2
 fi
 
-mkdir -p "${SUBSET_ROOT}" "$(dirname "${RAW_SUBSET_JSONL}")" "$(dirname "${MATERIALIZED_GROUPS_PATH}")"
+mkdir -p \
+    "${SUBSET_ROOT}" \
+    "$(dirname "${RAW_SUBSET_JSONL}")" \
+    "$(dirname "${MATERIALIZED_GROUPS_PATH}")" \
+    "$(dirname "${MATERIALIZE_PLAN_JSON}")"
 
 TASK_ARGS=()
 if [ -n "${SUBSET_TASKS}" ]; then
@@ -146,6 +152,46 @@ fi
 if [ "${MATERIALIZE_OVERWRITE}" = "true" ]; then
     MATERIALIZE_ARGS+=(--overwrite)
 fi
+
+python tools/materialize_grpo_artifacts.py \
+    "${RAW_SUBSET_JSONL}" \
+    --out-root "${SUBSET_ROOT}" \
+    --out-jsonl "${MATERIALIZED_GROUPS_PATH}" \
+    --out-manifest "${MATERIALIZED_MANIFEST}" \
+    --link-mode "${MATERIALIZE_LINK_MODE}" \
+    "${MATERIALIZE_ARGS[@]}" \
+    --dry-run > "${MATERIALIZE_PLAN_JSON}"
+
+python - <<'PY'
+import json
+import os
+import sys
+from pathlib import Path
+
+plan = json.loads(Path(os.environ["MATERIALIZE_PLAN_JSON"]).read_text(encoding="utf-8"))
+summary = plan.get("source_artifacts_plus_replay_contexts", {}) or {}
+planned_resolved_bytes = int(summary.get("resolved_bytes", 0))
+planned_copy_bytes = int(plan.get("planned_copy_bytes", 0))
+budget_gb = os.environ.get("SUBSET_STORAGE_MAX_RESOLVED_GB", "")
+budget = {
+    "planned_resolved_gb": planned_resolved_bytes / 1024**3,
+    "planned_copy_gb": planned_copy_bytes / 1024**3,
+    "max_resolved_gb": None,
+    "ok": True,
+}
+if budget_gb:
+    max_resolved_bytes = int(float(budget_gb) * 1024**3)
+    budget["max_resolved_gb"] = float(budget_gb)
+    budget["ok"] = planned_resolved_bytes <= max_resolved_bytes
+print(json.dumps({"materialize_preflight": budget}, indent=2))
+if not budget["ok"]:
+    print(
+        "Materialization preflight exceeds SUBSET_STORAGE_MAX_RESOLVED_GB: "
+        f"{budget['planned_resolved_gb']:.3f} > {budget['max_resolved_gb']:.3f}",
+        file=sys.stderr,
+    )
+    raise SystemExit(3)
+PY
 
 python tools/materialize_grpo_artifacts.py \
     "${RAW_SUBSET_JSONL}" \

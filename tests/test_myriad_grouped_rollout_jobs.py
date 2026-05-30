@@ -269,9 +269,14 @@ def test_actor_replay_subset_job_materializes_lightweight_dataset():
     assert 'MATERIALIZE_INCLUDE_REPLAY_CONTEXT="${MATERIALIZE_INCLUDE_REPLAY_CONTEXT:-true}"' in text
     assert 'SUBSET_MAX_REPLAY_CONTEXT_GB="${SUBSET_MAX_REPLAY_CONTEXT_GB:-30}"' in text
     assert 'SUBSET_STORAGE_MAX_RESOLVED_GB="${SUBSET_STORAGE_MAX_RESOLVED_GB:-40}"' in text
+    assert 'MATERIALIZE_PLAN_JSON="${MATERIALIZE_PLAN_JSON:-${SUBSET_ROOT}/materialize_plan.json}"' in text
+    assert '"$(dirname "${MATERIALIZE_PLAN_JSON}")"' in text
     assert '--max-replay-context-gb "${SUBSET_MAX_REPLAY_CONTEXT_GB}"' in text
     assert '--link-mode "${MATERIALIZE_LINK_MODE}"' in text
     assert "--include-replay-context" in text
+    assert '--dry-run > "${MATERIALIZE_PLAN_JSON}"' in text
+    assert "source_artifacts_plus_replay_contexts" in text
+    assert "Materialization preflight exceeds SUBSET_STORAGE_MAX_RESOLVED_GB" in text
     assert 'VALIDATE_INSPECT_ARTIFACTS="${VALIDATE_INSPECT_ARTIFACTS:-true}"' in text
     assert 'STORAGE_AUDIT_JSON="${STORAGE_AUDIT_JSON:-${SUBSET_ROOT}/storage_audit.json}"' in text
     assert "tools/audit_grpo_artifact_storage.py" in text
@@ -290,12 +295,14 @@ def test_actor_replay_subset_prepare_submitter_uses_explicit_qsub_vars():
     assert 'SUBSET_ROOT="${SUBSET_ROOT:-${WAM_ROOT}/results_grpo_actor_replay_subsets/${RUN_ID}}"' in text
     assert 'SUBSET_MAX_REPLAY_CONTEXT_GB="${SUBSET_MAX_REPLAY_CONTEXT_GB:-30}"' in text
     assert 'SUBSET_STORAGE_MAX_RESOLVED_GB="${SUBSET_STORAGE_MAX_RESOLVED_GB:-40}"' in text
+    assert 'MATERIALIZE_PLAN_JSON="${MATERIALIZE_PLAN_JSON:-${SUBSET_ROOT}/materialize_plan.json}"' in text
     assert 'MATERIALIZE_LINK_MODE="${MATERIALIZE_LINK_MODE:-symlink}"' in text
     assert 'MATERIALIZE_INCLUDE_REPLAY_CONTEXT="${MATERIALIZE_INCLUDE_REPLAY_CONTEXT:-true}"' in text
     assert 'QSUB_EXPORT_CURRENT_ENV="${QSUB_EXPORT_CURRENT_ENV:-0}"' in text
     assert 'if [ "${QSUB_EXPORT_CURRENT_ENV}" = "1" ]; then' in text
     assert '"SOURCE_GROUPS_PATH=${SOURCE_GROUPS_PATH}"' in text
     assert '"SUBSET_ROOT=${SUBSET_ROOT}"' in text
+    assert '"MATERIALIZE_PLAN_JSON=${MATERIALIZE_PLAN_JSON}"' in text
     assert '"SUBSET_MAX_ARTIFACTS_PER_SAMPLE=${SUBSET_MAX_ARTIFACTS_PER_SAMPLE}"' in text
     assert '"MATERIALIZE_LINK_MODE=${MATERIALIZE_LINK_MODE}"' in text
     assert 'DRY_RUN="${DRY_RUN:-0}"' in text
