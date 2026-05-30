@@ -6,15 +6,24 @@ plan and the current implementation state instead of inventing a new direction.
 
 ## Project Route
 
-Use the planning documents as the source of truth:
+Use the current status document as the source of truth. Treat older planning and
+paper documents as historical context unless they explicitly say they are
+current.
 
-- `docs/WAM_RL_RESEARCH_IMPLEMENTATION_PLAN_FRAMEWORK_FINAL.md`
-- `docs/WAM_RL_CURRENT_PROJECT_STATUS.md`
-- `docs/WAM_RL_EARLY_STAGE_WORK_SUMMARY.md`
-- `docs/GRPO_STRICT_ARTIFACT_SCHEMA.md`
-- `docs/WAM_RL_MYRIAD_STORAGE_POLICY.md`
-- `docs/WAM_RL_ACTOR_REPLAY_RUNBOOK.md`
-- `docs/WAM_RL_PAPER_DATA_PLAN.md`
+- current status and claims boundary:
+  `docs/WAM_RL_CURRENT_PROJECT_STATUS.md`
+- active Myriad actor replay operations:
+  `docs/WAM_RL_ACTOR_REPLAY_RUNBOOK.md`
+- storage, RDSS, and cleanup policy:
+  `docs/WAM_RL_MYRIAD_STORAGE_POLICY.md`
+- strict GRPO artifact schema:
+  `docs/GRPO_STRICT_ARTIFACT_SCHEMA.md`
+- historical implementation plan:
+  `docs/WAM_RL_RESEARCH_IMPLEMENTATION_PLAN_FRAMEWORK_FINAL.md`
+- historical early-stage paper snapshot:
+  `docs/WAM_RL_EARLY_STAGE_WORK_SUMMARY.md`
+- paper-data planning:
+  `docs/WAM_RL_PAPER_DATA_PLAN.md`
 
 The current route is:
 
@@ -181,7 +190,10 @@ consume tens or hundreds of GB because they include transformer KV-cache state.
 - For new actor-replay collection smoke runs, prefer
   `jobs/myriad/39_submit_grpo_replayctx_bounded_4gpu.sh` and review its
   `DRY_RUN=1` output before submission. It defaults to one captured chunk per
-  rollout and disables server debug tensors.
+  rollout and disables server debug tensors. New action-scale-one collections
+  use conditional-branch-only replay-context k/v storage, so the wrapper's
+  default estimate is 4GB/context. Override `REPLAY_CONTEXT_ESTIMATE_GB` upward
+  for action-guided (`action_guidance_scale > 1`) or legacy unpruned data.
 - For one-step actor replay trainer smoke on a materialized subset, prefer
   `jobs/myriad/36_submit_actor_replay_subset_smoke.sh`. It wraps the real
   trainer job with lower default queue resources and keeps the training logic in
@@ -231,6 +243,11 @@ current system:
 - Real actor replay requires saved replay context, including transformer
   conditioning and KV cache state. Old artifacts without replay context are not
   sufficient for real actor updates.
+- When global video CFG is enabled but `action_guidance_scale <= 1`, new replay
+  contexts store only the conditional action k/v cache branch. This preserves
+  the action replay mean because the negative action branch is not used, and it
+  avoids roughly half of the replay-context k/v storage for common smoke
+  collections.
 - For real actor replay, use `GRPO_ACTION_NUM_INFERENCE_STEPS` matching the
   collection run, `GRPO_LOGPROB_REDUCTION=mean`, and a conservative
   `GRPO_LOGPROB_STD_FLOOR` such as `0.1`. The collected diffusion transition
