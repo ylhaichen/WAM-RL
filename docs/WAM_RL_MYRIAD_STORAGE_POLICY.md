@@ -187,11 +187,13 @@ subset:
 ```bash
 SUBSET_ROOT=/home/zcably0/Scratch/wam-rl/results_grpo_actor_replay_subsets/<name> \
 RUN_ID=grpo_actor_subset_smoke_<name> \
-jobs/myriad/36_submit_actor_replay_subset_smoke.sh
+jobs/myriad/36_submit_actor_replay_subset_smoke.sh --dry-run
 ```
 
 The submitter checks the subset groups file and, when available, the
 `storage_audit.json` `storage_budget.ok` flag before `qsub`.
+Review the printed command and rerun without `--dry-run` only after the storage
+audit and queue request are acceptable.
 
 `36_submit_actor_replay_subset_smoke.sh` only wraps `qsub`; the real training
 path remains `jobs/myriad/34_train_actor_replay_grpo_robotwin.sh`. Override

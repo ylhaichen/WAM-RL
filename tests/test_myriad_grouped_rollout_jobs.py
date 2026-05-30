@@ -247,7 +247,46 @@ def test_actor_replay_subset_smoke_submitter_uses_low_resource_defaults():
     assert 'QSUB_SLOTS="${QSUB_SLOTS:-4}"' in text
     assert 'QSUB_TMPFS="${QSUB_TMPFS:-40G}"' in text
     assert 'DRY_RUN="${DRY_RUN:-0}"' in text
+    assert "--dry-run" in text
     assert 'qsub "${QSUB_ARGS[@]}" "${JOB_SCRIPT}"' in text
+
+
+def test_actor_replay_subset_smoke_dry_run_flag_does_not_call_qsub(tmp_path):
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    qsub_called = tmp_path / "qsub_called"
+    qsub = fake_bin / "qsub"
+    qsub.write_text(
+        f"#!/usr/bin/env bash\ntouch {qsub_called}\nexit 0\n",
+        encoding="utf-8",
+    )
+    qsub.chmod(0o755)
+
+    subset_root = tmp_path / "subset"
+    (subset_root / "groups").mkdir(parents=True)
+    (subset_root / "groups" / "grpo_groups.jsonl").write_text("", encoding="utf-8")
+
+    env = os.environ.copy()
+    env.update(
+        {
+            "PATH": f"{fake_bin}:{env['PATH']}",
+            "REPO_ROOT": str(Path.cwd()),
+            "SUBSET_ROOT": str(subset_root),
+            "WAM_ROOT": str(tmp_path),
+        }
+    )
+
+    result = subprocess.run(
+        ["bash", "jobs/myriad/36_submit_actor_replay_subset_smoke.sh", "--dry-run"],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "qsub" in result.stdout
+    assert not qsub_called.exists()
 
 
 def test_actor_eval_pair_smoke_submitter_uses_matched_eval_controls():

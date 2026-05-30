@@ -228,8 +228,11 @@ Submit a low-resource smoke job from the materialized subset:
 ```bash
 SUBSET_ROOT=/home/zcably0/Scratch/wam-rl/results_grpo_actor_replay_subsets/<subset-name> \
 RUN_ID=grpo_actor_subset_smoke_<date> \
-jobs/myriad/36_submit_actor_replay_subset_smoke.sh
+jobs/myriad/36_submit_actor_replay_subset_smoke.sh --dry-run
 ```
+
+Review the printed `qsub` command and rerun without `--dry-run` only after the
+subset storage audit and queue request look correct.
 
 The submitter checks that `groups/grpo_groups.jsonl` exists before `qsub`. If
 `${SUBSET_ROOT}/storage_audit.json` exists, it also checks `storage_budget.ok`
