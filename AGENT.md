@@ -73,6 +73,25 @@ Examples of unacceptable shortcuts:
 
 Fail fast with a clear error when required data or model context is missing.
 
+## Engineering Discipline
+
+- Do not treat a script that only runs the happy path as a complete deliverable.
+- Every new tool should have unit tests, negative tests, or a reproducible
+  command with raw logs.
+- Every validator should be tested on valid and intentionally corrupted inputs
+  when feasible.
+- Every cache-related change must prove the relevant contract: before/after
+  equality when behavior should be identical, or explicit fail-fast behavior
+  when the cache state is invalid or over budget.
+- Every stochastic component should accept an explicit seed or document why it
+  is deterministic.
+- Every research/engineering report should include commit hash, command lines,
+  raw log paths, artifact paths, and non-claims.
+- Do not hide failures with broad `try/except`, silent fallbacks, or `|| true`
+  unless the fallback is explicitly documented and tested.
+- Do not claim progress from documentation-only changes unless the task is
+  explicitly documentation.
+
 ## Debugging Standard
 
 Debug from the root cause. Avoid superficial patches that only hide a symptom.
@@ -196,6 +215,10 @@ consume tens or hundreds of GB because they include transformer KV-cache state.
   for action-guided (`action_guidance_scale > 1`) or legacy unpruned data.
   Keep `STORAGE_BUDGET_MODE=attempt` unless the user explicitly accepts the
   risk of failed attempts leaving large replay-context files behind.
+- Keep `STRICT_GRPO_REPLAY_CONTEXT_MAX_GB` enabled for bounded replay-context
+  collection. It is a per-context server-side guard checked before `torch.save`;
+  if the live KV-cache tensor footprint exceeds the reviewed budget, the
+  attempt should fail early instead of filling Scratch.
 - For one-step actor replay trainer smoke on a materialized subset, prefer
   `jobs/myriad/36_submit_actor_replay_subset_smoke.sh`. It wraps the real
   trainer job with lower default queue resources and keeps the training logic in
