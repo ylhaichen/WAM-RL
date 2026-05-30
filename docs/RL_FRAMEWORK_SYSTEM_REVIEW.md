@@ -85,7 +85,10 @@ hardcoding directory conventions and checkpoint acceptance rules.
 collect-then-smoke-train iteration. It is now a legacy offline fallback and
 deliberately does not promote checkpoints. For real actor replay smoke work,
 use `jobs/myriad/35_prepare_actor_replay_subset.sh` followed by
-`jobs/myriad/36_submit_actor_replay_subset_smoke.sh`.
+`jobs/myriad/36_submit_actor_replay_subset_smoke.sh`. The legacy fallback
+refuses to execute unless `ALLOW_LEGACY_OFFLINE_ITERATION=1` is set, because
+the current project route should not accidentally spend a large 4-GPU job on
+the old offline loop.
 
 ### Phase 6: Video-Action Consistency
 

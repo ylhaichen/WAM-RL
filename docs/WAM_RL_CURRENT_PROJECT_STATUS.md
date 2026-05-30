@@ -64,6 +64,9 @@ bounded replay-context collection
 Work that is currently off-scope: paper writing, veRL migration, video-action
 consistency, and large unbounded replay-context collections. These should wait
 until the bounded native actor replay loop shows a credible signal.
+The legacy collect-plus-offline-train iteration job now requires
+`ALLOW_LEGACY_OFFLINE_ITERATION=1` to run, so it cannot be launched by accident
+as if it were the current Stage 2 actor replay loop.
 
 ## Implemented And Validated
 

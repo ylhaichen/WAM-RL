@@ -11,3 +11,5 @@ def test_rl_iteration_job_runs_collect_then_grpo_train():
     assert 'RESULTS_ROOT="${ITERATION_ROOT}/rollout_collection"' in text
     assert "offline smoke fallback" in text
     assert "36_submit_actor_replay_subset_smoke.sh" in text
+    assert 'ALLOW_LEGACY_OFFLINE_ITERATION="${ALLOW_LEGACY_OFFLINE_ITERATION:-0}"' in text
+    assert "Refusing to run legacy offline iteration" in text

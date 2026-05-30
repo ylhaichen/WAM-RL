@@ -8,7 +8,8 @@
 # This is an offline contract/debug fallback, not the current real actor replay
 # loop. Use jobs/myriad/35_prepare_actor_replay_subset.sh plus
 # jobs/myriad/36_submit_actor_replay_subset_smoke.sh for real LingBot-VA actor
-# replay smoke work.
+# replay smoke work. Set ALLOW_LEGACY_OFFLINE_ITERATION=1 only when deliberately
+# running this older fallback.
 
 #$ -S /bin/bash
 #$ -N wam_rl_iter
@@ -48,12 +49,14 @@ GROUP_SIZE="${GROUP_SIZE:-4}"
 GROUPS_PER_TASK="${GROUPS_PER_TASK:-20}"
 TASK_NAMES="${TASK_NAMES:-hanging_mug open_microwave turn_switch move_stapler_pad}"
 GRPO_STEPS="${GRPO_STEPS:-20}"
+ALLOW_LEGACY_OFFLINE_ITERATION="${ALLOW_LEGACY_OFFLINE_ITERATION:-0}"
 
 export REPO_ROOT RUN_ID ITERATION ITERATION_ROOT RESULTS_ROOT
 export GRPO_GROUPS_PATH GRPO_OUTPUT_DIR GROUP_SIZE GROUPS_PER_TASK TASK_NAMES GRPO_STEPS
 
 print_job_context
 echo "WARNING: jobs/myriad/40_rl_iteration_robotwin.sh is an offline smoke fallback, not the real actor replay loop."
+echo "ALLOW_LEGACY_OFFLINE_ITERATION=${ALLOW_LEGACY_OFFLINE_ITERATION}"
 echo "ITERATION=${ITERATION}"
 echo "RUN_ID=${RUN_ID}"
 echo "ITERATION_ROOT=${ITERATION_ROOT}"
@@ -63,6 +66,12 @@ echo "GRPO_OUTPUT_DIR=${GRPO_OUTPUT_DIR}"
 echo "GROUP_SIZE=${GROUP_SIZE}"
 echo "GROUPS_PER_TASK=${GROUPS_PER_TASK}"
 echo "TASK_NAMES=${TASK_NAMES}"
+
+if [ "${ALLOW_LEGACY_OFFLINE_ITERATION}" != "1" ]; then
+    echo "Refusing to run legacy offline iteration without ALLOW_LEGACY_OFFLINE_ITERATION=1." >&2
+    echo "Use jobs/myriad/35_submit_prepare_actor_replay_subset.sh and jobs/myriad/36_submit_actor_replay_subset_smoke.sh for current actor replay work." >&2
+    exit 2
+fi
 
 mkdir -p "${ITERATION_ROOT}/reports"
 
