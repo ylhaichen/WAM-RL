@@ -148,6 +148,20 @@ SUBSET_MAX_ARTIFACTS_PER_SAMPLE=2 \
 qsub -V -N wam_grpo_subset jobs/myriad/35_prepare_actor_replay_subset.sh
 ```
 
+Then submit a low-resource one-step actor replay smoke from the materialized
+subset:
+
+```bash
+SUBSET_ROOT=/home/zcably0/Scratch/wam-rl/results_grpo_actor_replay_subsets/<name> \
+RUN_ID=grpo_actor_subset_smoke_<name> \
+jobs/myriad/36_submit_actor_replay_subset_smoke.sh
+```
+
+`36_submit_actor_replay_subset_smoke.sh` only wraps `qsub`; the real training
+path remains `jobs/myriad/34_train_actor_replay_grpo_robotwin.sh`. Override
+`GRPO_STEPS`, `GRPO_LR`, `QSUB_H_RT`, `QSUB_SLOTS`, or `QSUB_TMPFS` only when a
+smoke run has already passed and the next experiment needs more work.
+
 Example for one success and one failure sample, with two artifact refs per
 sample:
 

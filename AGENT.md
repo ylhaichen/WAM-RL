@@ -134,6 +134,10 @@ consume tens or hundreds of GB because they include transformer KV-cache state.
   --include-replay-context` to create a rewritten groups file plus symlinked
   strict artifacts/replay contexts. Do not delete the source `server_vis/` while
   such a symlink materialized subset is active.
+- For one-step actor replay trainer smoke on a materialized subset, prefer
+  `jobs/myriad/36_submit_actor_replay_subset_smoke.sh`. It wraps the real
+  trainer job with lower default queue resources and keeps the training logic in
+  `jobs/myriad/34_train_actor_replay_grpo_robotwin.sh`.
 
 For concrete commands and RDSS archival patterns, use
 `docs/WAM_RL_MYRIAD_STORAGE_POLICY.md`.

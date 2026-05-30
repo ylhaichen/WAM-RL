@@ -173,6 +173,24 @@ def test_actor_replay_subset_job_materializes_lightweight_dataset():
     assert "Actor replay subset preparation complete" in text
 
 
+def test_actor_replay_subset_smoke_submitter_uses_low_resource_defaults():
+    text = Path("jobs/myriad/36_submit_actor_replay_subset_smoke.sh").read_text()
+
+    assert "34_train_actor_replay_grpo_robotwin.sh" in text
+    assert 'GRPO_GROUPS_PATH="${SUBSET_ROOT}/groups/grpo_groups.jsonl"' in text
+    assert 'GRPO_STEPS="${GRPO_STEPS:-1}"' in text
+    assert 'GRPO_LR="${GRPO_LR:-0.0000001}"' in text
+    assert 'GRPO_ACTION_NUM_INFERENCE_STEPS="${GRPO_ACTION_NUM_INFERENCE_STEPS:-10}"' in text
+    assert 'GRPO_LOGPROB_REDUCTION="${GRPO_LOGPROB_REDUCTION:-mean}"' in text
+    assert 'GRPO_LOGPROB_STD_FLOOR="${GRPO_LOGPROB_STD_FLOOR:-0.1}"' in text
+    assert 'GRPO_PROGRESS_EVERY="${GRPO_PROGRESS_EVERY:-1}"' in text
+    assert 'QSUB_H_RT="${QSUB_H_RT:-2:00:00}"' in text
+    assert 'QSUB_SLOTS="${QSUB_SLOTS:-4}"' in text
+    assert 'QSUB_TMPFS="${QSUB_TMPFS:-40G}"' in text
+    assert 'DRY_RUN="${DRY_RUN:-0}"' in text
+    assert 'qsub "${QSUB_ARGS[@]}" "${JOB_SCRIPT}"' in text
+
+
 def test_myriad_common_initializes_modules_for_interactive_shells():
     text = Path("jobs/myriad/common.sh").read_text()
 
