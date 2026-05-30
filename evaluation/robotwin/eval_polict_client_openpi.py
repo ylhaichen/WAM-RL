@@ -17,6 +17,13 @@ def _read_cli_value(flag):
     return sys.argv[idx + 1]
 
 
+def _infer_run_id_from_save_root(save_root):
+    if not save_root:
+        return None
+    name = Path(str(save_root).rstrip("/")).name
+    return name or None
+
+
 robowin_root = Path(
     _read_cli_value("--robotwin_root")
     or os.environ.get("ROBOTWIN_ROOT")
@@ -1090,6 +1097,10 @@ def parse_args_and_config():
             config[key] = value
     for key, value in CLI_CONFIG_DEFAULTS.items():
         config.setdefault(key, value)
+    if not config.get("run_id"):
+        inferred_run_id = _infer_run_id_from_save_root(config.get("save_root"))
+        if inferred_run_id:
+            config["run_id"] = inferred_run_id
 
     return config
 

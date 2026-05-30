@@ -48,3 +48,12 @@ def test_robotwin_eval_client_seeds_process_before_env_setup():
     assert "np.random.seed(seed % (2**32 - 1))" in source
     assert "torch.manual_seed(seed)" in source
     assert source.count("_seed_eval_process(now_seed)") >= 2
+
+
+def test_robotwin_eval_client_infers_run_id_from_save_root():
+    source = Path("evaluation/robotwin/eval_polict_client_openpi.py").read_text()
+
+    assert "def _infer_run_id_from_save_root" in source
+    assert 'if not config.get("run_id")' in source
+    assert 'inferred_run_id = _infer_run_id_from_save_root(config.get("save_root"))' in source
+    assert 'config["run_id"] = inferred_run_id' in source
