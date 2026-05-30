@@ -208,7 +208,9 @@ Implemented:
 - `GRPO_LOGPROB_REDUCTION=mean` and `GRPO_LOGPROB_STD_FLOOR` for more stable
   replay ratios;
 - progress logging and failure diagnostics;
-- `tools/diagnose_actor_replay.py` for replay-vs-stored logprob diagnosis.
+- `tools/diagnose_actor_replay.py` for replay-vs-stored logprob diagnosis,
+  including trainer-style std-floor deltas so diagnosis matches the default
+  real actor replay loss path.
 - `tools/summarize_grpo_groups.py --inspect-artifacts` now reports
   replay-context count and resolved file GiB without loading replay-context
   tensor payloads.

@@ -291,6 +291,7 @@ def test_diagnose_actor_replay_help_does_not_require_external_pythonpath():
 
     assert result.returncode == 0, result.stderr
     assert "Diagnose real actor replay" in result.stdout
+    assert "--logprob-std-floor" in result.stdout
 
 
 def test_report_grpo_run_status_help_does_not_require_external_pythonpath():

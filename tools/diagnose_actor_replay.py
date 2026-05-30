@@ -24,13 +24,28 @@ def _tensor(value, *, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
     return tensor.to(device=device, dtype=dtype)
 
 
-def _logprob_for_mean(mean, transition, *, device, dtype):
+def _normalize_logprob_std_floor(value: float | None) -> float | None:
+    if value is None:
+        return None
+    if value <= 0.0:
+        return None
+    return float(value)
+
+
+def _transition_std_for_diagnosis(transition, *, device, floor: float | None):
+    std = _tensor(transition["transition_std"], device=device, dtype=torch.float32)
+    if floor is None:
+        return std
+    return std.clamp_min(float(floor))
+
+
+def _logprob_for_mean(mean, transition, *, device, dtype, logprob_std_floor: float | None = None):
     from wan_va.rl.denoising_replay import compute_gaussian_transition_logprob
 
     return compute_gaussian_transition_logprob(
         transition_mean=mean,
         action_xt_next=_tensor(transition["action_xt_next"], device=device, dtype=dtype),
-        transition_std=_tensor(transition["transition_std"], device=device, dtype=torch.float32),
+        transition_std=_transition_std_for_diagnosis(transition, device=device, floor=logprob_std_floor),
         logprob_mask=_tensor(transition["logprob_mask"], device=device, dtype=torch.bool),
     ).logprob_sum.detach().cpu().float().flatten()
 
@@ -44,6 +59,7 @@ def diagnose_actor_replay(
     device: str,
     dtype: str,
     action_num_inference_steps: int,
+    logprob_std_floor: float | None,
     max_examples: int,
 ) -> dict:
     from wan_va.configs import VA_CONFIGS
@@ -75,6 +91,7 @@ def diagnose_actor_replay(
         dtype=torch_dtype,
     )
 
+    normalized_std_floor = _normalize_logprob_std_floor(logprob_std_floor)
     examples = []
     with torch.no_grad():
         for idx, example in enumerate(iter_actor_replay_examples(groups_jsonl.expanduser())):
@@ -95,9 +112,25 @@ def diagnose_actor_replay(
 
             replay_logprob = _logprob_for_mean(replay_mean, transition, device=target_device, dtype=torch_dtype)
             stored_logprob = _logprob_for_mean(stored_mean, transition, device=target_device, dtype=torch_dtype)
+            trainer_replay_logprob = _logprob_for_mean(
+                replay_mean,
+                transition,
+                device=target_device,
+                dtype=torch_dtype,
+                logprob_std_floor=normalized_std_floor,
+            )
+            trainer_stored_logprob = _logprob_for_mean(
+                stored_mean,
+                transition,
+                device=target_device,
+                dtype=torch_dtype,
+                logprob_std_floor=normalized_std_floor,
+            )
             mask_count = int(mask.sum().detach().cpu())
             replay_logprob_mean = replay_logprob / max(mask_count, 1)
             stored_logprob_mean = stored_logprob / max(mask_count, 1)
+            trainer_replay_logprob_mean = trainer_replay_logprob / max(mask_count, 1)
+            trainer_stored_logprob_mean = trainer_stored_logprob / max(mask_count, 1)
             candidate_logprobs = {"default": replay_logprob.tolist()}
             candidate_minus_old = {"default": (replay_logprob - old_logprob).tolist()}
             candidate_mean_minus_old = {"default": (replay_logprob_mean - old_logprob_mean).tolist()}
@@ -155,12 +188,21 @@ def diagnose_actor_replay(
                     "config_action_snr_shift": action_snr_shift,
                     "mask_count": mask_count,
                     "transition_std": float(std.detach().cpu()),
+                    "trainer_logprob_std_floor": normalized_std_floor,
                     "old_logprob_sum": old_logprob.tolist(),
                     "old_logprob_mean": old_logprob_mean.tolist(),
                     "stored_recomputed_logprob_sum": stored_logprob.tolist(),
                     "stored_recomputed_logprob_mean": stored_logprob_mean.tolist(),
                     "replay_logprob_sum": replay_logprob.tolist(),
                     "replay_logprob_mean": replay_logprob_mean.tolist(),
+                    "trainer_stored_logprob_sum": trainer_stored_logprob.tolist(),
+                    "trainer_stored_logprob_mean": trainer_stored_logprob_mean.tolist(),
+                    "trainer_replay_logprob_sum": trainer_replay_logprob.tolist(),
+                    "trainer_replay_logprob_mean": trainer_replay_logprob_mean.tolist(),
+                    "trainer_replay_minus_stored": (trainer_replay_logprob - trainer_stored_logprob).tolist(),
+                    "trainer_replay_mean_minus_stored": (
+                        trainer_replay_logprob_mean - trainer_stored_logprob_mean
+                    ).tolist(),
                     "candidate_replay_logprob_sum": candidate_logprobs,
                     "candidate_replay_minus_old": candidate_minus_old,
                     "candidate_replay_mean_minus_old": candidate_mean_minus_old,
@@ -182,6 +224,7 @@ def diagnose_actor_replay(
         "device": device,
         "dtype": dtype,
         "action_num_inference_steps": action_num_inference_steps,
+        "logprob_std_floor": normalized_std_floor,
         "example_count": len(examples),
         "examples": examples,
     }
@@ -199,6 +242,12 @@ def main() -> None:
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--dtype", default="bfloat16")
     parser.add_argument("--action-num-inference-steps", type=int, default=10)
+    parser.add_argument(
+        "--logprob-std-floor",
+        type=float,
+        default=0.1,
+        help="Trainer-style std floor for additional logprob diagnostics; set <=0 for raw artifact std only.",
+    )
     parser.add_argument("--max-examples", type=int, default=1)
     args = parser.parse_args()
 
@@ -212,6 +261,7 @@ def main() -> None:
         device=args.device,
         dtype=args.dtype,
         action_num_inference_steps=args.action_num_inference_steps,
+        logprob_std_floor=args.logprob_std_floor,
         max_examples=args.max_examples,
     )
     print(json.dumps(result, indent=2))
