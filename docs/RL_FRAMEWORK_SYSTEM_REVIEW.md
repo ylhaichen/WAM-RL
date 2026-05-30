@@ -1,20 +1,22 @@
 # RL Framework System Review
 
-Date: 2026-05-13
+Date: 2026-05-30
 
 ## Scope
 
 This review tracks the WAM-RL implementation against
 `docs/WAM_RL_RESEARCH_IMPLEMENTATION_PLAN_FRAMEWORK_FINAL.md`.
 
-The current priority is the native/offline path:
+The current priority is the native actor-replay path, while keeping the
+native/offline path as the regression baseline:
 
 1. collect grouped RoboTwin rollouts;
 2. save strict denoising-step artifacts;
 3. build dynamic-sampling GRPO groups;
 4. validate artifacts and dataset references;
 5. run an offline GRPO loss/trainer smoke path;
-6. prepare the native iterative loop boundary.
+6. capture replay context for real LingBot-VA actor replay;
+7. prepare storage-bounded actor-replay smoke runs.
 
 ## Current Status
 
@@ -65,7 +67,7 @@ The trainer added here is a strict-artifact smoke trainer. It validates:
 
 It intentionally does not claim to update LingBot-VA actor weights.
 
-### Phase 5: Native Iterative Online Loop
+### Phase 5: Native Actor Replay And Iterative Loop
 
 Implemented framework-neutral pieces:
 
@@ -80,8 +82,10 @@ rules. They are enough to keep future collect-train-eval-promote jobs from
 hardcoding directory conventions and checkpoint acceptance rules.
 
 `jobs/myriad/40_rl_iteration_robotwin.sh` currently runs a sequential
-collect-then-smoke-train iteration. It deliberately does not promote
-checkpoints yet because actor replay is not implemented.
+collect-then-smoke-train iteration. It is now a legacy offline fallback and
+deliberately does not promote checkpoints. For real actor replay smoke work,
+use `jobs/myriad/35_prepare_actor_replay_subset.sh` followed by
+`jobs/myriad/36_submit_actor_replay_subset_smoke.sh`.
 
 ### Phase 6: Video-Action Consistency
 
@@ -90,11 +94,13 @@ action-only GRPO is stable.
 
 ## Main Remaining Blocker
 
-The current strict artifacts are enough for dataset validation and loss smoke
-tests, but not enough for a real LingBot-VA actor replay update.
+Real actor replay is implemented, but not yet validated as a reliable
+improvement loop. The main blocker has moved from missing replay
+instrumentation to scalable, repeatable replay-context storage and evaluation.
 
-To recompute current actor logprob, the trainer needs the exact action
-denoising context for each saved transition. Current artifacts contain:
+The older strict artifacts are enough for dataset validation and loss smoke
+tests. Real actor replay additionally requires exact action denoising context
+for each saved transition. Strict transition artifacts contain:
 
 - `action_xt`
 - `action_xt_next`
@@ -103,8 +109,8 @@ denoising context for each saved transition. Current artifacts contain:
 - `old_logprob_sum`
 - `logprob_mask`
 
-They do not yet contain a complete replay context for the actor forward pass,
-such as:
+Actor replay datasets now store the missing forward-pass context externally,
+including:
 
 - the observation/video/text conditioning state needed by the transformer;
 - the cache state or a deterministic way to rebuild it;
@@ -113,7 +119,8 @@ such as:
   `transition_mean_theta`.
 
 Therefore the next real actor-training milestone is not another loss function.
-It is actor replay instrumentation.
+It is a storage-bounded train/eval loop that can run repeatedly without filling
+Scratch or relying on full 400GB+ replay-context directories.
 
 ## Recommended Next Milestones
 
@@ -135,14 +142,30 @@ It is actor replay instrumentation.
      jobs/myriad/31_train_denoising_grpo_robotwin.sh
    ```
 
-4. Add actor replay artifacts to `wan_va/wan_va_server.py` and a real
-   LingBot replay adapter in `wan_va/rl/trainer.py`.
-5. Only after actor replay produces finite ratios and non-zero gradients on a
-   tiny dataset, wire `jobs/myriad/40_rl_iteration_robotwin.sh`.
+4. Prepare a storage-bounded actor replay subset:
+
+   ```bash
+   SUBSET_SOURCE_GROUPS="$RESULTS/groups/grpo_groups.jsonl" \
+   SUBSET_ROOT="/home/zcably0/Scratch/wam-rl/results_grpo_actor_replay_subset/<run>" \
+   SUBSET_MAX_REPLAY_CONTEXT_GB=30 \
+   SUBSET_STORAGE_MAX_RESOLVED_GB=40 \
+   bash jobs/myriad/35_prepare_actor_replay_subset.sh
+   ```
+
+5. Submit the actor replay subset smoke only after the storage audit passes:
+
+   ```bash
+   SUBSET_ROOT="/home/zcably0/Scratch/wam-rl/results_grpo_actor_replay_subset/<run>" \
+   bash jobs/myriad/36_submit_actor_replay_subset_smoke.sh --dry-run
+   ```
+
+6. Only after actor replay produces finite ratios, non-zero gradients, and a
+   reproducible paired eval signal on a bounded dataset, replace the offline
+   fallback in `jobs/myriad/40_rl_iteration_robotwin.sh`.
 
 ## Review Conclusion
 
-The repo now has a complete native/offline data contract and a tested Phase 4
-loss/trainer smoke path. The remaining high-risk component is real actor
-logprob replay, because it requires additional policy context capture rather
-than just another postprocessing script.
+The repo now has a complete native/offline data contract, a tested Phase 4
+loss/trainer smoke path, and an implemented real actor replay path. The
+remaining high-risk component is turning tiny actor replay smoke runs into a
+storage-aware, eval-aware improvement loop.

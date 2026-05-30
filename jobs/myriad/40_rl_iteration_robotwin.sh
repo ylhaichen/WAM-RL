@@ -1,13 +1,14 @@
 #!/bin/bash -l
 
-# One sequential native/offline RL iteration:
+# Legacy sequential native/offline RL iteration:
 #   1. collect grouped RoboTwin rollouts;
 #   2. build/validate GRPO groups;
 #   3. run strict-artifact offline GRPO smoke training.
 #
-# This script intentionally does not yet promote actor checkpoints, because the
-# current trainer is a strict-artifact smoke adapter rather than a full LingBot
-# actor replay trainer.
+# This is an offline contract/debug fallback, not the current real actor replay
+# loop. Use jobs/myriad/35_prepare_actor_replay_subset.sh plus
+# jobs/myriad/36_submit_actor_replay_subset_smoke.sh for real LingBot-VA actor
+# replay smoke work.
 
 #$ -S /bin/bash
 #$ -N wam_rl_iter
@@ -52,6 +53,7 @@ export REPO_ROOT RUN_ID ITERATION ITERATION_ROOT RESULTS_ROOT
 export GRPO_GROUPS_PATH GRPO_OUTPUT_DIR GROUP_SIZE GROUPS_PER_TASK TASK_NAMES GRPO_STEPS
 
 print_job_context
+echo "WARNING: jobs/myriad/40_rl_iteration_robotwin.sh is an offline smoke fallback, not the real actor replay loop."
 echo "ITERATION=${ITERATION}"
 echo "RUN_ID=${RUN_ID}"
 echo "ITERATION_ROOT=${ITERATION_ROOT}"

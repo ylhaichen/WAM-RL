@@ -9,3 +9,5 @@ def test_rl_iteration_job_runs_collect_then_grpo_train():
     assert 'GRPO_GROUPS_PATH="${RESULTS_ROOT}/groups/grpo_groups.jsonl"' in text
     assert 'GRPO_OUTPUT_DIR="${ITERATION_ROOT}/train"' in text
     assert 'RESULTS_ROOT="${ITERATION_ROOT}/rollout_collection"' in text
+    assert "offline smoke fallback" in text
+    assert "36_submit_actor_replay_subset_smoke.sh" in text
