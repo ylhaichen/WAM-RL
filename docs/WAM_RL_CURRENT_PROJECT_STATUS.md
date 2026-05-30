@@ -335,8 +335,9 @@ final_param_update_max: 1.1920928955078125e-07
 parameter_update_detected: true
 checkpoint tensors: 14
 checkpoint params: 89,084,958
-summary:
-  /home/zcably0/Scratch/wam-rl/results_grpo_actor_replay/grpo_actor_subset_2samples_2artifacts_1step_20260530_020837/summary.json
+recent summary with job-log config recovery:
+  /home/zcably0/Scratch/wam-rl/results_grpo_actor_replay/recent_summary_with_joblogs_20260530_130922.json
+  /home/zcably0/Scratch/wam-rl/results_grpo_actor_replay/recent_summary_with_joblogs_20260530_130922.md
 checkpoint inspection:
   /home/zcably0/Scratch/wam-rl/results_grpo_actor_replay/grpo_actor_subset_2samples_2artifacts_1step_20260530_020837/checkpoint_inspection.json
 job accounting:
@@ -344,10 +345,12 @@ job accounting:
   ru_wallclock=176s, maxvmem=10.284GB
 ```
 
-This checkpoint predates training-provenance logging, so its summary falls back
-to `config_source=checkpoint` and does not include `model_path`, `config_name`,
-or `git_commit`. Treat it as a valid smoke checkpoint, not as a fully
-provenance-complete experiment record.
+This checkpoint predates metrics/checkpoint training-provenance logging, but
+`tools/summarize_actor_replay_training.py --job-log-glob` now recovers its
+available Myriad job config (`lr=1e-7`, `logprob_reduction=mean`,
+`logprob_std_floor=0.1`) as `config_source=job_log`. It still lacks model-path
+and git-commit provenance in the checkpoint itself, so treat it as a valid smoke
+checkpoint, not as a fully provenance-complete experiment record.
 
 ### Evaluation Protocol
 
@@ -421,6 +424,8 @@ actor root:
   /home/zcably0/Scratch/wam-rl/results_actor_eval/actor_move_stapler_pad_actor_eval_pair_provenance_fixed_20260530_104124
 comparison:
   /home/zcably0/Scratch/wam-rl/results_actor_eval/actor_eval_pair_provenance_fixed_20260530_104124_comparison
+refreshed summary with explicit provenance:
+  /home/zcably0/Scratch/wam-rl/results_actor_eval/actor_eval_pair_provenance_fixed_20260530_104124_comparison_refreshed_20260530_130922/summary.md
 baseline policy_checkpoint:
   /home/zcably0/Scratch/wam-rl/checkpoints/lingbot-va-posttrain-robotwin
 actor policy_checkpoint:
