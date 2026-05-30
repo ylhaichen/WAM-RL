@@ -193,6 +193,10 @@ current system:
   interpreting aggregate success-rate differences.
 - Long actor replay runs should set `GRPO_PROGRESS_EVERY` so the job log is not
   silent while replaying hundreds of denoising transitions.
+- After actor replay training finishes, use
+  `tools/summarize_actor_replay_training.py` to inspect validation status,
+  final metrics, checkpoint presence, and failure diagnostics before planning
+  evaluation.
 - The first real update surface should be action-specific modules:
 
 ```text

@@ -117,6 +117,8 @@ Implemented:
   `jobs/myriad/36_submit_actor_replay_subset_smoke.sh`;
 - storage footprint auditing with `tools/audit_grpo_artifact_storage.py`;
 - operational runbook in `docs/WAM_RL_ACTOR_REPLAY_RUNBOOK.md`;
+- actor replay training output summaries with
+  `tools/summarize_actor_replay_training.py`;
 - real actor replay trainer over LingBot-VA transformer parameters;
 - checkpoint loading into the inference server via
   `actor_replay_checkpoint_path`;

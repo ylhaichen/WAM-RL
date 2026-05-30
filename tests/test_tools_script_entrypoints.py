@@ -127,6 +127,19 @@ def test_train_actor_replay_grpo_help_does_not_require_external_pythonpath():
     assert "real LingBot actor replay GRPO training" in result.stdout
 
 
+def test_summarize_actor_replay_training_help_does_not_require_external_pythonpath():
+    result = subprocess.run(
+        [sys.executable, "tools/summarize_actor_replay_training.py", "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "Summarize actor replay GRPO training output directories" in result.stdout
+    assert "--out-markdown" in result.stdout
+
+
 def test_diagnose_actor_replay_help_does_not_require_external_pythonpath():
     result = subprocess.run(
         [sys.executable, "tools/diagnose_actor_replay.py", "--help"],

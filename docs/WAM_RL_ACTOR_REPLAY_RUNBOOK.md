@@ -169,6 +169,11 @@ OUT=$(grep '^GRPO_OUTPUT_DIR=' "$LOG" | tail -1 | cut -d= -f2-)
 cat "$OUT/input_dataset_validation.json"
 cat "$OUT/metrics.json" | tail -120
 ls -lh "$OUT"
+
+python tools/summarize_actor_replay_training.py \
+  "$OUT" \
+  --out-json "$OUT/summary.json" \
+  --out-markdown "$OUT/summary.md"
 ```
 
 Pass criteria:
