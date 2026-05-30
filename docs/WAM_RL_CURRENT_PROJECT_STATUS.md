@@ -235,17 +235,27 @@ enhanced inspector interpretation:
   conditional-only estimated savings: about 3.36 GiB per context
 ```
 
-Latest temporary subset-prep smoke on the same source, using one success and
-one failure sample with `SUBSET_MAX_REPLAY_CONTEXT_GB=30` and
-`SUBSET_STORAGE_MAX_RESOLVED_GB=40`, produced:
+Latest budget subset selection/audit check on the same source, using one
+success and one failure sample with a 30GiB replay-context selection budget and
+a 40GiB resolved input budget:
+
+```text
+/home/zcably0/Scratch/wam-rl/debug_logs/subset_selection_checks/staplerpad_budget30_20260530_100715
+```
+
+It produced:
 
 ```text
 samples: 2
 artifact_refs: 4
 expanded transitions: 40
 validation_actor_replay: ok=true, error_count=0
-combined materialized dependency bytes: 28,923,655,328
+combined resolved dependency bytes: 28,923,655,328
+resolved replay contexts: 4 unique, 26.937 GiB
 storage_budget.ok: true
+selection_details:
+  sample_idx=0, reward=1.0, artifact_ref_count=2
+  sample_idx=1, reward=0.0, artifact_ref_count=2
 ```
 
 Interpretation:
