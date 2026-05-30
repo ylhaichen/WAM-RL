@@ -247,7 +247,9 @@ DRY_RUN=1 bash jobs/myriad/39_submit_grpo_replayctx_bounded_4gpu.sh
 Then review the printed command and rerun with `DRY_RUN=0` only after checking
 queue and Scratch headroom. The wrapper defaults to one task, one group, k=8,
 10 action steps, one captured chunk per rollout, replay-context capture enabled,
-and server debug tensors disabled.
+and server debug tensors disabled. It prints accepted-run and attempt-budget
+storage estimates before submission and fails fast on non-dry-run submission if
+the accepted-run estimate plus the configured Scratch headroom does not fit.
 
 For pure RoboTwin eval jobs, keep `SAVE_SERVER_DEBUG_TENSORS=false` unless you
 need per-chunk `latents_*.pt`, `actions_*.pt`, or `obs_data_*.pt` for a

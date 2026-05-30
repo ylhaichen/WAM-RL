@@ -280,9 +280,17 @@ def test_bounded_replayctx_submitter_uses_storage_safe_defaults():
     assert 'GROUP_SIZE="${GROUP_SIZE:-8}"' in text
     assert 'GROUPS_PER_TASK="${GROUPS_PER_TASK:-1}"' in text
     assert 'ACTION_NUM_INFERENCE_STEPS="${ACTION_NUM_INFERENCE_STEPS:-10}"' in text
+    assert 'GROUP_RETRY_MULTIPLIER="${GROUP_RETRY_MULTIPLIER:-3}"' in text
     assert 'STRICT_GRPO_SAVE_REPLAY_CONTEXT="${STRICT_GRPO_SAVE_REPLAY_CONTEXT:-true}"' in text
     assert 'STRICT_GRPO_CAPTURE_MAX_CHUNKS="${STRICT_GRPO_CAPTURE_MAX_CHUNKS:-1}"' in text
     assert 'SAVE_SERVER_DEBUG_TENSORS="${SAVE_SERVER_DEBUG_TENSORS:-false}"' in text
+    assert 'REPLAY_CONTEXT_ESTIMATE_GB="${REPLAY_CONTEXT_ESTIMATE_GB:-7.25}"' in text
+    assert 'CHECK_SCRATCH_HEADROOM="${CHECK_SCRATCH_HEADROOM:-1}"' in text
+    assert 'MIN_SCRATCH_HEADROOM_GB="${MIN_SCRATCH_HEADROOM_GB:-50}"' in text
+    assert "Replay-context storage estimate" in text
+    assert "accepted_estimate_gb" in text
+    assert "headroom_ok" in text
+    assert "ALLOW_UNBOUNDED_REPLAYCTX=1" in text
     assert 'DRY_RUN="${DRY_RUN:-0}"' in text
     assert "DRY_RUN=1, not submitting" in text
     assert 'SAVE_SERVER_DEBUG_TENSORS="${SAVE_SERVER_DEBUG_TENSORS}"' in text

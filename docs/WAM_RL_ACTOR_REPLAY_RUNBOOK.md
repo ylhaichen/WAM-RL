@@ -97,7 +97,9 @@ Its defaults use `ACTION_NUM_INFERENCE_STEPS=10`,
 `STRICT_GRPO_CAPTURE_MAX_CHUNKS=1`, `STRICT_GRPO_SAVE_REPLAY_CONTEXT=true`, and
 `SAVE_SERVER_DEBUG_TENSORS=false`. This preserves a real replay-context smoke
 contract while avoiding full-trajectory, all-debug-tensor collection by
-default.
+default. The wrapper also prints a replay-context storage estimate using the
+current 7.25GB/context observation and refuses non-dry-run submission when the
+accepted-run estimate plus configured Scratch headroom does not fit.
 
 Promotion criteria for a source dataset:
 
