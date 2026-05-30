@@ -380,20 +380,25 @@ review that list before submitting.
 After the job finishes:
 
 ```bash
-LOG=$(find logs/jobs -maxdepth 1 -type f -name 'wam_grpo_actor_subset.o*' | sort | tail -1)
 python tools/report_grpo_run_status.py \
-  --job-log "$LOG" \
+  --job-log-glob 'logs/jobs/wam_grpo_actor_subset.o*' \
   --print-markdown
 
-grep -E "JOB_ID=|GRPO_GROUPS_PATH=|GRPO_OUTPUT_DIR=|transition_count|final_loss|checkpoint_path|Actor replay GRPO training complete|Traceback|ERROR|CUDA out of memory|Disk quota exceeded" "$LOG" | tail -200
+python tools/summarize_actor_replay_training.py \
+  --discover-root /home/zcably0/Scratch/wam-rl/results_grpo_actor_replay \
+  --latest 1 \
+  --job-log-glob 'logs/jobs/wam_grpo_actor_subset.o*'
+```
 
-OUT=$(grep '^GRPO_OUTPUT_DIR=' "$LOG" | tail -1 | cut -d= -f2-)
-cat "$OUT/input_dataset_validation.json"
-cat "$OUT/metrics.json" | tail -120
-ls -lh "$OUT"
+After identifying the output directory from the status report or summary table,
+write the detailed artifacts:
+
+```bash
+OUT=/home/zcably0/Scratch/wam-rl/results_grpo_actor_replay/<run>
 
 python tools/summarize_actor_replay_training.py \
   "$OUT" \
+  --job-log-glob 'logs/jobs/wam_grpo_actor_subset.o*' \
   --out-json "$OUT/summary.json" \
   --out-csv "$OUT/summary.csv" \
   --out-markdown "$OUT/summary.md"
