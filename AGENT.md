@@ -172,6 +172,10 @@ consume tens or hundreds of GB because they include transformer KV-cache state.
   `STRICT_GRPO_CAPTURE_CHUNK_STRIDE` or `STRICT_GRPO_CAPTURE_MAX_CHUNKS` at
   collection time to save fewer action chunks. Defaults are stride `1` and max
   chunks `0`, preserving full capture.
+- For new actor-replay collection smoke runs, prefer
+  `jobs/myriad/39_submit_grpo_replayctx_bounded_4gpu.sh` and review its
+  `DRY_RUN=1` output before submission. It defaults to one captured chunk per
+  rollout and disables server debug tensors.
 - For one-step actor replay trainer smoke on a materialized subset, prefer
   `jobs/myriad/36_submit_actor_replay_subset_smoke.sh`. It wraps the real
   trainer job with lower default queue resources and keeps the training logic in

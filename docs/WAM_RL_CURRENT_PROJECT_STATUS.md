@@ -124,6 +124,8 @@ Implemented:
   non-empty `grpo_groups*.jsonl` source file;
 - low-resource subset smoke submission with
   `jobs/myriad/36_submit_actor_replay_subset_smoke.sh`;
+- storage-bounded replay-context collection submission with
+  `jobs/myriad/39_submit_grpo_replayctx_bounded_4gpu.sh`;
 - operational runbook in `docs/WAM_RL_ACTOR_REPLAY_RUNBOOK.md`;
 - actor replay training output summaries with
   `tools/summarize_actor_replay_training.py`;
@@ -387,14 +389,16 @@ GRPO_PROGRESS_EVERY=50
 
 1. Use `tools/subset_grpo_groups.py` to create small actor replay train/debug
    subsets before running expensive jobs.
-2. Use `jobs/myriad/37_submit_actor_eval_pair_smoke.sh` and
+2. Use `jobs/myriad/39_submit_grpo_replayctx_bounded_4gpu.sh` for any new
+   replay-context collection smoke, with dry-run review before submission.
+3. Use `jobs/myriad/37_submit_actor_eval_pair_smoke.sh` and
    `tools/summarize_actor_eval_pair.py` for baseline-vs-actor eval comparisons
    before interpreting aggregate success rates.
-3. Gate any candidate checkpoint with `tools/gate_actor_eval_promotion.py`
+4. Gate any candidate checkpoint with `tools/gate_actor_eval_promotion.py`
    against baseline repeatability before treating it as more than smoke.
-4. Run a controlled actor replay training/eval loop on `move_stapler_pad` with
+5. Run a controlled actor replay training/eval loop on `move_stapler_pad` with
    more than one mixed group.
-5. Only after a reliable signal appears, broaden to `turn_switch` and
+6. Only after a reliable signal appears, broaden to `turn_switch` and
    `open_microwave`.
 
 ## Bottom Line

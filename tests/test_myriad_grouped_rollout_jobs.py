@@ -32,6 +32,8 @@ def test_four_gpu_grouped_rollout_job_builds_grpo_groups():
     assert 'STRICT_GRPO_CAPTURE_MAX_CHUNKS="${STRICT_GRPO_CAPTURE_MAX_CHUNKS:-0}"' in text
     assert 'strict_grpo_capture_chunk_stride="${STRICT_GRPO_CAPTURE_CHUNK_STRIDE}"' in text
     assert 'strict_grpo_capture_max_chunks="${STRICT_GRPO_CAPTURE_MAX_CHUNKS}"' in text
+    assert 'SAVE_SERVER_DEBUG_TENSORS="${SAVE_SERVER_DEBUG_TENSORS:-true}"' in text
+    assert 'save_server_debug_tensors="${SAVE_SERVER_DEBUG_TENSORS}"' in text
     assert 'ACTOR_REPLAY_CHECKPOINT_PATH="${ACTOR_REPLAY_CHECKPOINT_PATH:-}"' in text
     assert 'actor_replay_checkpoint_path="${ACTOR_REPLAY_CHECKPOINT_PATH}"' in text
 
@@ -53,6 +55,8 @@ def test_one_gpu_grouped_rollout_job_uses_successful_attempt_roots():
     assert 'STRICT_GRPO_CAPTURE_MAX_CHUNKS="${STRICT_GRPO_CAPTURE_MAX_CHUNKS:-0}"' in text
     assert 'strict_grpo_capture_chunk_stride="${STRICT_GRPO_CAPTURE_CHUNK_STRIDE}"' in text
     assert 'strict_grpo_capture_max_chunks="${STRICT_GRPO_CAPTURE_MAX_CHUNKS}"' in text
+    assert 'SAVE_SERVER_DEBUG_TENSORS="${SAVE_SERVER_DEBUG_TENSORS:-true}"' in text
+    assert 'save_server_debug_tensors="${SAVE_SERVER_DEBUG_TENSORS}"' in text
     assert 'ACTOR_REPLAY_CHECKPOINT_PATH="${ACTOR_REPLAY_CHECKPOINT_PATH:-}"' in text
     assert 'actor_replay_checkpoint_path="${ACTOR_REPLAY_CHECKPOINT_PATH}"' in text
 
@@ -141,6 +145,7 @@ def test_scale_submit_wrapper_does_not_inherit_stale_output_roots_by_default():
     assert "export STRICT_GRPO_SAVE_REPLAY_CONTEXT" in text
     assert "export STRICT_GRPO_CAPTURE_CHUNK_STRIDE" in text
     assert "export STRICT_GRPO_CAPTURE_MAX_CHUNKS" in text
+    assert "export SAVE_SERVER_DEBUG_TENSORS" in text
     assert 'unset RESULTS_ROOT' in text
     assert 'unset STABLE_SEED_CACHE_DIR' in text
 
@@ -161,6 +166,8 @@ def test_next_round_submit_wrapper_targets_hard_medium_tasks():
     assert 'STRICT_GRPO_CAPTURE_MAX_CHUNKS="${STRICT_GRPO_CAPTURE_MAX_CHUNKS:-0}"' in text
     assert 'STRICT_GRPO_CAPTURE_CHUNK_STRIDE="${STRICT_GRPO_CAPTURE_CHUNK_STRIDE}"' in text
     assert 'STRICT_GRPO_CAPTURE_MAX_CHUNKS="${STRICT_GRPO_CAPTURE_MAX_CHUNKS}"' in text
+    assert 'SAVE_SERVER_DEBUG_TENSORS="${SAVE_SERVER_DEBUG_TENSORS:-true}"' in text
+    assert 'SAVE_SERVER_DEBUG_TENSORS="${SAVE_SERVER_DEBUG_TENSORS}"' in text
     assert 'bash "${SUBMIT_SCRIPT}"' in text
 
 
@@ -263,6 +270,23 @@ def test_eval_repeatability_pair_submitter_uses_matched_baseline_controls():
     assert "tools/gate_actor_eval_promotion.py" in text
     assert 'DRY_RUN="${DRY_RUN:-0}"' in text
     assert '"${cmd[@]}"' in text
+
+
+def test_bounded_replayctx_submitter_uses_storage_safe_defaults():
+    text = Path("jobs/myriad/39_submit_grpo_replayctx_bounded_4gpu.sh").read_text()
+
+    assert "32_submit_grpo_scale_8tasks_4gpu.sh" in text
+    assert 'TASK_NAMES="${TASK_NAMES:-move_stapler_pad}"' in text
+    assert 'GROUP_SIZE="${GROUP_SIZE:-8}"' in text
+    assert 'GROUPS_PER_TASK="${GROUPS_PER_TASK:-1}"' in text
+    assert 'ACTION_NUM_INFERENCE_STEPS="${ACTION_NUM_INFERENCE_STEPS:-10}"' in text
+    assert 'STRICT_GRPO_SAVE_REPLAY_CONTEXT="${STRICT_GRPO_SAVE_REPLAY_CONTEXT:-true}"' in text
+    assert 'STRICT_GRPO_CAPTURE_MAX_CHUNKS="${STRICT_GRPO_CAPTURE_MAX_CHUNKS:-1}"' in text
+    assert 'SAVE_SERVER_DEBUG_TENSORS="${SAVE_SERVER_DEBUG_TENSORS:-false}"' in text
+    assert 'DRY_RUN="${DRY_RUN:-0}"' in text
+    assert "DRY_RUN=1, not submitting" in text
+    assert 'SAVE_SERVER_DEBUG_TENSORS="${SAVE_SERVER_DEBUG_TENSORS}"' in text
+    assert 'bash "${SUBMIT_SCRIPT}"' in text
 
 
 def test_myriad_common_initializes_modules_for_interactive_shells():

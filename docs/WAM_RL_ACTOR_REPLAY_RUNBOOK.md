@@ -82,6 +82,23 @@ chunk-level filtering. Filtering reduces the number of trainable replay
 transitions, so use it first for smoke/debug or when Scratch pressure would
 otherwise make the run fail.
 
+For the common single-task actor-replay data collection case, prefer the
+bounded wrapper and dry-run it before submission:
+
+```bash
+DRY_RUN=1 \
+TASK_NAMES="move_stapler_pad" \
+GROUP_SIZE=8 \
+GROUPS_PER_TASK=1 \
+bash jobs/myriad/39_submit_grpo_replayctx_bounded_4gpu.sh
+```
+
+Its defaults use `ACTION_NUM_INFERENCE_STEPS=10`,
+`STRICT_GRPO_CAPTURE_MAX_CHUNKS=1`, `STRICT_GRPO_SAVE_REPLAY_CONTEXT=true`, and
+`SAVE_SERVER_DEBUG_TENSORS=false`. This preserves a real replay-context smoke
+contract while avoiding full-trajectory, all-debug-tensor collection by
+default.
+
 Promotion criteria for a source dataset:
 
 - validation `ok=true`;

@@ -238,6 +238,17 @@ preserve previous behavior. Increasing the stride or setting a max chunk count
 reduces replay-context files and trainable transitions; it should be treated as
 a storage/compute tradeoff, not as an algorithmic improvement.
 
+For actor-replay collection smoke runs, prefer:
+
+```bash
+DRY_RUN=1 bash jobs/myriad/39_submit_grpo_replayctx_bounded_4gpu.sh
+```
+
+Then review the printed command and rerun with `DRY_RUN=0` only after checking
+queue and Scratch headroom. The wrapper defaults to one task, one group, k=8,
+10 action steps, one captured chunk per rollout, replay-context capture enabled,
+and server debug tensors disabled.
+
 For pure RoboTwin eval jobs, keep `SAVE_SERVER_DEBUG_TENSORS=false` unless you
 need per-chunk `latents_*.pt`, `actions_*.pt`, or `obs_data_*.pt` for a
 specific diagnosis. Episode JSON, executed actions, metrics, and videos are
