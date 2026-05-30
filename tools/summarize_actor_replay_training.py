@@ -17,6 +17,7 @@ def summarize_actor_replay_output(output_dir: Path) -> dict:
     metrics = _read_json(metrics_path)
     validation = _read_json(validation_path)
     result = metrics.get("result", {}) if isinstance(metrics, dict) else {}
+    config = metrics.get("config", {}) if isinstance(metrics, dict) else {}
     history = metrics.get("history", []) if isinstance(metrics, dict) else []
     last_step = history[-1] if history else {}
     last_step_summary = _last_step_summary(last_step)
@@ -41,6 +42,11 @@ def summarize_actor_replay_output(output_dir: Path) -> dict:
         "final_ratio_mean": _number(result.get("final_ratio_mean")),
         "trainable_param_count": _number(result.get("trainable_param_count")),
         "total_param_count": _number(result.get("total_param_count")),
+        "learning_rate": _number(config.get("learning_rate")),
+        "action_num_inference_steps": _number(config.get("action_num_inference_steps")),
+        "logprob_reduction": config.get("logprob_reduction"),
+        "logprob_std_floor": _number(config.get("logprob_std_floor")),
+        "trainable_mode": config.get("trainable_mode"),
         "final_grad_norm": last_step_summary.get("grad_norm"),
         "final_param_update_norm": last_step_summary.get("param_update_norm"),
         "final_param_update_max": last_step_summary.get("param_update_max"),
@@ -68,20 +74,24 @@ def write_markdown_report(summaries: list[dict], out_markdown: Path) -> None:
     lines = [
         "# Actor Replay Training Summary",
         "",
-        "| output_dir | ok | validation | transitions | steps | final_loss | ratio | grad_norm | update_norm | update_max | update | checkpoint | failure_diag | warnings |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|",
+        "| output_dir | ok | validation | transitions | steps | lr | action_steps | logprob | final_loss | ratio | grad_norm | update_norm | update_max | update | checkpoint | failure_diag | warnings |",
+        "|---|---:|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---|",
     ]
     for item in summaries:
         lines.append(
-            "| {output_dir} | {ok} | {validation_ok} | {transition_count} | {steps} | {final_loss} | "
-            "{final_ratio_mean} | {final_grad_norm} | {final_param_update_norm} | "
-            "{final_param_update_max} | {parameter_update_detected} | {checkpoint_exists} | "
+            "| {output_dir} | {ok} | {validation_ok} | {transition_count} | {steps} | "
+            "{learning_rate} | {action_num_inference_steps} | {logprob_reduction} | "
+            "{final_loss} | {final_ratio_mean} | {final_grad_norm} | "
+            "{final_param_update_norm} | {final_param_update_max} | {parameter_update_detected} | {checkpoint_exists} | "
             "{failure_diagnostics_exists} | {warnings} |".format(
                 output_dir=item["output_dir"],
                 ok=_bool_cell(item["ok"]),
                 validation_ok=_bool_cell(item["validation_ok"]),
                 transition_count=_cell(item["transition_count"]),
                 steps=_cell(item["steps"]),
+                learning_rate=_cell(item["learning_rate"]),
+                action_num_inference_steps=_cell(item["action_num_inference_steps"]),
+                logprob_reduction=_cell(item["logprob_reduction"]),
                 final_loss=_cell(item["final_loss"]),
                 final_ratio_mean=_cell(item["final_ratio_mean"]),
                 final_grad_norm=_cell(item["final_grad_norm"]),

@@ -296,6 +296,10 @@ def test_actor_replay_trainer_updates_trainable_action_modules(tmp_path):
     assert result.trainable_param_count > 0
     assert (tmp_path / "train" / "checkpoint.pt").exists()
     metrics = json.loads((tmp_path / "train" / "metrics.json").read_text())
+    assert metrics["config"]["groups_jsonl"] == str(group_path)
+    assert metrics["config"]["output_dir"] == str(tmp_path / "train")
+    assert metrics["config"]["learning_rate"] == 1e-3
+    assert metrics["config"]["action_num_inference_steps"] == 2
     step_metrics = metrics["history"][0]
     assert step_metrics["param_update_norm"] > 0.0
     assert step_metrics["param_update_max"] > 0.0

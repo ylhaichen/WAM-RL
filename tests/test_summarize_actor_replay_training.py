@@ -27,6 +27,13 @@ def _write_output(root: Path) -> None:
                     "trainable_param_count": 3,
                     "total_param_count": 5,
                 },
+                "config": {
+                    "learning_rate": 1e-7,
+                    "action_num_inference_steps": 10,
+                    "logprob_reduction": "mean",
+                    "logprob_std_floor": 0.1,
+                    "trainable_mode": "action_heads",
+                },
                 "history": [
                     {
                         "step": 1,
@@ -58,6 +65,11 @@ def test_summarize_actor_replay_output_reports_complete_run(tmp_path):
     assert summary["transition_count"] == 2
     assert summary["steps"] == 1
     assert summary["final_loss"] == 0.25
+    assert summary["learning_rate"] == 1e-7
+    assert summary["action_num_inference_steps"] == 10
+    assert summary["logprob_reduction"] == "mean"
+    assert summary["logprob_std_floor"] == 0.1
+    assert summary["trainable_mode"] == "action_heads"
     assert summary["final_grad_norm"] == 0.2
     assert summary["final_param_update_norm"] == 0.01
     assert summary["final_param_update_max"] == 0.005
@@ -89,6 +101,8 @@ def test_write_markdown_report(tmp_path):
     text = out.read_text(encoding="utf-8")
     assert "Actor Replay Training Summary" in text
     assert "| output_dir | ok | validation |" in text
+    assert "action_steps" in text
+    assert "mean" in text
     assert "update_norm" in text
     assert "0.25" in text
 

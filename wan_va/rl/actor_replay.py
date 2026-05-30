@@ -524,15 +524,16 @@ class ActorReplayGrpoTrainer:
 
         checkpoint_path = self.config.output_dir / "checkpoint.pt"
         metrics_path = self.config.output_dir / "metrics.json"
+        config_dict = {
+            **asdict(self.config),
+            "groups_jsonl": str(self.config.groups_jsonl),
+            "output_dir": str(self.config.output_dir),
+        }
         torch.save(
             {
                 "trainable_state_dict": self._trainable_state_dict(),
                 "optimizer_state_dict": self.optimizer.state_dict(),
-                "config": {
-                    **asdict(self.config),
-                    "groups_jsonl": str(self.config.groups_jsonl),
-                    "output_dir": str(self.config.output_dir),
-                },
+                "config": config_dict,
                 "trainable_summary": asdict(self.trainable_summary),
                 "steps_completed": self.config.steps,
                 "history": history,
@@ -553,6 +554,7 @@ class ActorReplayGrpoTrainer:
             json.dumps(
                 {
                     "result": result.to_dict(),
+                    "config": config_dict,
                     "trainable_summary": asdict(self.trainable_summary),
                     "history": history,
                 },
