@@ -25,8 +25,9 @@ action-denoising transitions rather than discrete action tokens.
 
 Current project status, safe claims, and next engineering priorities are tracked
 in [`docs/WAM_RL_CURRENT_PROJECT_STATUS.md`](docs/WAM_RL_CURRENT_PROJECT_STATUS.md).
-Operational rules for agents are in [`AGENT.md`](AGENT.md). Storage and Myriad
-cleanup rules are in
+The documentation map is in [`docs/README.md`](docs/README.md). Operational
+rules for agents are in [`AGENT.md`](AGENT.md). Storage and Myriad cleanup
+rules are in
 [`docs/WAM_RL_MYRIAD_STORAGE_POLICY.md`](docs/WAM_RL_MYRIAD_STORAGE_POLICY.md),
 the actor replay operational workflow is in
 [`docs/WAM_RL_ACTOR_REPLAY_RUNBOOK.md`](docs/WAM_RL_ACTOR_REPLAY_RUNBOOK.md),
