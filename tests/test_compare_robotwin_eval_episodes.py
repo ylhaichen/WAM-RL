@@ -1,4 +1,6 @@
 import json
+import subprocess
+import sys
 
 from tools.compare_robotwin_eval_episodes import compare_eval_runs, write_comparison_csv
 
@@ -69,3 +71,39 @@ def test_compare_eval_runs_excludes_duplicate_keys_and_writes_csv(tmp_path):
     assert comparison["matched_episode_count"] == 0
     assert comparison["run_summaries"]["baseline"]["duplicate_key_count"] == 1
     assert csv_path.read_text().startswith("task,seed,prompt_index,sampling_seed")
+
+
+def test_compare_cli_csv_no_episodes_preserves_custom_match_fields(tmp_path):
+    baseline = tmp_path / "baseline"
+    actor = tmp_path / "actor"
+    out_json = tmp_path / "comparison.json"
+    out_csv = tmp_path / "comparison.csv"
+    _episode(baseline, "move_stapler_pad", 0, 10000, False, sampling_seed=1)
+    _episode(actor, "move_stapler_pad", 0, 10000, True, sampling_seed=2)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "tools/compare_robotwin_eval_episodes.py",
+            "--run",
+            f"baseline={baseline}",
+            "--run",
+            f"actor={actor}",
+            "--match-fields",
+            "task",
+            "seed",
+            "prompt_index",
+            "--no-episodes",
+            "--out-json",
+            str(out_json),
+            "--out-csv",
+            str(out_csv),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert json.loads(out_json.read_text())["match_fields"] == ["task", "seed", "prompt_index"]
+    assert out_csv.read_text().startswith("task,seed,prompt_index,")

@@ -216,7 +216,11 @@ def main() -> None:
         args.out_json.expanduser().write_text(json.dumps(comparison, indent=2) + "\n", encoding="utf-8")
     if args.out_csv:
         if "episodes" not in comparison:
-            comparison = {**comparison, "episodes": compare_eval_runs(args.run)["episodes"]}
+            comparison = compare_eval_runs(
+                args.run,
+                match_fields=tuple(comparison["match_fields"]),
+                include_episodes=True,
+            )
         write_comparison_csv(args.out_csv, comparison)
     print(json.dumps({key: value for key, value in comparison.items() if key != "episodes"}, indent=2))
 
