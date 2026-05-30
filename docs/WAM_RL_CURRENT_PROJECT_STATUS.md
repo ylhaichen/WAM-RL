@@ -126,10 +126,14 @@ Implemented:
   `SUBSET_STORAGE_MAX_RESOLVED_GB`;
 - collection-time strict artifact chunk filtering with
   `STRICT_GRPO_CAPTURE_CHUNK_STRIDE` and `STRICT_GRPO_CAPTURE_MAX_CHUNKS`;
+- server-side per-replay-context tensor budget checks with
+  `STRICT_GRPO_REPLAY_CONTEXT_MAX_GB`, so oversized contexts fail before
+  `torch.save` fills Scratch;
 - storage auditing with replay-context inspection and optional resolved-size
   budgets via `tools/audit_grpo_artifact_storage.py`;
 - per-file replay-context tensor storage inspection with
-  `tools/inspect_grpo_replay_context.py`;
+  `tools/inspect_grpo_replay_context.py`, including scalar config fields,
+  KV-cache batch sizes, and conditional-only branch savings estimates;
 - non-destructive Myriad storage cleanup planning with
   `tools/plan_myriad_storage_cleanup.py`, including protection for any
   non-empty `grpo_groups*.jsonl` source file;
@@ -184,6 +188,11 @@ representative replay-context metadata-only inspection:
   transformer_cache tensor bytes: 7,222,383,360
   text_emb tensor bytes: 4,194,304
   negative_text_emb tensor bytes: 4,194,304
+enhanced inspector interpretation:
+  action_guidance_scale: 1.0
+  kv_batch_sizes: [2]
+  conditional-only estimated tensor bytes: about 3.37 GiB
+  conditional-only estimated savings: about 3.36 GiB per context
 ```
 
 Latest temporary subset-prep smoke on the same source, using one success and

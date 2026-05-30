@@ -12,11 +12,16 @@ def test_inspect_replay_context_reports_tensor_bytes_by_top_level(tmp_path):
     torch.save(
         {
             "schema_version": 2,
+            "cache_name": "pos",
+            "use_cfg": True,
+            "action_guidance_scale": 1.0,
+            "action_num_inference_steps": 10,
+            "frame_chunk_size": 21,
             "text_emb": torch.zeros((2, 3), dtype=torch.float32),
             "transformer_cache": [
                 {
-                    "k": torch.zeros((4, 5), dtype=torch.float16),
-                    "v": torch.zeros((4, 5), dtype=torch.float16),
+                    "k": torch.zeros((2, 4, 5), dtype=torch.float16),
+                    "v": torch.zeros((2, 4, 5), dtype=torch.float16),
                 }
             ],
         },
@@ -29,8 +34,14 @@ def test_inspect_replay_context_reports_tensor_bytes_by_top_level(tmp_path):
     assert report["metadata_only"] is False
     assert report["tensor_count"] == 3
     assert report["dtype_counts"] == {"float16": 2, "float32": 1}
-    assert report["top_level_tensor_bytes"]["transformer_cache"] == 80
+    assert report["scalar_fields"]["cache_name"] == "pos"
+    assert report["scalar_fields"]["action_num_inference_steps"] == 10
+    assert report["top_level_tensor_bytes"]["transformer_cache"] == 160
     assert report["top_level_tensor_bytes"]["text_emb"] == 24
+    cache_summary = report["transformer_cache_summary"]
+    assert cache_summary["block_count"] == 1
+    assert cache_summary["kv_batch_sizes"] == [2]
+    assert cache_summary["conditional_branch_estimate"]["estimated_savings_bytes"] == 80
     assert report["top_tensors"][0]["path"].startswith("transformer_cache.0.")
     assert report["top_tensors"][0]["device"] == "cpu"
 
@@ -73,3 +84,4 @@ def test_inspect_replay_context_cli_writes_outputs(tmp_path):
     assert report["metadata_only"] is True
     assert report["tensor_bytes"] == 16
     assert "GRPO Replay Context Inspection" in out_md.read_text()
+    assert "Scalar Fields" in out_md.read_text()

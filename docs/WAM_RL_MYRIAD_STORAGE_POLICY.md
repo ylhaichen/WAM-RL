@@ -264,6 +264,10 @@ queue and Scratch headroom. The wrapper defaults to one task, one group, k=8,
 and server debug tensors disabled. It prints accepted-run and attempt-budget
 storage estimates before submission and fails fast on non-dry-run submission if
 the accepted-run estimate plus the configured Scratch headroom does not fit.
+It also sets `STRICT_GRPO_REPLAY_CONTEXT_MAX_GB=5.0` by default so the server
+checks each replay context before `torch.save`; if the live tensor footprint is
+larger than the reviewed per-file budget, the attempt fails before filling
+Scratch.
 
 Actor replay training jobs also audit their input storage before loading the
 model. Set `GRPO_MAX_RESOLVED_GB=<GB>` for a hard budget; the subset smoke
@@ -385,6 +389,10 @@ Use `--metadata-only` on large replay-context files. It loads tensors on the
 full tensor storage on CPU. On the staplerpad k=8 replay-context run, a
 representative context file was about 7.23GB, with about 7.22GB in
 `transformer_cache` tensors.
+The report also includes scalar config fields, KV-cache batch sizes, and a
+conditional-only branch estimate. If the KV batch size is 2 but
+`action_guidance_scale<=1`, future collection should use the pruned
+conditional branch instead of storing both CFG branches.
 
 In the report, `apparent_bytes` is the bytes consumed by the listed files or
 symlinks themselves, while `resolved_bytes` follows symlinks to the target

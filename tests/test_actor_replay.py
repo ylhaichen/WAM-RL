@@ -8,9 +8,11 @@ from wan_va.rl.actor_replay import (
     ActorReplayTrainerConfig,
     MissingReplayContextError,
     build_replay_context,
+    check_replay_context_tensor_budget,
     count_actor_replay_transition_items,
     iter_actor_replay_examples,
     load_actor_replay_checkpoint_into_transformer,
+    tensor_tree_nbytes,
 )
 
 
@@ -164,6 +166,29 @@ def test_build_replay_context_prunes_unused_cfg_branch_for_action_scale_one():
     assert cache["k"].untyped_storage().nbytes() == (
         cache["k"].numel() * cache["k"].element_size()
     )
+
+
+def test_replay_context_tensor_budget_fails_before_oversized_save():
+    context = {
+        "transformer_cache": [
+            {
+                "k": torch.zeros(4, dtype=torch.float32),
+                "v": torch.zeros(2, dtype=torch.float16),
+            }
+        ],
+        "metadata": "ignored",
+    }
+
+    assert tensor_tree_nbytes(context) == 20
+    assert check_replay_context_tensor_budget(context, None) == 20
+    assert check_replay_context_tensor_budget(context, 1e-6) == 20
+    try:
+        check_replay_context_tensor_budget(context, 1e-12, label="toy_context")
+    except ValueError as exc:
+        assert "toy_context tensor storage" in str(exc)
+        assert "strict_grpo_replay_context_max_gb" in str(exc)
+    else:
+        raise AssertionError("expected replay-context budget failure")
 
 
 def test_build_replay_context_keeps_cfg_branch_for_action_guidance():

@@ -34,6 +34,8 @@ def test_four_gpu_grouped_rollout_job_builds_grpo_groups():
     assert 'STRICT_GRPO_CAPTURE_MAX_CHUNKS="${STRICT_GRPO_CAPTURE_MAX_CHUNKS:-0}"' in text
     assert 'strict_grpo_capture_chunk_stride="${STRICT_GRPO_CAPTURE_CHUNK_STRIDE}"' in text
     assert 'strict_grpo_capture_max_chunks="${STRICT_GRPO_CAPTURE_MAX_CHUNKS}"' in text
+    assert 'STRICT_GRPO_REPLAY_CONTEXT_MAX_GB="${STRICT_GRPO_REPLAY_CONTEXT_MAX_GB:-0}"' in text
+    assert 'strict_grpo_replay_context_max_gb="${STRICT_GRPO_REPLAY_CONTEXT_MAX_GB}"' in text
     assert 'SAVE_SERVER_DEBUG_TENSORS="${SAVE_SERVER_DEBUG_TENSORS:-true}"' in text
     assert 'save_server_debug_tensors="${SAVE_SERVER_DEBUG_TENSORS}"' in text
     assert 'ACTOR_REPLAY_CHECKPOINT_PATH="${ACTOR_REPLAY_CHECKPOINT_PATH:-}"' in text
@@ -57,6 +59,8 @@ def test_one_gpu_grouped_rollout_job_uses_successful_attempt_roots():
     assert 'STRICT_GRPO_CAPTURE_MAX_CHUNKS="${STRICT_GRPO_CAPTURE_MAX_CHUNKS:-0}"' in text
     assert 'strict_grpo_capture_chunk_stride="${STRICT_GRPO_CAPTURE_CHUNK_STRIDE}"' in text
     assert 'strict_grpo_capture_max_chunks="${STRICT_GRPO_CAPTURE_MAX_CHUNKS}"' in text
+    assert 'STRICT_GRPO_REPLAY_CONTEXT_MAX_GB="${STRICT_GRPO_REPLAY_CONTEXT_MAX_GB:-0}"' in text
+    assert 'strict_grpo_replay_context_max_gb="${STRICT_GRPO_REPLAY_CONTEXT_MAX_GB}"' in text
     assert 'SAVE_SERVER_DEBUG_TENSORS="${SAVE_SERVER_DEBUG_TENSORS:-true}"' in text
     assert 'save_server_debug_tensors="${SAVE_SERVER_DEBUG_TENSORS}"' in text
     assert 'ACTOR_REPLAY_CHECKPOINT_PATH="${ACTOR_REPLAY_CHECKPOINT_PATH:-}"' in text
@@ -147,6 +151,7 @@ def test_scale_submit_wrapper_does_not_inherit_stale_output_roots_by_default():
     assert "export STRICT_GRPO_SAVE_REPLAY_CONTEXT" in text
     assert "export STRICT_GRPO_CAPTURE_CHUNK_STRIDE" in text
     assert "export STRICT_GRPO_CAPTURE_MAX_CHUNKS" in text
+    assert "export STRICT_GRPO_REPLAY_CONTEXT_MAX_GB" in text
     assert "export SAVE_SERVER_DEBUG_TENSORS" in text
     assert 'unset RESULTS_ROOT' in text
     assert 'unset STABLE_SEED_CACHE_DIR' in text
@@ -168,6 +173,8 @@ def test_next_round_submit_wrapper_targets_hard_medium_tasks():
     assert 'STRICT_GRPO_CAPTURE_MAX_CHUNKS="${STRICT_GRPO_CAPTURE_MAX_CHUNKS:-0}"' in text
     assert 'STRICT_GRPO_CAPTURE_CHUNK_STRIDE="${STRICT_GRPO_CAPTURE_CHUNK_STRIDE}"' in text
     assert 'STRICT_GRPO_CAPTURE_MAX_CHUNKS="${STRICT_GRPO_CAPTURE_MAX_CHUNKS}"' in text
+    assert 'STRICT_GRPO_REPLAY_CONTEXT_MAX_GB="${STRICT_GRPO_REPLAY_CONTEXT_MAX_GB:-0}"' in text
+    assert 'STRICT_GRPO_REPLAY_CONTEXT_MAX_GB="${STRICT_GRPO_REPLAY_CONTEXT_MAX_GB}"' in text
     assert 'SAVE_SERVER_DEBUG_TENSORS="${SAVE_SERVER_DEBUG_TENSORS:-true}"' in text
     assert 'SAVE_SERVER_DEBUG_TENSORS="${SAVE_SERVER_DEBUG_TENSORS}"' in text
     assert 'bash "${SUBMIT_SCRIPT}"' in text
@@ -303,12 +310,14 @@ def test_bounded_replayctx_submitter_uses_storage_safe_defaults():
     assert 'STRICT_GRPO_CAPTURE_MAX_CHUNKS="${STRICT_GRPO_CAPTURE_MAX_CHUNKS:-1}"' in text
     assert 'SAVE_SERVER_DEBUG_TENSORS="${SAVE_SERVER_DEBUG_TENSORS:-false}"' in text
     assert 'REPLAY_CONTEXT_ESTIMATE_GB="${REPLAY_CONTEXT_ESTIMATE_GB:-4.0}"' in text
+    assert 'STRICT_GRPO_REPLAY_CONTEXT_MAX_GB="${STRICT_GRPO_REPLAY_CONTEXT_MAX_GB:-5.0}"' in text
     assert 'CHECK_SCRATCH_HEADROOM="${CHECK_SCRATCH_HEADROOM:-1}"' in text
     assert 'MIN_SCRATCH_HEADROOM_GB="${MIN_SCRATCH_HEADROOM_GB:-50}"' in text
     assert 'STORAGE_BUDGET_MODE="${STORAGE_BUDGET_MODE:-attempt}"' in text
     assert "Replay-context storage estimate" in text
     assert "accepted_estimate_gb" in text
     assert "attempt_budget_estimate_gb" in text
+    assert "STRICT_GRPO_REPLAY_CONTEXT_MAX_GB" in text
     assert "storage_budget_mode" in text
     assert "required_for_budget_plus_headroom_gb" in text
     assert "headroom_ok" in text
@@ -316,6 +325,7 @@ def test_bounded_replayctx_submitter_uses_storage_safe_defaults():
     assert 'DRY_RUN="${DRY_RUN:-0}"' in text
     assert "DRY_RUN=1, not submitting" in text
     assert 'SAVE_SERVER_DEBUG_TENSORS="${SAVE_SERVER_DEBUG_TENSORS}"' in text
+    assert 'STRICT_GRPO_REPLAY_CONTEXT_MAX_GB="${STRICT_GRPO_REPLAY_CONTEXT_MAX_GB}"' in text
     assert 'bash "${SUBMIT_SCRIPT}"' in text
 
 

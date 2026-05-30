@@ -49,11 +49,13 @@ def inspect_replay_context(path: Path, *, top_k: int = 20, metadata_only: bool =
         "metadata_only": metadata_only,
         "schema_version": payload.get("schema_version") if isinstance(payload, dict) else None,
         "top_level_keys": sorted(str(key) for key in payload.keys()) if isinstance(payload, dict) else [],
+        "scalar_fields": _scalar_fields(payload),
         "tensor_count": len(records),
         "tensor_bytes": tensor_bytes,
         "dtype_counts": dict(sorted(dtype_counts.items())),
         "dtype_bytes": dict(sorted(dtype_bytes.items())),
         "top_level_tensor_bytes": dict(sorted(top_level_bytes.items(), key=lambda item: item[1], reverse=True)),
+        "transformer_cache_summary": _transformer_cache_summary(payload, records, tensor_bytes),
         "top_tensors": [_record_to_dict(record) for record in top_tensors],
     }
 
@@ -68,11 +70,39 @@ def write_markdown_report(path: Path, report: dict[str, Any]) -> None:
         f"- tensor count: `{report['tensor_count']}`",
         f"- metadata only: `{report['metadata_only']}`",
         "",
-        "## Top-Level Tensor Bytes",
+        "## Scalar Fields",
         "",
-        "| key | bytes | GiB |",
-        "|---|---:|---:|",
+        "| key | value |",
+        "|---|---|",
     ]
+    for key, value in report["scalar_fields"].items():
+        lines.append(f"| {key} | `{value}` |")
+    cache_summary = report["transformer_cache_summary"]
+    if cache_summary:
+        branch_estimate = cache_summary.get("conditional_branch_estimate", {})
+        lines.extend(
+            [
+                "",
+                "## Transformer Cache Summary",
+                "",
+                f"- block count: `{cache_summary.get('block_count')}`",
+                f"- kv tensor bytes: `{cache_summary.get('kv_tensor_bytes')}`",
+                f"- kv batch sizes: `{cache_summary.get('kv_batch_sizes')}`",
+                f"- conditional-only estimated tensor bytes: "
+                f"`{branch_estimate.get('estimated_tensor_bytes')}`",
+                f"- conditional-only estimated savings bytes: "
+                f"`{branch_estimate.get('estimated_savings_bytes')}`",
+            ]
+        )
+    lines.extend(
+        [
+            "",
+            "## Top-Level Tensor Bytes",
+            "",
+            "| key | bytes | GiB |",
+            "|---|---:|---:|",
+        ]
+    )
     for key, value in report["top_level_tensor_bytes"].items():
         lines.append(f"| {key} | {value} | {value / 1024**3:.6g} |")
     lines.extend(
@@ -138,6 +168,77 @@ def _record_to_dict(record: TensorRecord) -> dict[str, Any]:
         "numel": record.numel,
         "bytes": record.bytes,
     }
+
+
+def _scalar_fields(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        return {}
+    keys = (
+        "schema_version",
+        "cache_name",
+        "use_cfg",
+        "cfg_pruned_to_conditional",
+        "action_guidance_scale",
+        "action_num_inference_steps",
+        "frame_chunk_size",
+    )
+    fields = {}
+    for key in keys:
+        if key not in payload:
+            continue
+        value = payload[key]
+        if isinstance(value, (str, int, float, bool)) or value is None:
+            fields[key] = value
+    return fields
+
+
+def _transformer_cache_summary(payload: Any, records: list[TensorRecord], tensor_bytes: int) -> dict[str, Any]:
+    if not isinstance(payload, dict) or not isinstance(payload.get("transformer_cache"), list):
+        return {}
+
+    cache_records = [record for record in records if record.path.startswith("transformer_cache.")]
+    kv_records = [record for record in cache_records if _cache_record_key(record.path) in {"k", "v"}]
+    kv_bytes = sum(record.bytes for record in kv_records)
+    eligible_savings = 0
+    eligible_count = 0
+    batch_sizes = set()
+    shape_counts: defaultdict[tuple[int, ...], int] = defaultdict(int)
+    shape_bytes: defaultdict[tuple[int, ...], int] = defaultdict(int)
+
+    for record in kv_records:
+        shape = tuple(record.shape)
+        shape_counts[shape] += 1
+        shape_bytes[shape] += record.bytes
+        if record.shape:
+            batch_sizes.add(record.shape[0])
+        if record.shape and record.shape[0] > 1:
+            eligible_count += 1
+            eligible_savings += record.bytes - (record.bytes // record.shape[0])
+
+    estimated_tensor_bytes = tensor_bytes - eligible_savings
+    return {
+        "block_count": len(payload["transformer_cache"]),
+        "cache_tensor_count": len(cache_records),
+        "kv_tensor_count": len(kv_records),
+        "kv_tensor_bytes": kv_bytes,
+        "kv_batch_sizes": sorted(batch_sizes),
+        "kv_shape_counts": [
+            {"shape": list(shape), "count": shape_counts[shape], "bytes": shape_bytes[shape]}
+            for shape in sorted(shape_counts, key=lambda item: shape_bytes[item], reverse=True)
+        ],
+        "conditional_branch_estimate": {
+            "eligible_kv_tensor_count": eligible_count,
+            "current_tensor_bytes": tensor_bytes,
+            "estimated_tensor_bytes": estimated_tensor_bytes,
+            "estimated_savings_bytes": eligible_savings,
+            "estimated_savings_gib": eligible_savings / 1024**3,
+        },
+    }
+
+
+def _cache_record_key(path: str) -> str:
+    parts = path.split(".")
+    return parts[2] if len(parts) >= 3 and parts[0] == "transformer_cache" else ""
 
 
 def main() -> None:

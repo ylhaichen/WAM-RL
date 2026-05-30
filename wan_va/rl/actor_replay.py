@@ -140,6 +140,38 @@ def tensor_tree_to_cpu(value):
     return value
 
 
+def tensor_tree_nbytes(value) -> int:
+    if torch.is_tensor(value):
+        return int(value.numel() * value.element_size())
+    if isinstance(value, dict):
+        return sum(tensor_tree_nbytes(item) for item in value.values())
+    if isinstance(value, (list, tuple)):
+        return sum(tensor_tree_nbytes(item) for item in value)
+    return 0
+
+
+def check_replay_context_tensor_budget(
+    replay_context: dict,
+    max_gb: float | None,
+    *,
+    label: str = "replay_context",
+) -> int:
+    """Return context tensor bytes, or fail before writing an oversized context."""
+
+    tensor_bytes = tensor_tree_nbytes(replay_context)
+    if max_gb is None or max_gb <= 0:
+        return tensor_bytes
+    max_bytes = int(float(max_gb) * 1024**3)
+    if tensor_bytes > max_bytes:
+        raise ValueError(
+            f"{label} tensor storage is {tensor_bytes / 1024**3:.3f} GiB, "
+            f"exceeding strict_grpo_replay_context_max_gb={float(max_gb):.3f}. "
+            "Lower STRICT_GRPO_CAPTURE_MAX_CHUNKS/GROUP_SIZE, increase the reviewed budget, "
+            "or disable replay-context capture for this run."
+        )
+    return tensor_bytes
+
+
 def select_cache_kv_batch(cache_snapshot: Sequence[dict], batch_index: int = 0) -> list[dict]:
     """Clone one CFG branch from attention k/v tensors without slicing masks."""
 

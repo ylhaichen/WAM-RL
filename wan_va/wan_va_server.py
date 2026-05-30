@@ -49,6 +49,7 @@ from wan_va.rl.dataset import (
 from wan_va.rl.actor_replay import (
     build_replay_context,
     build_transition_replay_input,
+    check_replay_context_tensor_budget,
     load_actor_replay_checkpoint_into_transformer,
 )
 
@@ -577,6 +578,9 @@ class VA_Server:
 
             strict_grpo_capture = bool(getattr(self.job_config, "strict_grpo_capture", False))
             strict_grpo_save_replay_context = bool(getattr(self.job_config, "strict_grpo_save_replay_context", False))
+            strict_grpo_replay_context_max_gb = float(
+                getattr(self.job_config, "strict_grpo_replay_context_max_gb", 0) or 0
+            )
             strict_grpo_capture_scope = str(
                 getattr(self.job_config, "strict_grpo_capture_scope", STRICT_ARTIFACT_SCOPE_SINGLE)
             )
@@ -601,6 +605,7 @@ class VA_Server:
 
             strict_grpo_transitions = []
             strict_grpo_replay_context = None
+            strict_grpo_replay_context_tensor_bytes = 0
             for i, t in enumerate(tqdm(action_timesteps)):
                 last_step = i == len(action_timesteps) - 1
                 action_cond = torch.zeros(
@@ -635,6 +640,11 @@ class VA_Server:
                             action_guidance_scale=float(self.job_config.action_guidance_scale),
                             action_num_inference_steps=int(action_inference_step),
                             frame_chunk_size=int(frame_chunk_size),
+                        )
+                        strict_grpo_replay_context_tensor_bytes = check_replay_context_tensor_budget(
+                            strict_grpo_replay_context,
+                            strict_grpo_replay_context_max_gb,
+                            label=f"strict_grpo_replay_context frame_st_id={frame_st_id}",
                         )
                     transition_replay_input = build_transition_replay_input(input_dict["action_res_lst"])
                 action_noise_pred = self.transformer(
@@ -754,6 +764,8 @@ class VA_Server:
             "strict_grpo_path": strict_grpo_path,
             "strict_grpo_paths": [strict_grpo_path] if strict_grpo_path else [],
             "strict_grpo_replay_context_path": strict_grpo_replay_context_path,
+            "strict_grpo_replay_context_tensor_bytes": strict_grpo_replay_context_tensor_bytes,
+            "strict_grpo_replay_context_max_gb": strict_grpo_replay_context_max_gb,
             "strict_grpo_scope": strict_grpo_scope or "",
             "server_exp_save_root": self.exp_save_root,
         }

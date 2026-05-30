@@ -109,6 +109,13 @@ This is intentionally conservative because discarded failed attempts can still
 leave large `server_vis/` replay-context files behind. Use
 `STORAGE_BUDGET_MODE=accepted` only after explicit review.
 
+The bounded wrapper also passes `STRICT_GRPO_REPLAY_CONTEXT_MAX_GB=5.0` by
+default. The server checks the tensor bytes of each replay context before
+calling `torch.save`; if a context exceeds that per-file budget, the attempt
+fails early with a clear error instead of filling Scratch until `Disk quota
+exceeded`. Increase this only after reviewing
+`tools/inspect_grpo_replay_context.py` output.
+
 Before choosing `GROUP_SIZE`, estimate the probability of getting a mixed
 success/failure group from recent per-task success rates:
 
@@ -393,6 +400,9 @@ python tools/inspect_grpo_replay_context.py \
 Use the top-level tensor-byte breakdown before changing capture format or
 compression policy. For large context files, keep `--metadata-only` enabled so
 the inspection does not allocate the full KV-cache tensors on CPU.
+The report includes scalar fields, KV-cache batch sizes, and a conditional-only
+branch estimate; if `action_guidance_scale<=1`, future collection should use
+the conditional-only replay context path rather than storing both CFG branches.
 
 Do not delete a source run's `server_vis/` while:
 
