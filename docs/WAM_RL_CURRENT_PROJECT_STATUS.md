@@ -441,11 +441,16 @@ and 50 GiB reserved headroom:
 move_stapler_pad success_rate: 0.625
 k=4 mixed probability: 0.828, expected attempts per mixed group: 1.21
 k=8 mixed probability: 0.976, expected attempts per mixed group: 1.02
-k=4/g1/max-1-chunk storage budget: 16 GiB + 50 GiB headroom -> ok
-k=8/g1/max-1-chunk storage budget: 32 GiB + 50 GiB headroom -> not ok
+k=4/g1/max-1-chunk with GROUP_MAX_ATTEMPTS=1:
+  16 GiB + 50 GiB headroom -> ok
+k=4/g1/max-1-chunk with default GROUP_RETRY_MULTIPLIER=3:
+  48 GiB + 50 GiB headroom -> not ok
+k=8/g1/max-1-chunk with GROUP_MAX_ATTEMPTS=1:
+  32 GiB + 50 GiB headroom -> not ok
 planning outputs:
   /home/zcably0/Scratch/wam-rl/debug_logs/storage_audits/next_collection_plan_20260530_094128_mixing.json
   /home/zcably0/Scratch/wam-rl/debug_logs/storage_audits/next_collection_plan_20260530_094128_k4_storage.json
+  /home/zcably0/Scratch/wam-rl/debug_logs/storage_audits/next_collection_plan_20260530_094128_k4_attempts3_storage.json
   /home/zcably0/Scratch/wam-rl/debug_logs/storage_audits/next_collection_plan_20260530_094128_k8_storage.json
 ```
 
