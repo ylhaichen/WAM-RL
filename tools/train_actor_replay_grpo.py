@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 from copy import deepcopy
 from pathlib import Path
 
@@ -20,7 +21,23 @@ try:
 except ModuleNotFoundError:
     from _repo_root import ensure_repo_root_on_path
 
-ensure_repo_root_on_path()
+REPO_ROOT = ensure_repo_root_on_path()
+
+
+def _git_commit(repo_root: Path = REPO_ROOT) -> str | None:
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=repo_root,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return None
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip() or None
 
 
 def run_actor_replay_training(
@@ -78,6 +95,9 @@ def run_actor_replay_training(
     trainer_config = ActorReplayTrainerConfig(
         groups_jsonl=groups_jsonl.expanduser(),
         output_dir=output_dir.expanduser(),
+        model_path=str(model_path),
+        config_name=config_name,
+        git_commit=_git_commit(),
         steps=steps,
         learning_rate=learning_rate,
         clip_low=clip_low,

@@ -304,8 +304,8 @@ current system:
   silent while replaying hundreds of denoising transitions.
 - After actor replay training finishes, use
   `tools/summarize_actor_replay_training.py` to inspect validation status,
-  final metrics, checkpoint presence, and failure diagnostics before planning
-  evaluation.
+  final metrics, checkpoint presence, provenance (`model_path`, `config_name`,
+  `git_commit`), and failure diagnostics before planning evaluation.
 - Use `tools/inspect_actor_replay_checkpoint.py` to inspect actor replay
   checkpoint tensor stats or compare a candidate checkpoint against an `lr=0`
   no-op/reference checkpoint before interpreting tiny closed-loop eval deltas.

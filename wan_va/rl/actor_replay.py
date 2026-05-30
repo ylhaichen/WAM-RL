@@ -82,6 +82,9 @@ class ActorReplayExample:
 class ActorReplayTrainerConfig:
     groups_jsonl: Path
     output_dir: Path
+    model_path: str | None = None
+    config_name: str | None = None
+    git_commit: str | None = None
     steps: int = 1
     learning_rate: float = 5e-5
     clip_low: float = 0.2

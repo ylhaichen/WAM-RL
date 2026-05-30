@@ -34,6 +34,9 @@ def _write_output(root: Path) -> None:
                     "total_param_count": 5,
                 },
                 "config": {
+                    "model_path": "/tmp/model",
+                    "config_name": "robotwin_grpo_train",
+                    "git_commit": "1234567890abcdef",
                     "learning_rate": 1e-7,
                     "action_num_inference_steps": 10,
                     "logprob_reduction": "mean",
@@ -72,6 +75,9 @@ def test_summarize_actor_replay_output_reports_complete_run(tmp_path):
     assert summary["steps"] == 1
     assert summary["final_loss"] == 0.25
     assert summary["config_source"] == "metrics"
+    assert summary["model_path"] == "/tmp/model"
+    assert summary["config_name"] == "robotwin_grpo_train"
+    assert summary["git_commit"] == "1234567890abcdef"
     assert summary["learning_rate"] == 1e-7
     assert summary["action_num_inference_steps"] == 10
     assert summary["logprob_reduction"] == "mean"
@@ -172,6 +178,9 @@ def test_summarize_actor_replay_output_falls_back_to_checkpoint_config(tmp_path)
         {
             "trainable_state_dict": {"action_head.weight": torch.tensor([1.0])},
             "config": {
+                "model_path": "/tmp/checkpoint-model",
+                "config_name": "checkpoint_config",
+                "git_commit": "fedcba9876543210",
                 "learning_rate": 2e-7,
                 "action_num_inference_steps": 8,
                 "logprob_reduction": "sum",
@@ -186,6 +195,9 @@ def test_summarize_actor_replay_output_falls_back_to_checkpoint_config(tmp_path)
     summary = summarize_actor_replay_output(root)
 
     assert summary["config_source"] == "checkpoint"
+    assert summary["model_path"] == "/tmp/checkpoint-model"
+    assert summary["config_name"] == "checkpoint_config"
+    assert summary["git_commit"] == "fedcba9876543210"
     assert summary["learning_rate"] == 2e-7
     assert summary["action_num_inference_steps"] == 8
     assert summary["logprob_reduction"] == "sum"

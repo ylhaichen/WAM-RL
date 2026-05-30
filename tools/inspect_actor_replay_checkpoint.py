@@ -198,6 +198,9 @@ def _checkpoint_config_summary(checkpoint: Any) -> dict[str, Any]:
     keys = (
         "groups_jsonl",
         "output_dir",
+        "model_path",
+        "config_name",
+        "git_commit",
         "steps",
         "learning_rate",
         "clip_low",

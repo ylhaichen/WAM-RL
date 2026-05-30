@@ -9,6 +9,9 @@ import json
 from pathlib import Path
 
 CONFIG_FIELDS = (
+    "model_path",
+    "config_name",
+    "git_commit",
     "learning_rate",
     "action_num_inference_steps",
     "logprob_reduction",
@@ -52,6 +55,9 @@ def summarize_actor_replay_output(output_dir: Path) -> dict:
         "trainable_param_count": _number(result.get("trainable_param_count")),
         "total_param_count": _number(result.get("total_param_count")),
         "config_source": config_source,
+        "model_path": config.get("model_path"),
+        "config_name": config.get("config_name"),
+        "git_commit": config.get("git_commit"),
         "learning_rate": _number(config.get("learning_rate")),
         "action_num_inference_steps": _number(config.get("action_num_inference_steps")),
         "logprob_reduction": config.get("logprob_reduction"),
@@ -100,13 +106,13 @@ def write_markdown_report(summaries: list[dict], out_markdown: Path) -> None:
     lines = [
         "# Actor Replay Training Summary",
         "",
-        "| output_dir | ok | validation | transitions | steps | config | lr | action_steps | logprob | final_loss | ratio | grad_norm | update_norm | update_max | update | checkpoint | failure_diag | warnings |",
-        "|---|---:|---:|---:|---:|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---|",
+        "| output_dir | ok | validation | transitions | steps | config | config_name | git_commit | lr | action_steps | logprob | final_loss | ratio | grad_norm | update_norm | update_max | update | checkpoint | failure_diag | warnings |",
+        "|---|---:|---:|---:|---:|---|---|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---|",
     ]
     for item in summaries:
         lines.append(
             "| {output_dir} | {ok} | {validation_ok} | {transition_count} | {steps} | {config_source} | "
-            "{learning_rate} | {action_num_inference_steps} | {logprob_reduction} | "
+            "{config_name} | {git_commit} | {learning_rate} | {action_num_inference_steps} | {logprob_reduction} | "
             "{final_loss} | {final_ratio_mean} | {final_grad_norm} | "
             "{final_param_update_norm} | {final_param_update_max} | {parameter_update_detected} | {checkpoint_exists} | "
             "{failure_diagnostics_exists} | {warnings} |".format(
@@ -116,6 +122,8 @@ def write_markdown_report(summaries: list[dict], out_markdown: Path) -> None:
                 transition_count=_cell(item["transition_count"]),
                 steps=_cell(item["steps"]),
                 config_source=_cell(item["config_source"]),
+                config_name=_cell(item["config_name"]),
+                git_commit=_short_commit(item["git_commit"]),
                 learning_rate=_cell(item["learning_rate"]),
                 action_num_inference_steps=_cell(item["action_num_inference_steps"]),
                 logprob_reduction=_cell(item["logprob_reduction"]),
@@ -142,6 +150,9 @@ def write_csv_report(summaries: list[dict], out_csv: Path) -> None:
         "transition_count",
         "steps",
         "config_source",
+        "model_path",
+        "config_name",
+        "git_commit",
         "learning_rate",
         "action_num_inference_steps",
         "logprob_reduction",
@@ -176,6 +187,8 @@ def format_text_report(summaries: list[dict]) -> str:
         ("val", lambda item: _bool_cell(item["validation_ok"])),
         ("trans", lambda item: _cell(item["transition_count"])),
         ("steps", lambda item: _cell(item["steps"])),
+        ("cfg", lambda item: _cell(item["config_name"])),
+        ("git", lambda item: _short_commit(item["git_commit"])),
         ("lr", lambda item: _cell(item["learning_rate"])),
         ("logprob", lambda item: _cell(item["logprob_reduction"])),
         ("std_floor", lambda item: _cell(item["logprob_std_floor"])),
@@ -309,6 +322,13 @@ def _cell(value) -> str:
     if isinstance(value, float):
         return f"{value:.6g}"
     return str(value)
+
+
+def _short_commit(value) -> str:
+    if value is None:
+        return ""
+    text = str(value)
+    return text[:12] if len(text) > 12 else text
 
 
 def _bool_cell(value: bool) -> str:

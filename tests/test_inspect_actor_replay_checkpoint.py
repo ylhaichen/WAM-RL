@@ -32,6 +32,9 @@ def test_summarize_checkpoint_reports_tensor_stats(tmp_path):
         weight=torch.tensor([[3.0, 4.0]], dtype=torch.float32),
         bias=torch.tensor([2.0], dtype=torch.float32),
         config={
+            "model_path": "/tmp/model",
+            "config_name": "robotwin_grpo_train",
+            "git_commit": "1234567890abcdef",
             "learning_rate": 1e-7,
             "action_num_inference_steps": 10,
             "logprob_reduction": "mean",
@@ -48,6 +51,9 @@ def test_summarize_checkpoint_reports_tensor_stats(tmp_path):
     assert summary["max_abs"] == 4.0
     assert summary["dtype_counts"] == {"float32": 2}
     assert summary["top_key_prefix_counts"] == {"action_head": 2}
+    assert summary["config"]["model_path"] == "/tmp/model"
+    assert summary["config"]["config_name"] == "robotwin_grpo_train"
+    assert summary["config"]["git_commit"] == "1234567890abcdef"
     assert summary["config"]["learning_rate"] == 1e-7
     assert summary["config"]["action_num_inference_steps"] == 10
     assert summary["config"]["logprob_reduction"] == "mean"

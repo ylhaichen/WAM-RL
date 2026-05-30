@@ -281,6 +281,9 @@ def test_actor_replay_trainer_updates_trainable_action_modules(tmp_path):
         ActorReplayTrainerConfig(
             groups_jsonl=group_path,
             output_dir=tmp_path / "train",
+            model_path="/tmp/model",
+            config_name="toy_actor_replay",
+            git_commit="abc123",
             steps=1,
             learning_rate=1e-3,
             clip_low=100.0,
@@ -298,6 +301,9 @@ def test_actor_replay_trainer_updates_trainable_action_modules(tmp_path):
     metrics = json.loads((tmp_path / "train" / "metrics.json").read_text())
     assert metrics["config"]["groups_jsonl"] == str(group_path)
     assert metrics["config"]["output_dir"] == str(tmp_path / "train")
+    assert metrics["config"]["model_path"] == "/tmp/model"
+    assert metrics["config"]["config_name"] == "toy_actor_replay"
+    assert metrics["config"]["git_commit"] == "abc123"
     assert metrics["config"]["learning_rate"] == 1e-3
     assert metrics["config"]["action_num_inference_steps"] == 2
     step_metrics = metrics["history"][0]

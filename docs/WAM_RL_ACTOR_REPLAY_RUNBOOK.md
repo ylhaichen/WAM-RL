@@ -308,14 +308,16 @@ python tools/summarize_actor_replay_training.py \
   --out-markdown /home/zcably0/Scratch/wam-rl/results_grpo_actor_replay/recent_summary.md
 ```
 
-`summary.json` / `summary.csv` record the training config saved in
-`metrics.json` for new runs (`learning_rate`, `action_num_inference_steps`,
-`logprob_reduction`, `logprob_std_floor`, and `trainable_mode`). If an older
-run's `metrics.json` predates config logging, the summary tool falls back to
-the lightweight `checkpoint.pt` config and marks `config_source=checkpoint`.
+`summary.json` / `summary.csv` record the training config and provenance saved
+in `metrics.json` for new runs (`model_path`, `config_name`, `git_commit`,
+`learning_rate`, `action_num_inference_steps`, `logprob_reduction`,
+`logprob_std_floor`, and `trainable_mode`). If an older run's `metrics.json`
+predates config logging, the summary tool falls back to the lightweight
+`checkpoint.pt` config and marks `config_source=checkpoint`.
 
 The checkpoint inspection report includes trainable tensor statistics and, for
-new checkpoints, the saved actor replay training config (`learning_rate`,
+new checkpoints, the saved actor replay training config/provenance
+(`model_path`, `config_name`, `git_commit`, `learning_rate`,
 `action_num_inference_steps`, `logprob_reduction`, and `trainable_mode`).
 
 Pass criteria:
