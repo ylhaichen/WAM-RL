@@ -163,6 +163,7 @@ Interpretation:
 Implemented:
 
 - `PROMPT_INDEX` support for fixed prompt variants;
+- explicit `SEED` logging/control for RoboTwin env seed selection;
 - `SAMPLING_SEED` support for deterministic LingBot-VA action sampling;
 - `SAMPLING_SEED_PER_ENV=true` for deterministic but distinct per-env sampling;
 - per-episode export in `tools/summarize_robotwin_results.py`;
@@ -171,6 +172,8 @@ Implemented:
 - paired baseline-vs-actor eval smoke submission with
   `jobs/myriad/37_submit_actor_eval_pair_smoke.sh`;
 - paired eval summary/export with `tools/summarize_actor_eval_pair.py`;
+- zero-match guard in paired eval summaries to catch seed/prompt/sampling
+  control mismatches;
 - one-GPU eval job support for actor replay checkpoint loading.
 
 Observed behavior:
@@ -187,15 +190,50 @@ Known smoke evals:
 ```text
 baseline move_stapler_pad prompt0 s10 n5: 4/5
 baseline repeat prompt0 s10 n5:          3/5
-actor lr=0 no-op smoke:                  4/5 with a seed mismatch caveat
 actor lr=1e-7 smoke:                     3/5
 actor lr=1e-6 smoke:                     3/5
+```
+
+Latest explicit-seed matched controls on `move_stapler_pad`, prompt0,
+`ACTION_NUM_INFERENCE_STEPS=10`, `SEED=10000`,
+`SAMPLING_SEED=12345`, `SAMPLING_SEED_PER_ENV=true`, `n=2`:
+
+```text
+baseline previous:       2/2
+baseline repeat:         1/2
+actor lr=0 no-op:        1/2
+actor one-step subset:   0/2
+comparison output:
+  /home/zcably0/Scratch/wam-rl/results_actor_eval/seed10000_controls_20260530_0422/four_way_comparison.json
+```
+
+The baseline repeat and `lr=0` no-op checkpoint had the same success pattern on
+the two matched episodes: seed `100010000` succeeded with 144 actions, while
+seed `100010001` reached the 400-step limit and failed. This makes the previous
+baseline-vs-`lr=0` delta primarily an eval repeatability issue, not direct
+evidence that actor checkpoint loading is broken.
+
+The one-step actor subset checkpoint was compared against the `lr=0` no-op
+checkpoint at the tensor level:
+
+```text
+trainable tensors: 14
+trainable params: 89,084,958
+relative_delta_l2: 3.600973986046038e-07
+delta_max_abs: 1.1920928955078125e-07
+report:
+  /home/zcably0/Scratch/wam-rl/results_grpo_actor_replay/grpo_actor_subset_2samples_2artifacts_1step_20260530_020837/checkpoint_vs_lr0/report.json
 ```
 
 Interpretation:
 
 - evaluation plumbing works;
 - current data do not show reliable improvement;
+- tiny `n=2` actor-vs-baseline differences are confounded by baseline
+  repeatability;
+- checkpoint loading is not ruled out as a possible source of small numerical
+  differences, but the current evidence points more strongly to RoboTwin
+  closed-loop repeat instability;
 - future eval should use fixed `PROMPT_INDEX`, fixed sampling seed policy, and
   larger held-out seed sets before promotion.
 
