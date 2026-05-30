@@ -235,6 +235,9 @@ consume tens or hundreds of GB because they include transformer KV-cache state.
   default estimate is 4GB/context. The final `qsub` command should include an
   explicit canonical `RESULTS_ROOT` derived from `RUN_ID`, which lets
   `tools/report_grpo_run_status.py --qstat-job-id <job-id>` locate output early.
+  It should also include `SUBMIT_GIT_COMMIT`; runtime job logs should print
+  `GIT_COMMIT` from `print_job_context`, so queued-job provenance and runtime
+  repo state can be compared.
   Set `SUCCESS_RATE=<recent_task_success_rate>` for dry-runs when a recent
   summary exists; the storage planner will report mixed-group probability and
   the chance that `GROUP_MAX_ATTEMPTS` gets at least one mixed group.

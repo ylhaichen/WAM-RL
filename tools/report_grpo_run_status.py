@@ -16,6 +16,8 @@ from typing import Any
 GiB = 1024**3
 LOG_VALUE_KEYS = (
     "JOB_ID",
+    "GIT_COMMIT",
+    "SUBMIT_GIT_COMMIT",
     "RUN_ID",
     "RESULTS_ROOT",
     "GRPO_GROUPS_PATH",

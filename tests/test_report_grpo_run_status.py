@@ -23,9 +23,10 @@ def test_parse_job_log_extracts_direct_and_env_values(tmp_path):
         "\n".join(
             [
                 "JOB_ID=123",
+                "GIT_COMMIT=abc1234",
                 "env_list: TERM=NONE,RUN_ID=run_a,RESULTS_ROOT="
                 + str(root)
-                + ",GROUP_SIZE=4,ACTION_NUM_INFERENCE_STEPS=10",
+                + ",GROUP_SIZE=4,ACTION_NUM_INFERENCE_STEPS=10,SUBMIT_GIT_COMMIT=def5678",
                 "Accepted group attempt logical_group=0 physical_group=0 seed=1",
                 "Discarding failed group attempt logical_group=1 physical_group=2 seed=3; "
                 "logs remain under /tmp/attempt",
@@ -41,6 +42,8 @@ def test_parse_job_log_extracts_direct_and_env_values(tmp_path):
     report = parse_job_log(log)
 
     assert report["values"]["JOB_ID"] == "123"
+    assert report["values"]["GIT_COMMIT"] == "abc1234"
+    assert report["values"]["SUBMIT_GIT_COMMIT"] == "def5678"
     assert report["values"]["RUN_ID"] == "run_a"
     assert report["values"]["RESULTS_ROOT"] == str(root)
     assert report["values"]["GROUP_SIZE"] == "4"
@@ -202,7 +205,7 @@ owner:                      zcably0
 cwd:                        /home/zcably0/Scratch/WAM-RL
 hard resource_list:         snx=1,gpu=4,tmpfs=200G,memory=4G,batch=true,h_rt=172800
 job_name:                   wam_grpo_replayctx_bounded
-env_list:                   TERM=NONE,REPO_ROOT=/home/zcably0/Scratch/WAM-RL,GROUP_SIZE=4,GROUPS_PER_TASK=1,RUN_ID=grpo_run,TASK_NAMES=move_stapler_pad,ACTION_NUM_INFERENCE_STEPS=10,STRICT_GRPO_CAPTURE_MAX_CHUNKS=1
+env_list:                   TERM=NONE,REPO_ROOT=/home/zcably0/Scratch/WAM-RL,SUBMIT_GIT_COMMIT=abc1234,GROUP_SIZE=4,GROUPS_PER_TASK=1,RUN_ID=grpo_run,TASK_NAMES=move_stapler_pad,ACTION_NUM_INFERENCE_STEPS=10,STRICT_GRPO_CAPTURE_MAX_CHUNKS=1
 script_file:                jobs/myriad/30_collect_grouped_rollouts_4gpu.sh
 parallel environment:  smp-[L]* range: 32
 project:                    AllUsers
@@ -216,6 +219,7 @@ project:                    AllUsers
     assert report["script_file"] == "jobs/myriad/30_collect_grouped_rollouts_4gpu.sh"
     assert report["values"]["JOB_ID"] == "458528"
     assert report["values"]["RUN_ID"] == "grpo_run"
+    assert report["values"]["SUBMIT_GIT_COMMIT"] == "abc1234"
     assert report["values"]["GROUP_SIZE"] == "4"
     assert report["values"]["TASK_NAMES"] == "move_stapler_pad"
     assert report["values"]["ACTION_NUM_INFERENCE_STEPS"] == "10"

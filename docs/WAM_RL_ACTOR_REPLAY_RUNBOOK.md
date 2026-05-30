@@ -160,12 +160,15 @@ default. The wrapper also narrows the queue request to `QSUB_H_RT=6:00:00` and
 `QSUB_TMPFS=80G` by default; override those only after reviewing expected
 runtime and local scratch needs. The submit path explicitly exports the
 canonical `RESULTS_ROOT` derived from `RUN_ID`, so `qstat -j` status reports can
-locate the result directory before the SGE stdout log is available. The wrapper
-dry-run prints both the replay-context storage estimate and the final underlying
-`qsub` command, so review both before submitting. If `SUCCESS_RATE` is set from
-a recent task summary, the same dry-run also prints the mixed-group probability
-and the probability that the configured attempt budget sees at least one mixed
-group. The default estimate is 4.0GB/context for new action-scale-one
+locate the result directory before the SGE stdout log is available. It also
+exports `SUBMIT_GIT_COMMIT`; runtime logs print `GIT_COMMIT` through
+`print_job_context`, so queued-job provenance and runtime repo state can be
+compared. The wrapper dry-run prints both the replay-context storage estimate
+and the final underlying `qsub` command, so review both before submitting. If
+`SUCCESS_RATE` is set from a recent task summary, the same dry-run also prints
+the mixed-group probability and the probability that the configured attempt
+budget sees at least one mixed group. The default estimate is 4.0GB/context for
+new action-scale-one
 collections, where replay context capture prunes the unused CFG negative action
 branch. Override `REPLAY_CONTEXT_ESTIMATE_GB` upward for action-guided
 (`action_guidance_scale > 1`) or unpruned legacy collections. If `PLAN_JSON` is

@@ -160,6 +160,7 @@ def test_scale_submit_wrapper_derives_output_roots_by_default():
     assert 'USE_EXISTING_STABLE_SEED_CACHE_DIR="${USE_EXISTING_STABLE_SEED_CACHE_DIR:-0}"' in text
     assert 'DEFAULT_WAM_ROOT="${HOME}/Scratch/wam-rl"' in text
     assert 'WAM_ROOT="${WAM_ROOT:-${DEFAULT_WAM_ROOT}}"' in text
+    assert 'SUBMIT_GIT_COMMIT="${SUBMIT_GIT_COMMIT:-$(git -C "${REPO_ROOT}" rev-parse --short HEAD' in text
     assert 'GROUP_MAX_ATTEMPTS="${GROUP_MAX_ATTEMPTS:-$((GROUPS_PER_TASK * GROUP_RETRY_MULTIPLIER))}"' in text
     assert "export GROUP_MAX_ATTEMPTS" in text
     assert "export STRICT_GRPO_CAPTURE_SCOPE" in text
@@ -180,6 +181,7 @@ def test_scale_submit_wrapper_derives_output_roots_by_default():
     assert 'QSUB_ARGS+=(-l "tmpfs=${QSUB_TMPFS}")' in text
     assert '"ACTOR_REPLAY_CHECKPOINT_PATH=${ACTOR_REPLAY_CHECKPOINT_PATH}"' in text
     assert 'RESULTS_ROOT="${WAM_ROOT}/results_grouped_rollouts/${RUN_ID}"' in text
+    assert '"SUBMIT_GIT_COMMIT=${SUBMIT_GIT_COMMIT}"' in text
     assert '"WAM_ROOT=${WAM_ROOT}"' in text
     assert '"RESULTS_ROOT=${RESULTS_ROOT}"' in text
     assert 'cmd=(qsub "${QSUB_ARGS[@]}")' in text
@@ -222,6 +224,7 @@ def test_scale_submit_wrapper_dry_run_uses_explicit_qsub_vars(tmp_path):
     assert "qsub -V" not in result.stdout
     assert f"ACTOR_REPLAY_CHECKPOINT_PATH={tmp_path / 'actor.pt'}" in result.stdout
     assert "TASK_NAMES=move_stapler_pad" in result.stdout
+    assert "SUBMIT_GIT_COMMIT=" in result.stdout
     assert "RESULTS_ROOT=" in result.stdout
     assert "/results_grouped_rollouts/" in result.stdout
     assert "h_rt=6:00:00" in result.stdout
@@ -794,6 +797,7 @@ def test_myriad_common_initializes_modules_for_interactive_shells():
     text = Path("jobs/myriad/common.sh").read_text()
 
     assert "if ! command -v apptainer" in text
+    assert 'GIT_COMMIT=$(git -C "${REPO_ROOT}" rev-parse --short HEAD' in text
     assert "/shared/ucl/apps/modules/5.3.1/init/bash" in text
     assert "[ -x /usr/bin/tclsh ]" in text
     assert "module load apptainer/1.2.4-1" in text

@@ -50,6 +50,7 @@ else
     DEFAULT_WAM_ROOT="${HOME}/wam-rl"
 fi
 WAM_ROOT="${WAM_ROOT:-${DEFAULT_WAM_ROOT}}"
+SUBMIT_GIT_COMMIT="${SUBMIT_GIT_COMMIT:-$(git -C "${REPO_ROOT}" rev-parse --short HEAD 2>/dev/null || echo unknown)}"
 
 if [ "${DRY_RUN}" != "1" ] && ! command -v qsub >/dev/null 2>&1; then
     echo "qsub is not available on PATH. Run this on a Myriad login node." >&2
@@ -97,6 +98,7 @@ export ACTOR_REPLAY_CHECKPOINT_PATH
 export TASK_NAMES
 export RUN_ID
 export WAM_ROOT
+export SUBMIT_GIT_COMMIT
 
 if [ "${USE_EXISTING_RESULTS_ROOT}" = "1" ] && [ -n "${RESULTS_ROOT:-}" ]; then
     export RESULTS_ROOT
@@ -115,6 +117,7 @@ cat <<EOF
 Submitting grouped rollout scale job
   JOB_NAME=${JOB_NAME}
   RUN_ID=${RUN_ID}
+  SUBMIT_GIT_COMMIT=${SUBMIT_GIT_COMMIT}
   WAM_ROOT=${WAM_ROOT}
   RESULTS_ROOT=${RESULTS_ROOT}
   REPO_ROOT=${REPO_ROOT}
@@ -185,6 +188,7 @@ QSUB_VARS=(
     "ACTOR_REPLAY_CHECKPOINT_PATH=${ACTOR_REPLAY_CHECKPOINT_PATH}"
     "TASK_NAMES=${TASK_NAMES}"
     "RUN_ID=${RUN_ID}"
+    "SUBMIT_GIT_COMMIT=${SUBMIT_GIT_COMMIT}"
     "WAM_ROOT=${WAM_ROOT}"
     "RESULTS_ROOT=${RESULTS_ROOT}"
 )

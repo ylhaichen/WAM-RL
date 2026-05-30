@@ -119,6 +119,7 @@ print_job_context() {
     echo "HOST=$(hostname)"
     echo "DATE=$(date -Is)"
     echo "REPO_ROOT=${REPO_ROOT}"
+    echo "GIT_COMMIT=$(git -C "${REPO_ROOT}" rev-parse --short HEAD 2>/dev/null || echo unknown)"
     echo "WAM_ROOT=${WAM_ROOT}"
     echo "SIF=${SIF}"
     echo "WAN_VA_VENV=${WAN_VA_VENV}"
