@@ -93,6 +93,9 @@ def test_audit_grpo_artifact_storage_reads_materialization_manifest(tmp_path):
     assert report["materialized_replay_contexts"]["symlink_count"] == 1
     assert report["materialized_replay_contexts"]["resolved_bytes"] == len(b"context")
     assert report["source_replay_contexts"]["regular_file_count"] == 1
+    assert report["artifacts_plus_materialized_replay_contexts"]["resolved_bytes"] == len(b"artifact") + len(
+        b"context"
+    )
 
     summary = compact_storage_summary(report)
     assert summary["materialize_link_mode"] == "symlink"
@@ -101,6 +104,7 @@ def test_audit_grpo_artifact_storage_reads_materialization_manifest(tmp_path):
     assert summary["materialized_replay_context_missing_count"] == 0
     assert summary["source_replay_context_resolved_gb"] == len(b"context") / 1024**3
     assert summary["source_replay_context_missing_count"] == 0
+    assert summary["combined_materialized_resolved_gb"] == (len(b"artifact") + len(b"context")) / 1024**3
 
 
 def test_audit_grpo_artifact_storage_reports_broken_symlink(tmp_path):
@@ -220,6 +224,47 @@ def test_audit_grpo_artifact_storage_cli_fails_over_budget(tmp_path):
 
     assert result.returncode == 1
     assert '"ok": false' in result.stdout
+
+
+def test_audit_grpo_artifact_storage_cli_budget_includes_materialized_replay_contexts(tmp_path):
+    artifact = tmp_path / "strict_grpo_0.pt"
+    context = tmp_path / "context.pt"
+    materialized_context = tmp_path / "materialized" / "context.pt"
+    artifact.write_bytes(b"a")
+    context.write_bytes(b"context-bytes")
+    materialized_context.parent.mkdir()
+    os.symlink(context, materialized_context)
+    groups_jsonl = tmp_path / "groups.jsonl"
+    _write_group(groups_jsonl, [artifact])
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "link_mode": "symlink",
+                "replay_context_mapping": {str(context): str(materialized_context)},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "tools/audit_grpo_artifact_storage.py",
+            str(groups_jsonl),
+            "--materialize-manifest",
+            str(manifest),
+            "--max-resolved-gb",
+            "0",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    assert '"resolved_bytes": 14' in result.stdout
 
 
 def test_audit_grpo_artifact_storage_cli_prints_compact_summary(tmp_path):

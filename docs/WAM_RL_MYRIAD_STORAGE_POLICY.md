@@ -165,6 +165,7 @@ SUBSET_MAX_GROUPS=1 \
 SUBSET_SAMPLES_PER_REWARD=1 \
 SUBSET_MAX_ARTIFACTS_PER_SAMPLE=2 \
 SUBSET_MAX_REPLAY_CONTEXT_GB=30 \
+SUBSET_STORAGE_MAX_RESOLVED_GB=40 \
 qsub -V -N wam_grpo_subset jobs/myriad/35_prepare_actor_replay_subset.sh
 ```
 
@@ -173,6 +174,9 @@ path-only validation summary, and `storage_audit.json` under `SUBSET_ROOT`.
 Keep `SUBSET_MAX_REPLAY_CONTEXT_GB` below the training-side
 `GRPO_MAX_RESOLVED_GB` budget; the submitter defaults are currently 30GB for
 subset preparation and 40GB for the actor replay smoke trainer.
+`SUBSET_STORAGE_MAX_RESOLVED_GB` enforces the same kind of budget during subset
+materialization by counting strict artifacts plus materialized replay-context
+symlink targets.
 
 Then submit a low-resource one-step actor replay smoke from the materialized
 subset:

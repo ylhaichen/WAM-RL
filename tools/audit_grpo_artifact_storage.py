@@ -61,6 +61,9 @@ def audit_grpo_artifact_storage(
         report["manifest_unique_replay_context_count"] = len(replay_context_mapping)
         report["materialized_replay_contexts"] = _path_summary(str(path) for path in replay_context_mapping.values())
         report["source_replay_contexts"] = _path_summary(str(path) for path in replay_context_mapping.keys())
+        report["artifacts_plus_materialized_replay_contexts"] = _path_summary(
+            [*artifact_paths, *(str(path) for path in replay_context_mapping.values())]
+        )
 
     return report
 
@@ -184,6 +187,8 @@ def _has_missing(report: dict) -> bool:
 def _budget_summary(report: dict) -> dict:
     if "artifacts_plus_replay_contexts" in report:
         return report["artifacts_plus_replay_contexts"]
+    if "artifacts_plus_materialized_replay_contexts" in report:
+        return report["artifacts_plus_materialized_replay_contexts"]
     return report["artifacts"]
 
 
@@ -222,6 +227,10 @@ def compact_storage_summary(report: dict) -> dict:
                 ],
                 "source_replay_context_resolved_gb": report["source_replay_contexts"]["resolved_bytes"] / 1024**3,
                 "source_replay_context_missing_count": report["source_replay_contexts"]["missing_count"],
+                "combined_materialized_resolved_gb": report["artifacts_plus_materialized_replay_contexts"][
+                    "resolved_bytes"
+                ]
+                / 1024**3,
             }
         )
     if "storage_budget" in report:

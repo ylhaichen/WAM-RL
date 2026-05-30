@@ -203,6 +203,7 @@ def test_actor_replay_subset_job_materializes_lightweight_dataset():
     assert 'MATERIALIZE_LINK_MODE="${MATERIALIZE_LINK_MODE:-symlink}"' in text
     assert 'MATERIALIZE_INCLUDE_REPLAY_CONTEXT="${MATERIALIZE_INCLUDE_REPLAY_CONTEXT:-true}"' in text
     assert 'SUBSET_MAX_REPLAY_CONTEXT_GB="${SUBSET_MAX_REPLAY_CONTEXT_GB:-30}"' in text
+    assert 'SUBSET_STORAGE_MAX_RESOLVED_GB="${SUBSET_STORAGE_MAX_RESOLVED_GB:-40}"' in text
     assert '--max-replay-context-gb "${SUBSET_MAX_REPLAY_CONTEXT_GB}"' in text
     assert '--link-mode "${MATERIALIZE_LINK_MODE}"' in text
     assert "--include-replay-context" in text
@@ -211,6 +212,7 @@ def test_actor_replay_subset_job_materializes_lightweight_dataset():
     assert "tools/audit_grpo_artifact_storage.py" in text
     assert '--materialize-manifest "${MATERIALIZED_MANIFEST}"' in text
     assert '--out-json "${STORAGE_AUDIT_JSON}"' in text
+    assert '--max-resolved-gb "${SUBSET_STORAGE_MAX_RESOLVED_GB}"' in text
     assert "--fail-on-missing" in text
     assert "Actor replay subset preparation complete" in text
 

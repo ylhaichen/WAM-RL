@@ -171,7 +171,9 @@ consume tens or hundreds of GB because they include transformer KV-cache state.
 - When building actor replay subsets, set `--max-replay-context-gb` (or
   `SUBSET_MAX_REPLAY_CONTEXT_GB` in the Myriad subset job) so selected artifact
   refs are bounded by actual resolved replay-context footprint, not only by raw
-  artifact count.
+  artifact count. Keep `SUBSET_STORAGE_MAX_RESOLVED_GB` enabled in the subset
+  job so materialized strict-artifact plus replay-context dependencies are
+  audited before training.
 - For storage-limited replay-context collection, set
   `STRICT_GRPO_CAPTURE_CHUNK_STRIDE` or `STRICT_GRPO_CAPTURE_MAX_CHUNKS` at
   collection time to save fewer action chunks. Defaults are stride `1` and max

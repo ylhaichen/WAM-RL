@@ -122,6 +122,7 @@ SUBSET_MAX_GROUPS=1 \
 SUBSET_SAMPLES_PER_REWARD=1 \
 SUBSET_MAX_ARTIFACTS_PER_SAMPLE=2 \
 SUBSET_MAX_REPLAY_CONTEXT_GB=30 \
+SUBSET_STORAGE_MAX_RESOLVED_GB=40 \
 MATERIALIZE_LINK_MODE=symlink \
 MATERIALIZE_INCLUDE_REPLAY_CONTEXT=true \
 qsub -V -N wam_grpo_subset jobs/myriad/35_prepare_actor_replay_subset.sh
@@ -144,6 +145,8 @@ storage_audit.json
 for the selected subset. It trims artifact references round-robin across the
 selected success/failure samples, which keeps a tiny actor replay smoke useful
 without accidentally depending on hundreds of GB of KV-cache files.
+`SUBSET_STORAGE_MAX_RESOLVED_GB` is a second guard on the final materialized
+artifact plus replay-context dependency footprint.
 
 ## 3. Audit Subset Storage Dependencies
 
