@@ -1,0 +1,154 @@
+#!/bin/bash -l
+
+# Prepare a lightweight real actor replay subset from a large replay-context run.
+# This job only rewrites JSONL and links/copies referenced artifacts. It does not
+# run actor training and does not delete source data.
+
+#$ -S /bin/bash
+#$ -N wam_grpo_subset
+#$ -cwd
+#$ -j y
+#$ -o logs/jobs
+#$ -l h_rt=1:00:00
+#$ -l mem=8G
+#$ -pe smp 2
+#$ -l tmpfs=20G
+
+set -euo pipefail
+
+MYRIAD_JOB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -z "${REPO_ROOT:-}" ]; then
+    REPO_ROOT="$(cd "${MYRIAD_JOB_DIR}/../.." && pwd)"
+fi
+source "${REPO_ROOT}/jobs/myriad/common.sh"
+
+RUN_ID="${RUN_ID:-grpo_actor_subset_${JOB_ID:-manual}}"
+RESULTS_ROOT="${RESULTS_ROOT:-${WAM_ROOT}/results_grouped_rollouts/latest}"
+SOURCE_GROUPS_PATH="${SOURCE_GROUPS_PATH:-${RESULTS_ROOT}/groups/grpo_groups.jsonl}"
+SUBSET_ROOT="${SUBSET_ROOT:-${WAM_ROOT}/results_grpo_actor_replay_subsets/${RUN_ID}}"
+RAW_SUBSET_JSONL="${RAW_SUBSET_JSONL:-${SUBSET_ROOT}/source_subset/grpo_groups.jsonl}"
+RAW_SUBSET_MANIFEST="${RAW_SUBSET_MANIFEST:-${SUBSET_ROOT}/source_subset/manifest.json}"
+MATERIALIZED_GROUPS_PATH="${MATERIALIZED_GROUPS_PATH:-${SUBSET_ROOT}/groups/grpo_groups.jsonl}"
+MATERIALIZED_MANIFEST="${MATERIALIZED_MANIFEST:-${SUBSET_ROOT}/manifest.json}"
+VALIDATION_JSON="${VALIDATION_JSON:-${SUBSET_ROOT}/validation_path_only.json}"
+
+SUBSET_TASKS="${SUBSET_TASKS:-}"
+SUBSET_MAX_GROUPS="${SUBSET_MAX_GROUPS:-1}"
+SUBSET_SAMPLES_PER_REWARD="${SUBSET_SAMPLES_PER_REWARD:-1}"
+SUBSET_MAX_ARTIFACTS_PER_SAMPLE="${SUBSET_MAX_ARTIFACTS_PER_SAMPLE:-2}"
+SUBSET_REQUIRE_ARTIFACTS="${SUBSET_REQUIRE_ARTIFACTS:-true}"
+SUBSET_PRESERVE_ADVANTAGES="${SUBSET_PRESERVE_ADVANTAGES:-false}"
+SUBSET_PRESERVE_GROUP_ID="${SUBSET_PRESERVE_GROUP_ID:-false}"
+SUBSET_GROUP_ID_SUFFIX="${SUBSET_GROUP_ID_SUFFIX:-_subset}"
+MATERIALIZE_LINK_MODE="${MATERIALIZE_LINK_MODE:-symlink}"
+MATERIALIZE_INCLUDE_REPLAY_CONTEXT="${MATERIALIZE_INCLUDE_REPLAY_CONTEXT:-true}"
+MATERIALIZE_OVERWRITE="${MATERIALIZE_OVERWRITE:-true}"
+VALIDATE_INSPECT_ARTIFACTS="${VALIDATE_INSPECT_ARTIFACTS:-false}"
+
+export RUN_ID RESULTS_ROOT SOURCE_GROUPS_PATH SUBSET_ROOT RAW_SUBSET_JSONL RAW_SUBSET_MANIFEST
+export MATERIALIZED_GROUPS_PATH MATERIALIZED_MANIFEST VALIDATION_JSON
+export SUBSET_TASKS SUBSET_MAX_GROUPS SUBSET_SAMPLES_PER_REWARD SUBSET_MAX_ARTIFACTS_PER_SAMPLE
+export SUBSET_REQUIRE_ARTIFACTS SUBSET_PRESERVE_ADVANTAGES SUBSET_PRESERVE_GROUP_ID SUBSET_GROUP_ID_SUFFIX
+export MATERIALIZE_LINK_MODE MATERIALIZE_INCLUDE_REPLAY_CONTEXT MATERIALIZE_OVERWRITE VALIDATE_INSPECT_ARTIFACTS
+
+print_job_context
+echo "RUN_ID=${RUN_ID}"
+echo "RESULTS_ROOT=${RESULTS_ROOT}"
+echo "SOURCE_GROUPS_PATH=${SOURCE_GROUPS_PATH}"
+echo "SUBSET_ROOT=${SUBSET_ROOT}"
+echo "RAW_SUBSET_JSONL=${RAW_SUBSET_JSONL}"
+echo "MATERIALIZED_GROUPS_PATH=${MATERIALIZED_GROUPS_PATH}"
+echo "SUBSET_TASKS=${SUBSET_TASKS}"
+echo "SUBSET_MAX_GROUPS=${SUBSET_MAX_GROUPS}"
+echo "SUBSET_SAMPLES_PER_REWARD=${SUBSET_SAMPLES_PER_REWARD}"
+echo "SUBSET_MAX_ARTIFACTS_PER_SAMPLE=${SUBSET_MAX_ARTIFACTS_PER_SAMPLE}"
+echo "MATERIALIZE_LINK_MODE=${MATERIALIZE_LINK_MODE}"
+echo "MATERIALIZE_INCLUDE_REPLAY_CONTEXT=${MATERIALIZE_INCLUDE_REPLAY_CONTEXT}"
+echo "VALIDATE_INSPECT_ARTIFACTS=${VALIDATE_INSPECT_ARTIFACTS}"
+
+container_exec_cpu <<'CONTAINER'
+set -euo pipefail
+
+cd "${REPO_ROOT}"
+
+if [ ! -x "${WAN_VA_VENV}/bin/python" ]; then
+    echo "Missing venv: ${WAN_VA_VENV}" >&2
+    echo "Run jobs/myriad/00_install_container_env.sh first." >&2
+    exit 1
+fi
+
+source "${WAN_VA_VENV}/bin/activate"
+
+if [ ! -f "${SOURCE_GROUPS_PATH}" ]; then
+    echo "Missing source groups file: ${SOURCE_GROUPS_PATH}" >&2
+    exit 2
+fi
+
+mkdir -p "${SUBSET_ROOT}" "$(dirname "${RAW_SUBSET_JSONL}")" "$(dirname "${MATERIALIZED_GROUPS_PATH}")"
+
+TASK_ARGS=()
+if [ -n "${SUBSET_TASKS}" ]; then
+    # shellcheck disable=SC2206
+    TASK_ITEMS=(${SUBSET_TASKS})
+    TASK_ARGS=(--tasks "${TASK_ITEMS[@]}")
+fi
+
+SUBSET_ARGS=()
+if [ -n "${SUBSET_MAX_GROUPS}" ]; then
+    SUBSET_ARGS+=(--max-groups "${SUBSET_MAX_GROUPS}")
+fi
+if [ -n "${SUBSET_SAMPLES_PER_REWARD}" ]; then
+    SUBSET_ARGS+=(--samples-per-reward "${SUBSET_SAMPLES_PER_REWARD}")
+fi
+if [ -n "${SUBSET_MAX_ARTIFACTS_PER_SAMPLE}" ]; then
+    SUBSET_ARGS+=(--max-artifacts-per-sample "${SUBSET_MAX_ARTIFACTS_PER_SAMPLE}")
+fi
+if [ "${SUBSET_REQUIRE_ARTIFACTS}" = "true" ]; then
+    SUBSET_ARGS+=(--require-artifacts)
+fi
+if [ "${SUBSET_PRESERVE_ADVANTAGES}" = "true" ]; then
+    SUBSET_ARGS+=(--preserve-advantages)
+fi
+if [ "${SUBSET_PRESERVE_GROUP_ID}" = "true" ]; then
+    SUBSET_ARGS+=(--preserve-group-id)
+fi
+
+python tools/subset_grpo_groups.py \
+    "${SOURCE_GROUPS_PATH}" \
+    "${TASK_ARGS[@]}" \
+    "${SUBSET_ARGS[@]}" \
+    --group-id-suffix "${SUBSET_GROUP_ID_SUFFIX}" \
+    --out-jsonl "${RAW_SUBSET_JSONL}" \
+    --out-manifest "${RAW_SUBSET_MANIFEST}"
+
+MATERIALIZE_ARGS=()
+if [ "${MATERIALIZE_INCLUDE_REPLAY_CONTEXT}" = "true" ]; then
+    MATERIALIZE_ARGS+=(--include-replay-context)
+fi
+if [ "${MATERIALIZE_OVERWRITE}" = "true" ]; then
+    MATERIALIZE_ARGS+=(--overwrite)
+fi
+
+python tools/materialize_grpo_artifacts.py \
+    "${RAW_SUBSET_JSONL}" \
+    --out-root "${SUBSET_ROOT}" \
+    --out-jsonl "${MATERIALIZED_GROUPS_PATH}" \
+    --out-manifest "${MATERIALIZED_MANIFEST}" \
+    --link-mode "${MATERIALIZE_LINK_MODE}" \
+    "${MATERIALIZE_ARGS[@]}"
+
+VALIDATE_ARGS=()
+if [ "${VALIDATE_INSPECT_ARTIFACTS}" = "true" ]; then
+    VALIDATE_ARGS+=(--inspect-artifacts --require-replay-context)
+fi
+
+python tools/validate_grpo_dataset.py \
+    "${MATERIALIZED_GROUPS_PATH}" \
+    "${VALIDATE_ARGS[@]}" \
+    --out-summary "${VALIDATION_JSON}" \
+    --fail-on-error
+
+du -sh "${SUBSET_ROOT}" || true
+find "${SUBSET_ROOT}" -type l | wc -l || true
+echo "Actor replay subset preparation complete: ${SUBSET_ROOT}"
+CONTAINER

@@ -136,6 +136,18 @@ For real actor replay debugging, do not train directly from a huge k=8
 replay-context run unless the full dataset is intentionally needed. First build
 a small JSON-only subset, then materialize only the referenced files.
 
+For repeatable Myriad runs, use:
+
+```bash
+SOURCE_GROUPS_PATH=/path/to/grpo_groups.jsonl \
+SUBSET_ROOT=/home/zcably0/Scratch/wam-rl/results_grpo_actor_replay_subsets/<name> \
+SUBSET_TASKS="move_stapler_pad" \
+SUBSET_MAX_GROUPS=1 \
+SUBSET_SAMPLES_PER_REWARD=1 \
+SUBSET_MAX_ARTIFACTS_PER_SAMPLE=2 \
+qsub -V -N wam_grpo_subset jobs/myriad/35_prepare_actor_replay_subset.sh
+```
+
 Example for one success and one failure sample, with two artifact refs per
 sample:
 

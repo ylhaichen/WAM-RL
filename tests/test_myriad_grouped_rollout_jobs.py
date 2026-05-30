@@ -159,6 +159,20 @@ def test_actor_replay_training_job_runs_real_actor_trainer():
     assert "--progress-every \"${GRPO_PROGRESS_EVERY}\"" in text
 
 
+def test_actor_replay_subset_job_materializes_lightweight_dataset():
+    text = Path("jobs/myriad/35_prepare_actor_replay_subset.sh").read_text()
+
+    assert "tools/subset_grpo_groups.py" in text
+    assert "tools/materialize_grpo_artifacts.py" in text
+    assert "tools/validate_grpo_dataset.py" in text
+    assert 'MATERIALIZE_LINK_MODE="${MATERIALIZE_LINK_MODE:-symlink}"' in text
+    assert 'MATERIALIZE_INCLUDE_REPLAY_CONTEXT="${MATERIALIZE_INCLUDE_REPLAY_CONTEXT:-true}"' in text
+    assert '--link-mode "${MATERIALIZE_LINK_MODE}"' in text
+    assert "--include-replay-context" in text
+    assert 'VALIDATE_INSPECT_ARTIFACTS="${VALIDATE_INSPECT_ARTIFACTS:-false}"' in text
+    assert "Actor replay subset preparation complete" in text
+
+
 def test_myriad_common_initializes_modules_for_interactive_shells():
     text = Path("jobs/myriad/common.sh").read_text()
 
