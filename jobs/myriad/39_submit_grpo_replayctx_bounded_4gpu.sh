@@ -70,6 +70,7 @@ CHECK_SCRATCH_HEADROOM="${CHECK_SCRATCH_HEADROOM:-1}"
 SCRATCH_PATH="${SCRATCH_PATH:-/home/zcably0/Scratch}"
 MIN_SCRATCH_HEADROOM_GB="${MIN_SCRATCH_HEADROOM_GB:-50}"
 STORAGE_BUDGET_MODE="${STORAGE_BUDGET_MODE:-attempt}"
+PLAN_JSON="${PLAN_JSON:-}"
 RUN_ID="${RUN_ID:-grpo_replayctx_bounded_k${GROUP_SIZE}_g${GROUPS_PER_TASK}_s${ACTION_NUM_INFERENCE_STEPS}_$(date +%Y%m%d_%H%M%S)}"
 
 if [ ! -f "${SUBMIT_SCRIPT}" ]; then
@@ -99,10 +100,11 @@ Bounded replay-context GRPO collection
   SCRATCH_PATH=${SCRATCH_PATH}
   MIN_SCRATCH_HEADROOM_GB=${MIN_SCRATCH_HEADROOM_GB}
   STORAGE_BUDGET_MODE=${STORAGE_BUDGET_MODE}
+  PLAN_JSON=${PLAN_JSON}
   DRY_RUN=${DRY_RUN}
 EOF
 
-python tools/plan_replay_context_collection.py \
+PLAN_ARGS=(
     --task-names "${TASK_NAMES}" \
     --group-size "${GROUP_SIZE}" \
     --groups-per-task "${GROUPS_PER_TASK}" \
@@ -115,8 +117,16 @@ python tools/plan_replay_context_collection.py \
     --check-scratch-headroom "${CHECK_SCRATCH_HEADROOM}" \
     --scratch-path "${SCRATCH_PATH}" \
     --min-scratch-headroom-gb "${MIN_SCRATCH_HEADROOM_GB}" \
-    --dry-run "${DRY_RUN}" \
-    --format shell
+    --dry-run "${DRY_RUN}"
+)
+
+if [ -n "${PLAN_JSON}" ]; then
+    mkdir -p "$(dirname "${PLAN_JSON}")"
+    python tools/plan_replay_context_collection.py "${PLAN_ARGS[@]}" --format json > "${PLAN_JSON}"
+    echo "Wrote replay-context collection plan: ${PLAN_JSON}"
+fi
+
+python tools/plan_replay_context_collection.py "${PLAN_ARGS[@]}" --format shell
 
 if [ "${DRY_RUN}" = "1" ]; then
     echo "DRY_RUN=1, not submitting ${JOB_NAME}."

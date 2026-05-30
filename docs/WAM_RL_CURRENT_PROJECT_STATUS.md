@@ -175,7 +175,8 @@ Implemented:
   groups-file and storage-audit prechecks;
 - storage-bounded replay-context collection submission with
   `jobs/myriad/39_submit_grpo_replayctx_bounded_4gpu.sh`, including
-  attempt-budget-based Scratch headroom checks;
+  attempt-budget-based Scratch headroom checks and optional `PLAN_JSON`
+  persistence for audit records;
 - standalone replay-context collection storage planning with
   `tools/plan_replay_context_collection.py`;
 - operational runbook in `docs/WAM_RL_ACTOR_REPLAY_RUNBOOK.md`;

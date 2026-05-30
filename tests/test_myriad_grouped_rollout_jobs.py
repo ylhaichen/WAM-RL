@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 from pathlib import Path
@@ -588,6 +589,9 @@ def test_bounded_replayctx_submitter_uses_storage_safe_defaults():
     assert 'CHECK_SCRATCH_HEADROOM="${CHECK_SCRATCH_HEADROOM:-1}"' in text
     assert 'MIN_SCRATCH_HEADROOM_GB="${MIN_SCRATCH_HEADROOM_GB:-50}"' in text
     assert 'STORAGE_BUDGET_MODE="${STORAGE_BUDGET_MODE:-attempt}"' in text
+    assert 'PLAN_JSON="${PLAN_JSON:-}"' in text
+    assert 'PLAN_ARGS=(' in text
+    assert 'Wrote replay-context collection plan' in text
     assert "tools/plan_replay_context_collection.py" in text
     assert '--task-names "${TASK_NAMES}"' in text
     assert '--group-size "${GROUP_SIZE}"' in text
@@ -641,6 +645,44 @@ def test_bounded_replayctx_dry_run_budgets_attempts(tmp_path):
     assert "storage_budget_mode=attempt" in result.stdout
     assert "storage_budget_estimate_gb=48.00" in result.stdout
     assert "DRY_RUN=1, not submitting" in result.stdout
+
+
+def test_bounded_replayctx_dry_run_can_write_plan_json(tmp_path):
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    qsub = fake_bin / "qsub"
+    qsub.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+    qsub.chmod(0o755)
+    plan_json = tmp_path / "plans" / "collection_plan.json"
+
+    env = os.environ.copy()
+    env.update(
+        {
+            "PATH": f"{fake_bin}:{env['PATH']}",
+            "TASK_NAMES": "move_stapler_pad",
+            "GROUP_SIZE": "4",
+            "GROUPS_PER_TASK": "1",
+            "GROUP_MAX_ATTEMPTS": "1",
+            "STRICT_GRPO_CAPTURE_MAX_CHUNKS": "1",
+            "REPLAY_CONTEXT_ESTIMATE_GB": "4",
+            "CHECK_SCRATCH_HEADROOM": "0",
+            "PLAN_JSON": str(plan_json),
+        }
+    )
+
+    result = subprocess.run(
+        ["bash", "jobs/myriad/39_submit_grpo_replayctx_bounded_4gpu.sh", "--dry-run"],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert f"Wrote replay-context collection plan: {plan_json}" in result.stdout
+    payload = json.loads(plan_json.read_text(encoding="utf-8"))
+    assert payload["attempt_budget_estimate_gb"] == 16.0
+    assert payload["dry_run"] is True
 
 
 def test_bounded_replayctx_dry_run_can_budget_accepted_only(tmp_path):

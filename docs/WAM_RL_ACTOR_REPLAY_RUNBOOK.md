@@ -100,6 +100,7 @@ bounded wrapper and dry-run it before submission:
 
 ```bash
 DRY_RUN=1 \
+PLAN_JSON=/home/zcably0/Scratch/wam-rl/debug_logs/storage_audits/<run>_collection_plan.json \
 TASK_NAMES="move_stapler_pad" \
 GROUP_SIZE=8 \
 GROUPS_PER_TASK=1 \
@@ -114,7 +115,8 @@ default. The wrapper also prints a replay-context storage estimate. The default
 estimate is 4.0GB/context for new action-scale-one collections, where replay
 context capture prunes the unused CFG negative action branch. Override
 `REPLAY_CONTEXT_ESTIMATE_GB` upward for action-guided (`action_guidance_scale >
-1`) or unpruned legacy collections.
+1`) or unpruned legacy collections. If `PLAN_JSON` is set, the wrapper writes
+the same estimate as JSON for later audit.
 
 The storage gate defaults to `STORAGE_BUDGET_MODE=attempt`, so it budgets for
 the configured seed-search attempt budget, not only the final accepted group.
