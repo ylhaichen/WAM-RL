@@ -211,6 +211,10 @@ current system:
   `jobs/myriad/37_submit_actor_eval_pair_smoke.sh` so both runs share task,
   prompt, env seed, sampling seed, and action-step settings while using
   separate ports.
+- For baseline repeatability controls, prefer
+  `jobs/myriad/38_submit_eval_repeatability_pair.sh` so repeated baseline runs
+  use the same eval controls and produce a ready-to-run repeatability summary
+  command.
 - Keep `SAVE_SERVER_DEBUG_TENSORS=false` for routine eval jobs so the server
   does not write per-chunk latent/action/observation tensors unless a diagnosis
   needs them.

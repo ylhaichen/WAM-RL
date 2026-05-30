@@ -176,6 +176,8 @@ Implemented:
   control mismatches;
 - repeatability summaries across repeated eval roots with
   `tools/summarize_robotwin_repeatability.py`;
+- paired baseline repeatability submission with
+  `jobs/myriad/38_submit_eval_repeatability_pair.sh`;
 - conservative actor eval promotion gating with
   `tools/gate_actor_eval_promotion.py`;
 - one-GPU eval job support for actor replay checkpoint loading.

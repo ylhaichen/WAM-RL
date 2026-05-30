@@ -241,6 +241,28 @@ def test_actor_eval_pair_smoke_submitter_uses_matched_eval_controls():
     assert '"${cmd[@]}"' in text
 
 
+def test_eval_repeatability_pair_submitter_uses_matched_baseline_controls():
+    text = Path("jobs/myriad/38_submit_eval_repeatability_pair.sh").read_text()
+
+    assert "10_eval_smoke_1gpu.sh" in text
+    assert 'TASK_NAME="${TASK_NAME:-move_stapler_pad}"' in text
+    assert 'TEST_NUM="${TEST_NUM:-10}"' in text
+    assert 'ACTION_NUM_INFERENCE_STEPS="${ACTION_NUM_INFERENCE_STEPS:-10}"' in text
+    assert 'PROMPT_INDEX="${PROMPT_INDEX:-0}"' in text
+    assert 'SAMPLING_SEED="${SAMPLING_SEED:-12345}"' in text
+    assert 'SAMPLING_SEED_PER_ENV="${SAMPLING_SEED_PER_ENV:-true}"' in text
+    assert 'SAVE_SERVER_DEBUG_TENSORS="${SAVE_SERVER_DEBUG_TENSORS:-false}"' in text
+    assert 'SEED="${SEED:-0}"' in text
+    assert '"ACTOR_REPLAY_CHECKPOINT_PATH="' in text
+    assert 'RUN_A_PORT="${RUN_A_PORT:-29856}"' in text
+    assert 'RUN_B_PORT="${RUN_B_PORT:-29956}"' in text
+    assert "RUN_A_PORT and RUN_B_PORT must differ" in text
+    assert "tools/summarize_robotwin_repeatability.py" in text
+    assert "tools/gate_actor_eval_promotion.py" in text
+    assert 'DRY_RUN="${DRY_RUN:-0}"' in text
+    assert '"${cmd[@]}"' in text
+
+
 def test_myriad_common_initializes_modules_for_interactive_shells():
     text = Path("jobs/myriad/common.sh").read_text()
 

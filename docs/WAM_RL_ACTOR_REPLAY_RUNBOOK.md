@@ -268,6 +268,12 @@ interpreting aggregate success rates.
 For baseline repeatability controls across two or more repeated eval roots:
 
 ```bash
+RUN_ID=baseline_repeatability_<date> \
+TASK_NAME=move_stapler_pad \
+TEST_NUM=10 \
+SEED=0 \
+jobs/myriad/38_submit_eval_repeatability_pair.sh
+
 python tools/summarize_robotwin_repeatability.py \
   --run baseline_a=/path/to/baseline_eval_a \
   --run baseline_b=/path/to/baseline_eval_b \
