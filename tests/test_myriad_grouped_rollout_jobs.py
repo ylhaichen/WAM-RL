@@ -196,6 +196,26 @@ def test_actor_replay_subset_smoke_submitter_uses_low_resource_defaults():
     assert 'qsub "${QSUB_ARGS[@]}" "${JOB_SCRIPT}"' in text
 
 
+def test_actor_eval_pair_smoke_submitter_uses_matched_eval_controls():
+    text = Path("jobs/myriad/37_submit_actor_eval_pair_smoke.sh").read_text()
+
+    assert "10_eval_smoke_1gpu.sh" in text
+    assert 'TASK_NAME="${TASK_NAME:-move_stapler_pad}"' in text
+    assert 'TEST_NUM="${TEST_NUM:-2}"' in text
+    assert 'ACTION_NUM_INFERENCE_STEPS="${ACTION_NUM_INFERENCE_STEPS:-10}"' in text
+    assert 'PROMPT_INDEX="${PROMPT_INDEX:-0}"' in text
+    assert 'SAMPLING_SEED="${SAMPLING_SEED:-12345}"' in text
+    assert 'SAMPLING_SEED_PER_ENV="${SAMPLING_SEED_PER_ENV:-true}"' in text
+    assert 'BASELINE_PORT="${BASELINE_PORT:-29656}"' in text
+    assert 'ACTOR_PORT="${ACTOR_PORT:-29756}"' in text
+    assert "BASELINE_PORT and ACTOR_PORT must differ" in text
+    assert "Set ACTOR_REPLAY_CHECKPOINT_PATH" in text
+    assert '"ACTOR_REPLAY_CHECKPOINT_PATH=${checkpoint}"' in text
+    assert "tools/summarize_actor_eval_pair.py" in text
+    assert 'DRY_RUN="${DRY_RUN:-0}"' in text
+    assert '"${cmd[@]}"' in text
+
+
 def test_myriad_common_initializes_modules_for_interactive_shells():
     text = Path("jobs/myriad/common.sh").read_text()
 

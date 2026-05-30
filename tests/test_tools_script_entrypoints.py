@@ -76,6 +76,19 @@ def test_compare_robotwin_eval_episodes_help_does_not_require_external_pythonpat
     assert "--run" in result.stdout
 
 
+def test_summarize_actor_eval_pair_help_does_not_require_external_pythonpath():
+    result = subprocess.run(
+        [sys.executable, "tools/summarize_actor_eval_pair.py", "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "Summarize a matched baseline-vs-actor RoboTwin eval pair" in result.stdout
+    assert "--baseline" in result.stdout
+
+
 def test_subset_grpo_groups_help_does_not_require_external_pythonpath():
     result = subprocess.run(
         [sys.executable, "tools/subset_grpo_groups.py", "--help"],

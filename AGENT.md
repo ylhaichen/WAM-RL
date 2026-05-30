@@ -197,6 +197,13 @@ current system:
   `tools/summarize_actor_replay_training.py` to inspect validation status,
   final metrics, checkpoint presence, and failure diagnostics before planning
   evaluation.
+- For baseline-vs-actor eval smoke, prefer
+  `jobs/myriad/37_submit_actor_eval_pair_smoke.sh` so both runs share task,
+  prompt, env seed, sampling seed, and action-step settings while using
+  separate ports.
+- After paired eval finishes, use `tools/summarize_actor_eval_pair.py` to
+  write aggregate summaries, per-episode exports, and matched comparison files
+  before interpreting any success-rate difference.
 - The first real update surface should be action-specific modules:
 
 ```text

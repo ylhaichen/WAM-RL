@@ -194,15 +194,25 @@ SAMPLING_SEED_PER_ENV=true
 ACTION_NUM_INFERENCE_STEPS=10
 ```
 
-Run baseline and actor checkpoint evals on the same task, prompt, env seeds,
-and sampling seed policy. Then compare per-episode results:
+Submit baseline and actor checkpoint evals on the same task, prompt, env seeds,
+and sampling seed policy:
 
 ```bash
-python tools/compare_robotwin_eval_episodes.py \
-  --run baseline=/path/to/baseline_eval \
-  --run actor=/path/to/actor_eval \
-  --out-json /path/to/comparison.json \
-  --out-csv /path/to/comparison.csv
+ACTOR_REPLAY_CHECKPOINT_PATH=/path/to/actor/checkpoint.pt \
+RUN_ID=actor_eval_pair_<date> \
+TASK_NAME=move_stapler_pad \
+TEST_NUM=2 \
+jobs/myriad/37_submit_actor_eval_pair_smoke.sh
+```
+
+After both jobs finish, summarize aggregate results, per-episode exports, and
+matched comparisons in one pass:
+
+```bash
+python tools/summarize_actor_eval_pair.py \
+  --baseline /path/to/baseline_eval \
+  --actor /path/to/actor_eval \
+  --out-root /path/to/comparison_dir
 ```
 
 Treat `n <= 5` as smoke only. Because RoboTwin closed-loop execution can diverge

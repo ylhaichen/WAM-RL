@@ -35,7 +35,10 @@ and the strict GRPO artifact contract is documented in
 
 Do not interpret current actor replay smoke runs as benchmark improvement
 claims. Real LingBot-VA actor replay is implemented, but policy improvement
-still requires larger controlled datasets and paired RoboTwin evaluation.
+still requires larger controlled datasets and paired RoboTwin evaluation. For
+smoke-scale paired evaluation, use
+`jobs/myriad/37_submit_actor_eval_pair_smoke.sh` followed by
+`tools/summarize_actor_eval_pair.py`.
 
 
 

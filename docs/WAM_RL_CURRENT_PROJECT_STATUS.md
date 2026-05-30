@@ -164,6 +164,9 @@ Implemented:
 - per-episode export in `tools/summarize_robotwin_results.py`;
 - matched per-episode eval comparison with
   `tools/compare_robotwin_eval_episodes.py`;
+- paired baseline-vs-actor eval smoke submission with
+  `jobs/myriad/37_submit_actor_eval_pair_smoke.sh`;
+- paired eval summary/export with `tools/summarize_actor_eval_pair.py`;
 - one-GPU eval job support for actor replay checkpoint loading.
 
 Observed behavior:
@@ -296,8 +299,9 @@ GRPO_PROGRESS_EVERY=50
 
 1. Use `tools/subset_grpo_groups.py` to create small actor replay train/debug
    subsets before running expensive jobs.
-2. Use `tools/compare_robotwin_eval_episodes.py` for baseline-vs-actor eval
-   comparisons before interpreting aggregate success rates.
+2. Use `jobs/myriad/37_submit_actor_eval_pair_smoke.sh` and
+   `tools/summarize_actor_eval_pair.py` for baseline-vs-actor eval comparisons
+   before interpreting aggregate success rates.
 3. Run a controlled actor replay training/eval loop on `move_stapler_pad` with
    more than one mixed group.
 4. Only after a reliable signal appears, broaden to `turn_switch` and

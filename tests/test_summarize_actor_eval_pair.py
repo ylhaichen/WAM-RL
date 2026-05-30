@@ -1,0 +1,55 @@
+import json
+
+from tools.summarize_actor_eval_pair import summarize_eval_pair
+
+
+def _res(root, task, succ, total):
+    path = root / "metrics" / task / "res.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"succ_num": succ, "total_num": total}) + "\n", encoding="utf-8")
+
+
+def _episode(root, task, index, seed, success, sampling_seed=12345, prompt_index=0):
+    path = root / "rollouts" / task / f"episode_{index}.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            {
+                "task": task,
+                "episode_index": index,
+                "env_seed": seed,
+                "planned_seed": seed,
+                "success": success,
+                "action_count": 10 + index,
+                "take_action_cnt": 9 + index,
+                "step_lim": 400,
+                "sampling_seed": sampling_seed,
+                "prompt_index": prompt_index,
+                "prompt": "move the stapler pad",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def test_summarize_eval_pair_writes_summaries_and_comparison(tmp_path):
+    baseline = tmp_path / "baseline"
+    actor = tmp_path / "actor"
+    out = tmp_path / "pair"
+    _res(baseline, "move_stapler_pad", 1, 2)
+    _res(actor, "move_stapler_pad", 2, 2)
+    _episode(baseline, "move_stapler_pad", 0, 10000, False)
+    _episode(baseline, "move_stapler_pad", 1, 10001, True)
+    _episode(actor, "move_stapler_pad", 0, 10000, True)
+    _episode(actor, "move_stapler_pad", 1, 10001, True)
+
+    summary = summarize_eval_pair(baseline, actor, out)
+
+    assert summary["matched_episode_count"] == 2
+    assert summary["pairwise_vs_first"][0]["improved_count"] == 1
+    assert summary["pairwise_vs_first"][0]["regressed_count"] == 0
+    assert (out / "baseline_summary.csv").exists()
+    assert (out / "actor_summary.csv").exists()
+    assert json.loads((out / "comparison.json").read_text())["matched_episode_count"] == 2
+    assert "Tiny evals are smoke checks only" in (out / "summary.md").read_text()
