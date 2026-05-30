@@ -7,6 +7,8 @@ import torch
 from tools.summarize_actor_replay_training import (
     discover_output_dirs,
     format_text_report,
+    load_job_log_configs,
+    parse_actor_replay_job_log,
     summarize_actor_replay_output,
     write_csv_report,
     write_markdown_report,
@@ -203,6 +205,46 @@ def test_summarize_actor_replay_output_falls_back_to_checkpoint_config(tmp_path)
     assert summary["logprob_reduction"] == "sum"
     assert summary["logprob_std_floor"] == 0.2
     assert summary["trainable_mode"] == "last_block"
+    assert "missing_training_config" not in summary["warnings"]
+
+
+def test_summarize_actor_replay_output_falls_back_to_job_log_config(tmp_path):
+    root = tmp_path / "run"
+    _write_output(root)
+    metrics_path = root / "metrics.json"
+    metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+    del metrics["config"]
+    metrics_path.write_text(json.dumps(metrics) + "\n", encoding="utf-8")
+    job_log = tmp_path / "wam_grpo_actor_subset.o123"
+    job_log.write_text(
+        "\n".join(
+            [
+                f"GRPO_OUTPUT_DIR={root}",
+                "GRPO_CONFIG_NAME=robotwin_grpo_train",
+                "GRPO_LR=0.0000001",
+                "GRPO_ACTION_NUM_INFERENCE_STEPS=10",
+                "GRPO_LOGPROB_REDUCTION=mean",
+                "GRPO_LOGPROB_STD_FLOOR=0.1",
+                "GRPO_TRAINABLE_MODE=action_heads",
+                f"Actor replay GRPO training complete: {root}",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    output_dir, config = parse_actor_replay_job_log(job_log)
+    summary = summarize_actor_replay_output(root, job_log_configs=load_job_log_configs([job_log]))
+
+    assert output_dir == root
+    assert config["learning_rate"] == 1e-7
+    assert summary["config_source"] == "job_log"
+    assert summary["config_name"] == "robotwin_grpo_train"
+    assert summary["learning_rate"] == 1e-7
+    assert summary["action_num_inference_steps"] == 10
+    assert summary["logprob_reduction"] == "mean"
+    assert summary["logprob_std_floor"] == 0.1
+    assert summary["trainable_mode"] == "action_heads"
     assert "missing_training_config" not in summary["warnings"]
 
 

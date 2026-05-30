@@ -381,6 +381,7 @@ For a sweep table over recent actor replay runs:
 python tools/summarize_actor_replay_training.py \
   --discover-root /home/zcably0/Scratch/wam-rl/results_grpo_actor_replay \
   --latest 20 \
+  --job-log-glob 'logs/jobs/wam_grpo_actor*.o*' \
   --print-format table \
   --out-json /home/zcably0/Scratch/wam-rl/results_grpo_actor_replay/recent_summary.json \
   --out-csv /home/zcably0/Scratch/wam-rl/results_grpo_actor_replay/recent_summary.csv \
@@ -392,7 +393,11 @@ in `metrics.json` for new runs (`model_path`, `config_name`, `git_commit`,
 `learning_rate`, `action_num_inference_steps`, `logprob_reduction`,
 `logprob_std_floor`, and `trainable_mode`). If an older run's `metrics.json`
 predates config logging, the summary tool falls back to the lightweight
-`checkpoint.pt` config and marks `config_source=checkpoint`.
+`checkpoint.pt` config and marks `config_source=checkpoint`. If both
+`metrics.json` and `checkpoint.pt` predate config logging, pass
+`--job-log-glob 'logs/jobs/wam_grpo_actor*.o*'` so the tool can recover the
+echoed `GRPO_*` config from the matching Myriad job log and mark
+`config_source=job_log`.
 
 The checkpoint inspection report includes trainable tensor statistics and, for
 new checkpoints, the saved actor replay training config/provenance

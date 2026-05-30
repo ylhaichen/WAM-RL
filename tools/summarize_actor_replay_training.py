@@ -5,8 +5,10 @@ from __future__ import annotations
 
 import argparse
 import csv
+import glob
 import json
 from pathlib import Path
+from typing import Iterable
 
 CONFIG_FIELDS = (
     "model_path",
@@ -20,7 +22,7 @@ CONFIG_FIELDS = (
 )
 
 
-def summarize_actor_replay_output(output_dir: Path) -> dict:
+def summarize_actor_replay_output(output_dir: Path, *, job_log_configs: dict[str, dict] | None = None) -> dict:
     root = output_dir.expanduser()
     metrics_path = root / "metrics.json"
     validation_path = root / "input_dataset_validation.json"
@@ -33,7 +35,7 @@ def summarize_actor_replay_output(output_dir: Path) -> dict:
     last_step = history[-1] if history else {}
     last_step_summary = _last_step_summary(last_step)
     checkpoint_path = Path(result.get("checkpoint_path") or root / "checkpoint.pt").expanduser()
-    config, config_source = _training_config(metrics, checkpoint_path)
+    config, config_source = _training_config(metrics, checkpoint_path, root, job_log_configs or {})
 
     summary = {
         "output_dir": str(root),
@@ -95,6 +97,38 @@ def discover_output_dirs(root: Path, *, pattern: str = "*", latest: int | None =
     if latest is not None:
         dirs = dirs[-latest:]
     return dirs
+
+
+def load_job_log_configs(paths: Iterable[Path]) -> dict[str, dict]:
+    configs: dict[str, dict] = {}
+    for path in paths:
+        output_dir, config = parse_actor_replay_job_log(path)
+        if output_dir and config:
+            configs[_path_key(output_dir)] = config
+    return configs
+
+
+def parse_actor_replay_job_log(path: Path) -> tuple[Path | None, dict]:
+    output_dir: Path | None = None
+    config: dict = {}
+    if not path.expanduser().exists():
+        return None, {}
+    for raw_line in path.expanduser().read_text(encoding="utf-8", errors="replace").splitlines():
+        line = raw_line.strip()
+        if line.startswith("GRPO_OUTPUT_DIR="):
+            output_dir = Path(line.split("=", 1)[1])
+            continue
+        if line.startswith("Actor replay GRPO training complete:"):
+            output_dir = Path(line.split(":", 1)[1].strip())
+            continue
+        key, sep, value = line.partition("=")
+        if not sep:
+            continue
+        field = _JOB_LOG_CONFIG_FIELDS.get(key)
+        if field is None:
+            continue
+        config[field] = _job_log_config_value(field, value)
+    return output_dir, config
 
 
 def write_json_report(summaries: list[dict], out_json: Path) -> None:
@@ -217,13 +251,41 @@ def _read_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _training_config(metrics: dict, checkpoint_path: Path) -> tuple[dict, str]:
+_JOB_LOG_CONFIG_FIELDS = {
+    "GRPO_CONFIG_NAME": "config_name",
+    "GRPO_LR": "learning_rate",
+    "GRPO_ACTION_NUM_INFERENCE_STEPS": "action_num_inference_steps",
+    "GRPO_LOGPROB_REDUCTION": "logprob_reduction",
+    "GRPO_LOGPROB_STD_FLOOR": "logprob_std_floor",
+    "GRPO_TRAINABLE_MODE": "trainable_mode",
+}
+
+
+def _job_log_config_value(field: str, value: str):
+    if field in {"learning_rate", "logprob_std_floor"}:
+        return _number(value)
+    if field == "action_num_inference_steps":
+        number = _number(value)
+        return int(number) if isinstance(number, (int, float)) and not isinstance(number, bool) else number
+    return value
+
+
+def _training_config(
+    metrics: dict,
+    checkpoint_path: Path,
+    output_dir: Path,
+    job_log_configs: dict[str, dict],
+) -> tuple[dict, str]:
     if isinstance(metrics, dict) and isinstance(metrics.get("config"), dict) and metrics["config"]:
         return _scalar_config(metrics["config"]), "metrics"
 
     checkpoint_config = _read_checkpoint_config(checkpoint_path)
     if checkpoint_config:
         return checkpoint_config, "checkpoint"
+
+    job_log_config = job_log_configs.get(_path_key(output_dir))
+    if job_log_config:
+        return _scalar_config(job_log_config), "job_log"
 
     return {}, "missing"
 
@@ -248,6 +310,10 @@ def _scalar_config(config: dict) -> dict:
 
 def _is_json_scalar(value) -> bool:
     return value is None or isinstance(value, (str, int, float, bool))
+
+
+def _path_key(path: Path) -> str:
+    return str(path.expanduser())
 
 
 def _number(value):
@@ -348,6 +414,12 @@ def main() -> None:
     parser.add_argument("--discover-pattern", default="*", help="Glob pattern for --discover-root child directories.")
     parser.add_argument("--latest", type=int, default=None, help="Keep only the latest N discovered/explicit run dirs.")
     parser.add_argument(
+        "--job-log-glob",
+        action="append",
+        default=[],
+        help="Optional job-log glob used to recover config for older actor replay outputs.",
+    )
+    parser.add_argument(
         "--print-format",
         choices=("json", "table"),
         default="json",
@@ -369,7 +441,12 @@ def main() -> None:
     if not output_dirs:
         parser.error("provide at least one output directory or --discover-root")
 
-    summaries = [summarize_actor_replay_output(path) for path in output_dirs]
+    job_log_paths: list[Path] = []
+    for pattern in args.job_log_glob:
+        job_log_paths.extend(Path(item) for item in glob.glob(pattern))
+    job_log_configs = load_job_log_configs(job_log_paths)
+
+    summaries = [summarize_actor_replay_output(path, job_log_configs=job_log_configs) for path in output_dirs]
     report = {"runs": summaries}
     if args.out_json is not None:
         write_json_report(summaries, args.out_json)

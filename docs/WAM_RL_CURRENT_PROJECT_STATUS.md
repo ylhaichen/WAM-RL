@@ -190,8 +190,9 @@ Implemented:
   `parameter_update_detected` and update-norm warnings so one-step smoke runs
   are not mistaken for policy-improvement evidence, plus config recovery from
   `metrics.json` or older runs' lightweight `checkpoint.pt`, training
-  provenance (`model_path`, `config_name`, `git_commit`), and `--discover-root`
-  / `--latest` support for recent-run sweep tables;
+  provenance (`model_path`, `config_name`, `git_commit`), optional job-log
+  config recovery for older runs via `--job-log-glob`, and `--discover-root` /
+  `--latest` support for recent-run sweep tables;
 - actor replay checkpoint tensor inspection/comparison with
   `tools/inspect_actor_replay_checkpoint.py`;
 - compact GRPO job/result status reporting with

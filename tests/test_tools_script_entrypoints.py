@@ -234,6 +234,7 @@ def test_summarize_actor_replay_training_help_does_not_require_external_pythonpa
 
     assert result.returncode == 0, result.stderr
     assert "Summarize actor replay GRPO training output directories" in result.stdout
+    assert "--job-log-glob" in result.stdout
     assert "--out-csv" in result.stdout
     assert "--out-markdown" in result.stdout
 
