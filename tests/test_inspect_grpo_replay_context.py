@@ -4,7 +4,10 @@ import sys
 
 import torch
 
-from tools.inspect_grpo_replay_context import inspect_replay_context
+from tools.inspect_grpo_replay_context import (
+    compact_replay_context_summary,
+    inspect_replay_context,
+)
 
 
 def test_inspect_replay_context_reports_tensor_bytes_by_top_level(tmp_path):
@@ -44,6 +47,13 @@ def test_inspect_replay_context_reports_tensor_bytes_by_top_level(tmp_path):
     assert cache_summary["conditional_branch_estimate"]["estimated_savings_bytes"] == 80
     assert report["top_tensors"][0]["path"].startswith("transformer_cache.0.")
     assert report["top_tensors"][0]["device"] == "cpu"
+
+    summary = compact_replay_context_summary(report)
+    assert summary["file_gib"] > 0
+    assert summary["tensor_gib"] == report["tensor_bytes"] / 1024**3
+    assert summary["top_level_tensor_gib"]["transformer_cache"] == 160 / 1024**3
+    assert summary["transformer_cache"]["kv_batch_sizes"] == [2]
+    assert summary["transformer_cache"]["conditional_branch_estimate"]["estimated_savings_gib"] == 80 / 1024**3
 
 
 def test_inspect_replay_context_can_use_metadata_only_load(tmp_path):
@@ -85,3 +95,39 @@ def test_inspect_replay_context_cli_writes_outputs(tmp_path):
     assert report["tensor_bytes"] == 16
     assert "GRPO Replay Context Inspection" in out_md.read_text()
     assert "Scalar Fields" in out_md.read_text()
+
+
+def test_inspect_replay_context_cli_can_print_compact_summary(tmp_path):
+    context = tmp_path / "ctx.pt"
+    torch.save(
+        {
+            "action_num_inference_steps": 10,
+            "transformer_cache": [
+                {
+                    "k": torch.zeros((2, 2), dtype=torch.float16),
+                    "v": torch.zeros((2, 2), dtype=torch.float16),
+                }
+            ],
+        },
+        context,
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "tools/inspect_grpo_replay_context.py",
+            str(context),
+            "--metadata-only",
+            "--print-summary",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    summary = json.loads(result.stdout)
+    assert "top_tensors" not in summary
+    assert summary["metadata_only"] is True
+    assert summary["scalar_fields"]["action_num_inference_steps"] == 10
+    assert summary["transformer_cache"]["kv_batch_sizes"] == [2]

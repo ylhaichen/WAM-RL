@@ -234,6 +234,7 @@ def test_inspect_grpo_replay_context_help_does_not_require_external_pythonpath()
     assert "Inspect tensor storage inside a strict GRPO replay-context artifact" in result.stdout
     assert "--top-k" in result.stdout
     assert "--metadata-only" in result.stdout
+    assert "--print-summary" in result.stdout
 
 
 def test_diagnose_actor_replay_help_does_not_require_external_pythonpath():

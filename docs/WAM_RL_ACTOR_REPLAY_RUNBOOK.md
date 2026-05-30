@@ -396,6 +396,7 @@ To inspect why a replay context is large, run:
 python tools/inspect_grpo_replay_context.py \
   /path/to/strict_grpo_replay_context_0.pt \
   --metadata-only \
+  --print-summary \
   --out-json /path/to/replay_context_inspection.json \
   --out-markdown /path/to/replay_context_inspection.md
 ```
@@ -403,9 +404,10 @@ python tools/inspect_grpo_replay_context.py \
 Use the top-level tensor-byte breakdown before changing capture format or
 compression policy. For large context files, keep `--metadata-only` enabled so
 the inspection does not allocate the full KV-cache tensors on CPU.
-The report includes scalar fields, KV-cache batch sizes, and a conditional-only
-branch estimate; if `action_guidance_scale<=1`, future collection should use
-the conditional-only replay context path rather than storing both CFG branches.
+The compact `--print-summary` output includes scalar fields, top-level tensor
+GiB, KV-cache batch sizes, and a conditional-only branch estimate; if
+`action_guidance_scale<=1`, future collection should use the conditional-only
+replay context path rather than storing both CFG branches.
 
 Do not delete a source run's `server_vis/` while:
 

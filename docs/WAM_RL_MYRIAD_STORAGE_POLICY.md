@@ -380,6 +380,7 @@ Inspect one replay-context file before changing capture/compression policy:
 python tools/inspect_grpo_replay_context.py \
   /path/to/strict_grpo_replay_context_0.pt \
   --metadata-only \
+  --print-summary \
   --out-json /path/to/replay_context_inspection.json \
   --out-markdown /path/to/replay_context_inspection.md
 ```
@@ -388,11 +389,11 @@ Use `--metadata-only` on large replay-context files. It loads tensors on the
 `meta` device and reports shapes, dtypes, and byte counts without allocating the
 full tensor storage on CPU. On the staplerpad k=8 replay-context run, a
 representative context file was about 7.23GB, with about 7.22GB in
-`transformer_cache` tensors.
-The report also includes scalar config fields, KV-cache batch sizes, and a
-conditional-only branch estimate. If the KV batch size is 2 but
-`action_guidance_scale<=1`, future collection should use the pruned
-conditional branch instead of storing both CFG branches.
+`transformer_cache` tensors. Use `--print-summary` for a compact stdout view of
+file GiB, tensor GiB, scalar config fields, top-level tensor GiB, KV-cache batch
+sizes, and the conditional-only branch estimate. If the KV batch size is 2 but
+`action_guidance_scale<=1`, future collection should use the pruned conditional
+branch instead of storing both CFG branches.
 
 In the report, `apparent_bytes` is the bytes consumed by the listed files or
 symlinks themselves, while `resolved_bytes` follows symlinks to the target

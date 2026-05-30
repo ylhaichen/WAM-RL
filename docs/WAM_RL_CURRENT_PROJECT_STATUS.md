@@ -134,7 +134,8 @@ Implemented:
   budgets via `tools/audit_grpo_artifact_storage.py`;
 - per-file replay-context tensor storage inspection with
   `tools/inspect_grpo_replay_context.py`, including scalar config fields,
-  KV-cache batch sizes, and conditional-only branch savings estimates;
+  top-level tensor GiB, KV-cache batch sizes, compact `--print-summary`
+  output, and conditional-only branch savings estimates;
 - non-destructive Myriad storage cleanup planning with
   `tools/plan_myriad_storage_cleanup.py`, including protection for any
   non-empty `grpo_groups*.jsonl` source file;

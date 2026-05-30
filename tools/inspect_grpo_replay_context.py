@@ -130,6 +130,33 @@ def write_markdown_report(path: Path, report: dict[str, Any]) -> None:
     path.expanduser().write_text("\n".join(lines), encoding="utf-8")
 
 
+def compact_replay_context_summary(report: dict[str, Any]) -> dict[str, Any]:
+    cache_summary = report.get("transformer_cache_summary") or {}
+    branch_estimate = cache_summary.get("conditional_branch_estimate") or {}
+    return {
+        "path": report["path"],
+        "metadata_only": report["metadata_only"],
+        "schema_version": report["schema_version"],
+        "file_gib": _gib(report["file_bytes"]),
+        "tensor_gib": _gib(report["tensor_bytes"]),
+        "scalar_fields": report["scalar_fields"],
+        "top_level_tensor_gib": {
+            key: _gib(value) for key, value in report["top_level_tensor_bytes"].items()
+        },
+        "transformer_cache": {
+            "block_count": cache_summary.get("block_count"),
+            "kv_tensor_count": cache_summary.get("kv_tensor_count"),
+            "kv_gib": _gib(cache_summary.get("kv_tensor_bytes", 0)),
+            "kv_batch_sizes": cache_summary.get("kv_batch_sizes", []),
+            "conditional_branch_estimate": {
+                "eligible_kv_tensor_count": branch_estimate.get("eligible_kv_tensor_count", 0),
+                "estimated_tensor_gib": _gib(branch_estimate.get("estimated_tensor_bytes", 0)),
+                "estimated_savings_gib": _gib(branch_estimate.get("estimated_savings_bytes", 0)),
+            },
+        },
+    }
+
+
 def _iter_tensors(value: Any, prefix: str = "") -> Iterable[TensorRecord]:
     if torch.is_tensor(value):
         yield TensorRecord(
@@ -168,6 +195,10 @@ def _record_to_dict(record: TensorRecord) -> dict[str, Any]:
         "numel": record.numel,
         "bytes": record.bytes,
     }
+
+
+def _gib(value: int | float) -> float:
+    return float(value) / 1024**3
 
 
 def _scalar_fields(payload: Any) -> dict[str, Any]:
@@ -252,16 +283,24 @@ def main() -> None:
     )
     parser.add_argument("--out-json", type=Path, help="Optional JSON output path.")
     parser.add_argument("--out-markdown", type=Path, help="Optional Markdown output path.")
+    parser.add_argument(
+        "--print-summary",
+        action="store_true",
+        help="Print compact summary JSON to stdout instead of the full report.",
+    )
     args = parser.parse_args()
 
     report = inspect_replay_context(args.path, top_k=args.top_k, metadata_only=args.metadata_only)
     text = json.dumps(report, indent=2) + "\n"
-    print(text, end="")
     if args.out_json:
         args.out_json.expanduser().parent.mkdir(parents=True, exist_ok=True)
         args.out_json.expanduser().write_text(text, encoding="utf-8")
     if args.out_markdown:
         write_markdown_report(args.out_markdown, report)
+    if args.print_summary:
+        print(json.dumps(compact_replay_context_summary(report), indent=2))
+    else:
+        print(text, end="")
 
 
 if __name__ == "__main__":
