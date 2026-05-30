@@ -134,6 +134,9 @@ Treat this as a review artifact, not permission to delete. A run with a
 non-empty `grpo_groups_partial.jsonl` or `grpo_groups_accepted*.jsonl` can still
 be part of a trainable combined dataset even when canonical `grpo_groups.jsonl`
 is empty or missing.
+The compact `--print-summary` output includes both `top_candidates` and
+`top_protected_runs`; a large protected run needs explicit archive/delete review
+because it may still back an active trainable dataset.
 
 Targeted cleanup pattern:
 
@@ -306,6 +309,10 @@ python tools/plan_myriad_storage_cleanup.py \
   --large-run-gb 10 \
   --print-summary
 ```
+
+In the summary, `cleanup_candidate_count=0` does not mean Scratch is healthy.
+Check `top_protected_runs` as well; those are the large directories that are
+protected by non-empty group files or curated-source naming.
 
 List largest files without breaking paths containing spaces:
 
