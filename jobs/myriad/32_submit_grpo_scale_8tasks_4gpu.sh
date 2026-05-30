@@ -44,7 +44,7 @@ QSUB_SLOTS="${QSUB_SLOTS:-}"
 QSUB_TMPFS="${QSUB_TMPFS:-}"
 DRY_RUN="${DRY_RUN:-0}"
 
-if ! command -v qsub >/dev/null 2>&1; then
+if [ "${DRY_RUN}" != "1" ] && ! command -v qsub >/dev/null 2>&1; then
     echo "qsub is not available on PATH. Run this on a Myriad login node." >&2
     exit 2
 fi

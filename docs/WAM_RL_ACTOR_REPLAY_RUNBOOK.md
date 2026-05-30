@@ -125,8 +125,9 @@ Its defaults use `ACTION_NUM_INFERENCE_STEPS=10`,
 contract while avoiding full-trajectory, all-debug-tensor collection by
 default. The wrapper also narrows the queue request to `QSUB_H_RT=6:00:00` and
 `QSUB_TMPFS=80G` by default; override those only after reviewing expected
-runtime and local scratch needs. The wrapper also prints a replay-context
-storage estimate. The default estimate is 4.0GB/context for new
+runtime and local scratch needs. The wrapper dry-run prints both the
+replay-context storage estimate and the final underlying `qsub` command, so
+review both before submitting. The default estimate is 4.0GB/context for new
 action-scale-one collections, where replay context capture prunes the unused
 CFG negative action branch. Override `REPLAY_CONTEXT_ESTIMATE_GB` upward for
 action-guided (`action_guidance_scale > 1`) or unpruned legacy collections. If

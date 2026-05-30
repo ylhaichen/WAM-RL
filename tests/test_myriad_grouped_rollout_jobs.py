@@ -172,6 +172,7 @@ def test_scale_submit_wrapper_does_not_inherit_stale_output_roots_by_default():
     assert 'QSUB_H_RT="${QSUB_H_RT:-}"' in text
     assert 'QSUB_TMPFS="${QSUB_TMPFS:-}"' in text
     assert 'DRY_RUN="${DRY_RUN:-0}"' in text
+    assert 'if [ "${DRY_RUN}" != "1" ] && ! command -v qsub' in text
     assert 'if [ "${QSUB_EXPORT_CURRENT_ENV}" = "1" ]; then' in text
     assert 'QSUB_ARGS+=(-l "h_rt=${QSUB_H_RT}")' in text
     assert 'QSUB_ARGS+=(-l "tmpfs=${QSUB_TMPFS}")' in text
@@ -614,7 +615,8 @@ def test_bounded_replayctx_submitter_uses_storage_safe_defaults():
     assert "ALLOW_UNBOUNDED_REPLAYCTX=1" in text
     assert 'DRY_RUN="${DRY_RUN:-0}"' in text
     assert "--dry-run" in text
-    assert "DRY_RUN=1, not submitting" in text
+    assert "printing underlying qsub command" in text
+    assert "run_submit_script 1" in text
     assert 'SAVE_SERVER_DEBUG_TENSORS="${SAVE_SERVER_DEBUG_TENSORS}"' in text
     assert 'STRICT_GRPO_REPLAY_CONTEXT_MAX_GB="${STRICT_GRPO_REPLAY_CONTEXT_MAX_GB}"' in text
     assert 'QSUB_H_RT="${QSUB_H_RT}"' in text
@@ -656,7 +658,10 @@ def test_bounded_replayctx_dry_run_budgets_attempts(tmp_path):
     assert "attempt_budget_estimate_gb=48.00" in result.stdout
     assert "storage_budget_mode=attempt" in result.stdout
     assert "storage_budget_estimate_gb=48.00" in result.stdout
-    assert "DRY_RUN=1, not submitting" in result.stdout
+    assert "DRY_RUN=1, printing underlying qsub command" in result.stdout
+    assert "qsub -N wam_grpo_replayctx_bounded" in result.stdout
+    assert "-l h_rt=6:00:00" in result.stdout
+    assert "-l tmpfs=80G" in result.stdout
 
 
 def test_bounded_replayctx_dry_run_can_write_plan_json(tmp_path):
