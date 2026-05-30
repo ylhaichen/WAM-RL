@@ -38,6 +38,18 @@ Expected repository noise is limited to known untracked local files such as
 `outputs/` and `tasks.txt` on the server, or local user archives. Do not remove
 them unless the user explicitly asks.
 
+For a compact post-run or queued-log status report, use:
+
+```bash
+python tools/report_grpo_run_status.py \
+  --job-log logs/jobs/<job-log> \
+  --print-markdown
+```
+
+Add `--results-root /path/to/results_root` when no log exists yet or when the
+log did not record `RESULTS_ROOT`. Add `--inspect-files` only when you need
+artifact counts and disk-block usage, because it walks the result tree.
+
 ## 1. Validate The Source Replay Dataset
 
 For a replay-context source run:
@@ -330,6 +342,10 @@ After the job finishes:
 
 ```bash
 LOG=$(find logs/jobs -maxdepth 1 -type f -name 'wam_grpo_actor_subset.o*' | sort | tail -1)
+python tools/report_grpo_run_status.py \
+  --job-log "$LOG" \
+  --print-markdown
+
 grep -E "JOB_ID=|GRPO_GROUPS_PATH=|GRPO_OUTPUT_DIR=|transition_count|final_loss|checkpoint_path|Actor replay GRPO training complete|Traceback|ERROR|CUDA out of memory|Disk quota exceeded" "$LOG" | tail -200
 
 OUT=$(grep '^GRPO_OUTPUT_DIR=' "$LOG" | tail -1 | cut -d= -f2-)

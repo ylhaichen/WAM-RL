@@ -190,6 +190,10 @@ Implemented:
   / `--latest` support for recent-run sweep tables;
 - actor replay checkpoint tensor inspection/comparison with
   `tools/inspect_actor_replay_checkpoint.py`;
+- compact GRPO job/result status reporting with
+  `tools/report_grpo_run_status.py`, so queued/completed rollout and training
+  jobs can be summarized from job logs plus `groups/` metadata without
+  hand-written `grep` pipelines;
 - real actor replay trainer over LingBot-VA transformer parameters;
 - actor replay input storage audit and optional resolved-size training budget
   through `GRPO_MAX_RESOLVED_GB`;

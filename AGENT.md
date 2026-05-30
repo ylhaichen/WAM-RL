@@ -152,6 +152,8 @@ development:
 - inspect files, logs, queue state, disk usage, and git state;
 - run lightweight read-only commands such as `pwd`, `ls`, `find`, `rg`, `sed`,
   `tail`, `qstat`, and `git status`;
+- summarize GRPO job/result state with `tools/report_grpo_run_status.py`
+  before hand-writing long `grep` pipelines;
 - run containerized unit/tool tests that do not submit scheduler jobs;
 - edit docs/code, commit, and push when the current task clearly requires it.
 
