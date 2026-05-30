@@ -469,6 +469,9 @@ ports, output roots, seed controls, and checkpoint path are correct.
 The one-GPU eval job records `POLICY_CHECKPOINT`, `REFERENCE_CHECKPOINT`, and
 `ACTION_NUM_INFERENCE_STEPS` in each episode JSON so paired summaries remain
 self-describing after logs move or get archived.
+It also records `RUN_ID`; if `RUN_ID` is omitted in a manual client invocation,
+the eval client falls back to the basename of `save_root` rather than writing an
+empty run id.
 The pair submitter also prints and passes these checkpoint labels explicitly,
 so dry-run output should be enough to audit baseline/actor provenance before
 spending GPU time.

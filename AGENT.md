@@ -316,6 +316,10 @@ current system:
 - Set `SEED` explicitly for eval jobs. RoboTwin starts from
   `st_seed = 10000 * (1 + SEED)`, so leaving `SEED` to `qsub -V` inheritance can
   silently change the matched episode set.
+- Eval episode JSON should carry `run_id`. The eval client now falls back to
+  the `save_root` basename when no explicit `RUN_ID`/`--run_id` is provided,
+  but paired eval jobs should still pass `RUN_ID` explicitly through the
+  submitter.
 - Compare baseline and actor evals with
   `tools/compare_robotwin_eval_episodes.py` on matched episode keys before
   interpreting aggregate success-rate differences.
