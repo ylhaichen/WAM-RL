@@ -170,7 +170,8 @@ Implemented:
 - actor replay training output summaries with
   `tools/summarize_actor_replay_training.py`, including explicit
   `parameter_update_detected` and update-norm warnings so one-step smoke runs
-  are not mistaken for policy-improvement evidence;
+  are not mistaken for policy-improvement evidence, plus config recovery from
+  `metrics.json` or older runs' lightweight `checkpoint.pt`;
 - actor replay checkpoint tensor inspection/comparison with
   `tools/inspect_actor_replay_checkpoint.py`;
 - real actor replay trainer over LingBot-VA transformer parameters;
@@ -359,19 +360,31 @@ Current policy:
 - do not delete a non-empty training dataset's referenced `server_vis/` unless
   the dataset is intentionally being retired.
 
-Next engineering target:
+Available mitigations:
 
-- selective replay artifact construction;
-- bounded replay-context capture by chunk stride or max chunk count;
-- per-chunk replay-context deduplication beyond the current external-context
-  split;
+- bounded replay-context collection planning with
+  `tools/plan_replay_context_collection.py`;
+- `jobs/myriad/39_submit_grpo_replayctx_bounded_4gpu.sh`, which dry-runs
+  storage estimates before submission and defaults to max-one-chunk capture;
+- capture filtering by `STRICT_GRPO_CAPTURE_CHUNK_STRIDE` and
+  `STRICT_GRPO_CAPTURE_MAX_CHUNKS`;
+- per-file `STRICT_GRPO_REPLAY_CONTEXT_MAX_GB` checks before `torch.save`;
 - `tools/subset_grpo_groups.py` for building small train/debug subsets that
   keep only selected success/failure samples and artifact references without
-  copying or deleting large `.pt` files.
+  copying or deleting large `.pt` files;
 - `tools/materialize_grpo_artifacts.py` for turning such subsets into a small
   rewritten groups file plus symlinked or copied artifact tree. Use symlink mode
   for Scratch debug runs; use copy mode only when intentionally creating an
   archive/package.
+
+Next engineering target:
+
+- quantify replay-context footprint across task, prompt, and action-guidance
+  settings;
+- reduce context payload further, beyond the current external-context split and
+  conditional-branch pruning;
+- separate short-lived Scratch working data from RDSS archival metadata and
+  selected train/eval artifacts.
 
 ### 2. Closed-Loop Evaluation Nondeterminism
 
