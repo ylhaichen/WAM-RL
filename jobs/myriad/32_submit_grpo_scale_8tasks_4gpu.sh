@@ -6,7 +6,10 @@
 
 set -euo pipefail
 
-REPO_ROOT="${REPO_ROOT:-"$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"}"
+MYRIAD_JOB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -z "${REPO_ROOT:-}" ]; then
+    REPO_ROOT="$(cd "${MYRIAD_JOB_DIR}/../.." && pwd)"
+fi
 cd "${REPO_ROOT}"
 
 JOB_SCRIPT="${JOB_SCRIPT:-jobs/myriad/30_collect_grouped_rollouts_4gpu.sh}"

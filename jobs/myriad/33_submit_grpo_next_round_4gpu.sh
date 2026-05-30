@@ -5,7 +5,10 @@
 
 set -euo pipefail
 
-REPO_ROOT="${REPO_ROOT:-"$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"}"
+MYRIAD_JOB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -z "${REPO_ROOT:-}" ]; then
+    REPO_ROOT="$(cd "${MYRIAD_JOB_DIR}/../.." && pwd)"
+fi
 cd "${REPO_ROOT}"
 
 SUBMIT_SCRIPT="${SUBMIT_SCRIPT:-jobs/myriad/32_submit_grpo_scale_8tasks_4gpu.sh}"
