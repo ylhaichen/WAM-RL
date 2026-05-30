@@ -271,6 +271,40 @@ Interpretation:
   `strict_grpo_capture_max_chunks`, capture chunk indices, and replay-context
   tensor bytes directly in rollout/group metadata.
 
+Latest one-step actor replay smoke on the two-sample/two-artifact staplerpad
+subset:
+
+```text
+/home/zcably0/Scratch/wam-rl/results_grpo_actor_replay/grpo_actor_subset_2samples_2artifacts_1step_20260530_020837
+```
+
+Training output:
+
+```text
+transition_count: 40
+steps: 1
+final_loss: 0.02019871324300766
+final_ratio_mean: 0.9099791586399079
+final_grad_norm: 0.5571673512458801
+final_param_update_norm: 5.789788701804355e-05
+final_param_update_max: 1.1920928955078125e-07
+parameter_update_detected: true
+checkpoint tensors: 14
+checkpoint params: 89,084,958
+summary:
+  /home/zcably0/Scratch/wam-rl/results_grpo_actor_replay/grpo_actor_subset_2samples_2artifacts_1step_20260530_020837/summary.json
+checkpoint inspection:
+  /home/zcably0/Scratch/wam-rl/results_grpo_actor_replay/grpo_actor_subset_2samples_2artifacts_1step_20260530_020837/checkpoint_inspection.json
+job accounting:
+  jobname=wam_grpo_actor_subset, slots=4, exit_status=0,
+  ru_wallclock=176s, maxvmem=10.284GB
+```
+
+This checkpoint predates training-provenance logging, so its summary falls back
+to `config_source=checkpoint` and does not include `model_path`, `config_name`,
+or `git_commit`. Treat it as a valid smoke checkpoint, not as a fully
+provenance-complete experiment record.
+
 ### Evaluation Protocol
 
 Implemented:
