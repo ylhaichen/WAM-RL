@@ -149,6 +149,9 @@ consume tens or hundreds of GB because they include transformer KV-cache state.
   `--inspect-replay-contexts` when auditing real actor replay data, because
   replay-context files are usually referenced from inside each strict artifact
   rather than directly from the JSONL.
+- Use `tools/inspect_grpo_replay_context.py` on one representative
+  `strict_grpo_replay_context_*.pt` before designing storage slimming changes;
+  it reports tensor bytes by top-level key and largest nested tensors.
 
 For concrete commands and RDSS archival patterns, use
 `docs/WAM_RL_MYRIAD_STORAGE_POLICY.md`.

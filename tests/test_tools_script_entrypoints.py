@@ -194,6 +194,19 @@ def test_inspect_actor_replay_checkpoint_help_does_not_require_external_pythonpa
     assert "--reference" in result.stdout
 
 
+def test_inspect_grpo_replay_context_help_does_not_require_external_pythonpath():
+    result = subprocess.run(
+        [sys.executable, "tools/inspect_grpo_replay_context.py", "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "Inspect tensor storage inside a strict GRPO replay-context artifact" in result.stdout
+    assert "--top-k" in result.stdout
+
+
 def test_diagnose_actor_replay_help_does_not_require_external_pythonpath():
     result = subprocess.run(
         [sys.executable, "tools/diagnose_actor_replay.py", "--help"],

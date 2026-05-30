@@ -117,6 +117,8 @@ Implemented:
   `STRICT_GRPO_CAPTURE_CHUNK_STRIDE` and `STRICT_GRPO_CAPTURE_MAX_CHUNKS`;
 - storage auditing with replay-context inspection and optional resolved-size
   budgets via `tools/audit_grpo_artifact_storage.py`;
+- per-file replay-context tensor storage inspection with
+  `tools/inspect_grpo_replay_context.py`;
 - low-resource subset smoke submission with
   `jobs/myriad/36_submit_actor_replay_subset_smoke.sh`;
 - operational runbook in `docs/WAM_RL_ACTOR_REPLAY_RUNBOOK.md`;

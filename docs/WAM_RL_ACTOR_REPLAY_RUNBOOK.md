@@ -318,6 +318,18 @@ For a pre-run storage budget check, add `--max-resolved-gb <GB>`. With
 `--inspect-replay-contexts`, the budget covers both directly referenced strict
 artifacts and replay-context files referenced from inside those artifacts.
 
+To inspect why a replay context is large, run:
+
+```bash
+python tools/inspect_grpo_replay_context.py \
+  /path/to/strict_grpo_replay_context_0.pt \
+  --out-json /path/to/replay_context_inspection.json \
+  --out-markdown /path/to/replay_context_inspection.md
+```
+
+Use the top-level tensor-byte breakdown before changing capture format or
+compression policy.
+
 Do not delete a source run's `server_vis/` while:
 
 - a non-empty `grpo_groups.jsonl` references it;
