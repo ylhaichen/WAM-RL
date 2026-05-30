@@ -205,7 +205,8 @@ Implemented:
   hand-written `grep` pipelines, including `--job-log-glob` latest-log
   selection to avoid brittle `find | tail` snippets, wrapped SGE `env_list`
   parsing, qstat-derived path inference, and legacy grouped-rollout result-root
-  inference from `RUN_ID`;
+  inference from `RUN_ID`, plus `SUBMIT_GIT_COMMIT` / runtime `GIT_COMMIT`
+  checks against the current repo HEAD when provenance is available;
 - real actor replay trainer over LingBot-VA transformer parameters;
 - actor replay input storage audit and optional resolved-size training budget
   through `GRPO_MAX_RESOLVED_GB`;
@@ -594,6 +595,13 @@ planning outputs:
   /home/zcably0/Scratch/wam-rl/debug_logs/storage_audits/next_collection_plan_20260530_094128_k4_attempts3_storage.json
   /home/zcably0/Scratch/wam-rl/debug_logs/storage_audits/next_collection_plan_20260530_094128_k8_storage.json
 ```
+
+As of commit `75959d8`, the status reporter also warns when queued or completed
+jobs are missing submit-time git provenance. The currently queued job `458528`
+(`wam_grpo_replayctx_bounded`) was submitted before this provenance guard and
+before the bounded wrapper's 6h/80G qsub defaults were fully reflected in the
+queued resources; treat it as an old queued collection job, not an interactive
+session and not evidence of the current submitter defaults.
 
 ## Claims Boundary
 

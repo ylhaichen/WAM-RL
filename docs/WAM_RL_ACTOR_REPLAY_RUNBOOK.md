@@ -75,6 +75,13 @@ jobs before the SGE stdout log has flushed enough lines to parse by hand. For
 older grouped-rollout jobs submitted before explicit `RESULTS_ROOT` export, it
 can still infer the canonical result directory from `RUN_ID` and the Myriad
 `WAM-RL`/`wam-rl` directory convention.
+When submit-time or runtime git provenance is present, the status reporter also
+warns if the job's `SUBMIT_GIT_COMMIT` or runtime `GIT_COMMIT` differs from the
+current repo HEAD. If provenance is missing, treat the job as pre-provenance and
+inspect it conservatively before using its outputs. `qstat` jobs named
+`sshorig` or `QRLOGIN` are interactive sessions; `wam_grpo_*` jobs are
+scheduled project jobs. Do not cancel either class unless the user explicitly
+approves `qdel`.
 
 Avoid unbounded `qacct` calls during interactive debugging. On Myriad, `qacct`
 can be slow and can print unrelated accounting records when queried loosely.
