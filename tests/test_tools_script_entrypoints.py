@@ -304,3 +304,4 @@ def test_report_grpo_run_status_help_does_not_require_external_pythonpath():
     assert result.returncode == 0, result.stderr
     assert "Report WAM-RL GRPO job and result status" in result.stdout
     assert "--inspect-files" in result.stdout
+    assert "--job-log-glob" in result.stdout

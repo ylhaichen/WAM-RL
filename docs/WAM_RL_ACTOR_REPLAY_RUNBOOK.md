@@ -46,6 +46,15 @@ python tools/report_grpo_run_status.py \
   --print-markdown
 ```
 
+To avoid hand-written `find | tail` log selection, use a glob and let the tool
+select the latest matching log by modification time:
+
+```bash
+python tools/report_grpo_run_status.py \
+  --job-log-glob 'logs/jobs/wam_grpo_replayctx*.o*' \
+  --print-markdown
+```
+
 Add `--results-root /path/to/results_root` when no log exists yet or when the
 log did not record `RESULTS_ROOT`. Add `--inspect-files` only when you need
 artifact counts and disk-block usage, because it walks the result tree.

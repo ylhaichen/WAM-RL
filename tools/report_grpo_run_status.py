@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import glob
 import json
 import os
 import re
@@ -127,6 +128,16 @@ def report_grpo_run_status(
     }
     report["status"] = _derive_status(report)
     return report
+
+
+def select_latest_job_log(patterns: list[str]) -> Path:
+    matches: list[Path] = []
+    for pattern in patterns:
+        matches.extend(Path(path) for path in glob.glob(str(Path(pattern).expanduser())))
+    files = [path for path in matches if path.is_file()]
+    if not files:
+        raise FileNotFoundError(f"no job logs matched: {patterns}")
+    return max(files, key=lambda path: (path.stat().st_mtime, str(path)))
 
 
 def format_markdown(report: dict[str, Any]) -> str:
@@ -441,6 +452,12 @@ def _md(value: object) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Report WAM-RL GRPO job and result status.")
     parser.add_argument("--job-log", type=Path, help="Optional SGE job log to parse.")
+    parser.add_argument(
+        "--job-log-glob",
+        action="append",
+        default=[],
+        help="Glob for selecting the latest SGE job log by mtime. Can be passed more than once.",
+    )
     parser.add_argument("--results-root", type=Path, help="Optional grouped rollout result root.")
     parser.add_argument("--training-output-dir", type=Path, help="Optional GRPO training output directory.")
     parser.add_argument(
@@ -453,11 +470,20 @@ def main() -> None:
     parser.add_argument("--print-markdown", action="store_true", help="Print Markdown instead of JSON.")
     args = parser.parse_args()
 
-    if args.job_log is None and args.results_root is None and args.training_output_dir is None:
-        parser.error("at least one of --job-log, --results-root, or --training-output-dir is required")
+    if args.job_log is not None and args.job_log_glob:
+        parser.error("use either --job-log or --job-log-glob, not both")
+    job_log = args.job_log
+    if job_log is None and args.job_log_glob:
+        try:
+            job_log = select_latest_job_log(args.job_log_glob)
+        except FileNotFoundError as exc:
+            parser.error(str(exc))
+
+    if job_log is None and args.results_root is None and args.training_output_dir is None:
+        parser.error("at least one of --job-log, --job-log-glob, --results-root, or --training-output-dir is required")
 
     report = report_grpo_run_status(
-        job_log=args.job_log,
+        job_log=job_log,
         results_root=args.results_root,
         training_output_dir=args.training_output_dir,
         inspect_files=args.inspect_files,

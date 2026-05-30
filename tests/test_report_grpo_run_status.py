@@ -3,7 +3,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from tools.report_grpo_run_status import parse_job_log, report_grpo_run_status
+from tools.report_grpo_run_status import parse_job_log, report_grpo_run_status, select_latest_job_log
 
 
 def _write_json(path: Path, value: dict) -> None:
@@ -146,3 +146,43 @@ def test_report_grpo_run_status_cli_markdown(tmp_path):
     assert result.returncode == 0, result.stderr
     assert "# GRPO Run Status" in result.stdout
     assert "completed_without_trainable_groups" not in result.stderr
+
+
+def test_select_latest_job_log_uses_mtime(tmp_path):
+    older = tmp_path / "wam_grpo_replayctx.o1"
+    newer = tmp_path / "wam_grpo_replayctx.o2"
+    older.write_text("JOB_ID=1\n", encoding="utf-8")
+    newer.write_text("JOB_ID=2\n", encoding="utf-8")
+    older.touch()
+    newer.touch()
+
+    selected = select_latest_job_log([str(tmp_path / "wam_grpo_replayctx.o*")])
+
+    assert selected == newer
+
+
+def test_report_grpo_run_status_cli_accepts_job_log_glob(tmp_path):
+    root = tmp_path / "results"
+    groups = root / "groups"
+    groups.mkdir(parents=True)
+    (groups / "grpo_groups.jsonl").write_text("{}\n", encoding="utf-8")
+    _write_json(groups / "grpo_dataset_validation.json", {"ok": True, "transition_count": 1})
+    log = tmp_path / "wam_grpo_replayctx.o1"
+    log.write_text("Grouped rollout collection complete: " + str(root) + "\n", encoding="utf-8")
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "tools/report_grpo_run_status.py",
+            "--job-log-glob",
+            str(tmp_path / "wam_grpo_replayctx.o*"),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["job_log"]["path"] == str(log)
+    assert payload["status"]["state"] == "trainable_groups_available"
