@@ -381,6 +381,12 @@ def test_eval_repeatability_pair_submitter_uses_matched_baseline_controls():
     assert 'SAVE_SERVER_DEBUG_TENSORS="${SAVE_SERVER_DEBUG_TENSORS:-false}"' in text
     assert 'SEED="${SEED:-0}"' in text
     assert '"ACTOR_REPLAY_CHECKPOINT_PATH="' in text
+    assert 'REFERENCE_CHECKPOINT="${REFERENCE_CHECKPOINT:-${WAM_ROOT}/checkpoints/lingbot-va-posttrain-robotwin}"' in text
+    assert 'POLICY_CHECKPOINT="${POLICY_CHECKPOINT:-${REFERENCE_CHECKPOINT}}"' in text
+    assert '"POLICY_CHECKPOINT=${POLICY_CHECKPOINT}"' in text
+    assert '"REFERENCE_CHECKPOINT=${REFERENCE_CHECKPOINT}"' in text
+    assert 'QSUB_EXPORT_CURRENT_ENV="${QSUB_EXPORT_CURRENT_ENV:-0}"' in text
+    assert 'if [ "${QSUB_EXPORT_CURRENT_ENV}" = "1" ]; then' in text
     assert 'RUN_A_PORT="${RUN_A_PORT:-29856}"' in text
     assert 'RUN_B_PORT="${RUN_B_PORT:-29956}"' in text
     assert "RUN_A_PORT and RUN_B_PORT must differ" in text
@@ -421,6 +427,7 @@ def test_eval_repeatability_pair_dry_run_flag_does_not_call_qsub(tmp_path):
 
     assert result.returncode == 0, result.stderr
     assert sum(line.startswith("qsub ") for line in result.stdout.splitlines()) == 2
+    assert "qsub -V" not in result.stdout
     assert not qsub_called.exists()
 
 

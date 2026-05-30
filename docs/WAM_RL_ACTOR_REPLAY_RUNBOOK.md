@@ -430,6 +430,9 @@ python tools/summarize_robotwin_repeatability.py \
 
 Review the printed `qsub` commands and rerun the submitter without `--dry-run`
 when the ports, output roots, and seed controls are correct.
+Like the actor eval pair submitter, this repeatability submitter does not
+export the whole submit shell by default; keep `QSUB_EXPORT_CURRENT_ENV=0` so
+baseline repeatability jobs cannot inherit an unrelated actor checkpoint path.
 
 Use `flipped_count` and `flip_rate` to decide whether a policy delta is larger
 than the closed-loop repeat noise on the same matched episode keys.
