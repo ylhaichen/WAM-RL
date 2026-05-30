@@ -171,7 +171,8 @@ Implemented:
   `tools/summarize_actor_replay_training.py`, including explicit
   `parameter_update_detected` and update-norm warnings so one-step smoke runs
   are not mistaken for policy-improvement evidence, plus config recovery from
-  `metrics.json` or older runs' lightweight `checkpoint.pt`;
+  `metrics.json` or older runs' lightweight `checkpoint.pt`, and
+  `--discover-root` / `--latest` support for recent-run sweep tables;
 - actor replay checkpoint tensor inspection/comparison with
   `tools/inspect_actor_replay_checkpoint.py`;
 - real actor replay trainer over LingBot-VA transformer parameters;

@@ -164,8 +164,8 @@ Scratch or relying on full 400GB+ replay-context directories.
 4. Prepare a storage-bounded actor replay subset:
 
    ```bash
-   SUBSET_SOURCE_GROUPS="$RESULTS/groups/grpo_groups.jsonl" \
-   SUBSET_ROOT="/home/zcably0/Scratch/wam-rl/results_grpo_actor_replay_subset/<run>" \
+   SOURCE_GROUPS_PATH="$RESULTS/groups/grpo_groups.jsonl" \
+   SUBSET_ROOT="/home/zcably0/Scratch/wam-rl/results_grpo_actor_replay_subsets/<run>" \
    SUBSET_MAX_REPLAY_CONTEXT_GB=30 \
    SUBSET_STORAGE_MAX_RESOLVED_GB=40 \
    bash jobs/myriad/35_prepare_actor_replay_subset.sh
@@ -175,7 +175,7 @@ Scratch or relying on full 400GB+ replay-context directories.
    after reviewing the dry-run command:
 
    ```bash
-   SUBSET_ROOT="/home/zcably0/Scratch/wam-rl/results_grpo_actor_replay_subset/<run>" \
+   SUBSET_ROOT="/home/zcably0/Scratch/wam-rl/results_grpo_actor_replay_subsets/<run>" \
    bash jobs/myriad/36_submit_actor_replay_subset_smoke.sh --dry-run
    ```
 
