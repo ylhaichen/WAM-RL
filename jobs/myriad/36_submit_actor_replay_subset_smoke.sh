@@ -40,6 +40,11 @@ GRPO_LOGPROB_STD_FLOOR="${GRPO_LOGPROB_STD_FLOOR:-0.1}"
 GRPO_PROGRESS_EVERY="${GRPO_PROGRESS_EVERY:-1}"
 GRPO_TRAINABLE_MODE="${GRPO_TRAINABLE_MODE:-action_heads}"
 GRPO_MAX_RESOLVED_GB="${GRPO_MAX_RESOLVED_GB:-40}"
+PRECHECK_SUBSET_AUDIT="${PRECHECK_SUBSET_AUDIT:-true}"
+SUBSET_STORAGE_AUDIT_JSON="${SUBSET_STORAGE_AUDIT_JSON:-}"
+if [ -z "${SUBSET_STORAGE_AUDIT_JSON}" ] && [ -n "${SUBSET_ROOT:-}" ]; then
+    SUBSET_STORAGE_AUDIT_JSON="${SUBSET_ROOT}/storage_audit.json"
+fi
 
 QSUB_H_RT="${QSUB_H_RT:-2:00:00}"
 QSUB_MEM="${QSUB_MEM:-8G}"
@@ -58,6 +63,38 @@ if [ ! -f "${JOB_SCRIPT}" ]; then
     echo "Missing actor replay trainer job script: ${JOB_SCRIPT}" >&2
     exit 2
 fi
+if [ ! -f "${GRPO_GROUPS_PATH}" ]; then
+    echo "Missing GRPO groups file: ${GRPO_GROUPS_PATH}" >&2
+    exit 2
+fi
+
+case "${PRECHECK_SUBSET_AUDIT}" in
+    true|True|1|yes|YES|on|ON)
+        if [ -n "${SUBSET_STORAGE_AUDIT_JSON}" ]; then
+            if [ -f "${SUBSET_STORAGE_AUDIT_JSON}" ]; then
+                python - "${SUBSET_STORAGE_AUDIT_JSON}" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+with open(path, "r", encoding="utf-8") as f:
+    data = json.load(f)
+budget = data.get("storage_budget")
+if isinstance(budget, dict) and budget.get("ok") is False:
+    print(f"Subset storage audit budget failed: {path}", file=sys.stderr)
+    print(json.dumps(budget, indent=2), file=sys.stderr)
+    raise SystemExit(3)
+if isinstance(budget, dict):
+    print(f"Subset storage audit precheck ok: {path}")
+else:
+    print(f"Subset storage audit has no storage_budget field: {path}")
+PY
+            else
+                echo "Warning: subset storage audit not found: ${SUBSET_STORAGE_AUDIT_JSON}" >&2
+            fi
+        fi
+        ;;
+esac
 
 echo "Submitting actor replay subset smoke job"
 echo "  JOB_NAME=${JOB_NAME}"
@@ -71,6 +108,8 @@ echo "  GRPO_ACTION_NUM_INFERENCE_STEPS=${GRPO_ACTION_NUM_INFERENCE_STEPS}"
 echo "  GRPO_LOGPROB_REDUCTION=${GRPO_LOGPROB_REDUCTION}"
 echo "  GRPO_LOGPROB_STD_FLOOR=${GRPO_LOGPROB_STD_FLOOR}"
 echo "  GRPO_MAX_RESOLVED_GB=${GRPO_MAX_RESOLVED_GB}"
+echo "  PRECHECK_SUBSET_AUDIT=${PRECHECK_SUBSET_AUDIT}"
+echo "  SUBSET_STORAGE_AUDIT_JSON=${SUBSET_STORAGE_AUDIT_JSON}"
 echo "  QSUB_H_RT=${QSUB_H_RT}"
 echo "  QSUB_MEM=${QSUB_MEM}"
 echo "  QSUB_SLOTS=${QSUB_SLOTS}"

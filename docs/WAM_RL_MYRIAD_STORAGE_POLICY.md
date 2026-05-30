@@ -187,6 +187,9 @@ RUN_ID=grpo_actor_subset_smoke_<name> \
 jobs/myriad/36_submit_actor_replay_subset_smoke.sh
 ```
 
+The submitter checks the subset groups file and, when available, the
+`storage_audit.json` `storage_budget.ok` flag before `qsub`.
+
 `36_submit_actor_replay_subset_smoke.sh` only wraps `qsub`; the real training
 path remains `jobs/myriad/34_train_actor_replay_grpo_robotwin.sh`. Override
 `GRPO_STEPS`, `GRPO_LR`, `QSUB_H_RT`, `QSUB_SLOTS`, or `QSUB_TMPFS` only when a

@@ -186,6 +186,10 @@ RUN_ID=grpo_actor_subset_smoke_<date> \
 jobs/myriad/36_submit_actor_replay_subset_smoke.sh
 ```
 
+The submitter checks that `groups/grpo_groups.jsonl` exists before `qsub`. If
+`${SUBSET_ROOT}/storage_audit.json` exists, it also checks `storage_budget.ok`
+before submission; set `PRECHECK_SUBSET_AUDIT=false` only for manual debugging.
+
 Defaults:
 
 ```text
