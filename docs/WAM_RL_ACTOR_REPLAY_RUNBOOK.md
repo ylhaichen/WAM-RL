@@ -97,6 +97,15 @@ For quick direct execution on a login node or already allocated node, run the
 same script with the same environment variables through `bash` instead of
 `qsub`; it only rewrites JSON and creates symlinks/copies.
 
+The subset preparation job writes:
+
+```text
+groups/grpo_groups.jsonl
+manifest.json
+validation_path_only.json
+storage_audit.json
+```
+
 ## 3. Audit Subset Storage Dependencies
 
 For symlink materialized subsets, the subset directory can be tiny while still

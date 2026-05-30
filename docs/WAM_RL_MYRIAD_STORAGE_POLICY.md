@@ -148,6 +148,9 @@ SUBSET_MAX_ARTIFACTS_PER_SAMPLE=2 \
 qsub -V -N wam_grpo_subset jobs/myriad/35_prepare_actor_replay_subset.sh
 ```
 
+This job writes the rewritten groups file, materialization manifest,
+path-only validation summary, and `storage_audit.json` under `SUBSET_ROOT`.
+
 Then submit a low-resource one-step actor replay smoke from the materialized
 subset:
 

@@ -170,6 +170,11 @@ def test_actor_replay_subset_job_materializes_lightweight_dataset():
     assert '--link-mode "${MATERIALIZE_LINK_MODE}"' in text
     assert "--include-replay-context" in text
     assert 'VALIDATE_INSPECT_ARTIFACTS="${VALIDATE_INSPECT_ARTIFACTS:-false}"' in text
+    assert 'STORAGE_AUDIT_JSON="${STORAGE_AUDIT_JSON:-${SUBSET_ROOT}/storage_audit.json}"' in text
+    assert "tools/audit_grpo_artifact_storage.py" in text
+    assert '--materialize-manifest "${MATERIALIZED_MANIFEST}"' in text
+    assert '--out-json "${STORAGE_AUDIT_JSON}"' in text
+    assert "--fail-on-missing" in text
     assert "Actor replay subset preparation complete" in text
 
 
