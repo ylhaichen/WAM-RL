@@ -121,6 +121,7 @@ SUBSET_TASKS="move_stapler_pad" \
 SUBSET_MAX_GROUPS=1 \
 SUBSET_SAMPLES_PER_REWARD=1 \
 SUBSET_MAX_ARTIFACTS_PER_SAMPLE=2 \
+SUBSET_MAX_REPLAY_CONTEXT_GB=30 \
 MATERIALIZE_LINK_MODE=symlink \
 MATERIALIZE_INCLUDE_REPLAY_CONTEXT=true \
 qsub -V -N wam_grpo_subset jobs/myriad/35_prepare_actor_replay_subset.sh
@@ -138,6 +139,11 @@ manifest.json
 validation_path_only.json
 storage_audit.json
 ```
+
+`SUBSET_MAX_REPLAY_CONTEXT_GB` is a resolved replay-context footprint budget
+for the selected subset. It trims artifact references round-robin across the
+selected success/failure samples, which keeps a tiny actor replay smoke useful
+without accidentally depending on hundreds of GB of KV-cache files.
 
 ## 3. Audit Subset Storage Dependencies
 

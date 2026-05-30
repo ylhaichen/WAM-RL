@@ -111,6 +111,9 @@ Implemented:
 - v2 strict artifacts with full action denoising trajectory capture;
 - replay context capture and external per-chunk replay-context files;
 - safe JSON-only GRPO group subsetting with `tools/subset_grpo_groups.py`;
+- replay-context-footprint-aware subsetting with
+  `--max-replay-context-gb`, so actor replay smoke subsets are bounded by
+  actual resolved KV-cache storage rather than artifact count alone;
 - artifact materialization with `tools/materialize_grpo_artifacts.py`, using
   symlink mode by default and optional replay-context materialization;
 - collection-time strict artifact chunk filtering with

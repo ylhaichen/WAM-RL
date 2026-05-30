@@ -1,5 +1,7 @@
 import json
 
+import torch
+
 from tools.subset_grpo_groups import subset_grpo_groups, write_outputs
 
 
@@ -89,3 +91,92 @@ def test_subset_grpo_groups_can_preserve_advantages_and_write_manifest(tmp_path)
     assert [sample["advantage"] for sample in written_group["samples"]] == [99.0, 99.0]
     assert written_manifest["output_jsonl"] == str(out_jsonl)
     assert written_manifest["skipped_unmixed_group_count"] == 1
+
+
+def _write_replay_context_artifact(root, name, *, context_bytes):
+    artifact = root / f"{name}.pt"
+    context = root / f"{name}_context.pt"
+    context.write_bytes(b"x" * context_bytes)
+    torch.save({"schema_version": 2, "replay_context_path": context.name, "transitions": []}, artifact)
+    return artifact
+
+
+def test_subset_grpo_groups_trims_by_replay_context_budget_round_robin(tmp_path):
+    source_dir = tmp_path / "artifacts"
+    source_dir.mkdir()
+    failure_a = _write_replay_context_artifact(source_dir, "failure_a", context_bytes=10)
+    failure_b = _write_replay_context_artifact(source_dir, "failure_b", context_bytes=30)
+    success_a = _write_replay_context_artifact(source_dir, "success_a", context_bytes=10)
+    success_b = _write_replay_context_artifact(source_dir, "success_b", context_bytes=30)
+
+    group = {
+        "group_id": "g0",
+        "task": "move_stapler_pad",
+        "group_size": 2,
+        "reward_mean": 0.5,
+        "reward_std": 0.5,
+        "samples": [
+            {
+                **_sample(0, 0, artifact_count=0),
+                "strict_grpo_artifact_paths": [str(failure_a), str(failure_b)],
+            },
+            {
+                **_sample(1, 1, artifact_count=0),
+                "strict_grpo_artifact_paths": [str(success_a), str(success_b)],
+            },
+        ],
+    }
+    source = tmp_path / "groups.jsonl"
+    source.write_text(json.dumps(group) + "\n", encoding="utf-8")
+
+    groups, manifest = subset_grpo_groups(
+        source,
+        samples_per_reward=1,
+        require_artifacts=True,
+        max_replay_context_gb=20 / 1024**3,
+    )
+
+    assert manifest["output_group_count"] == 1
+    assert manifest["output_artifact_ref_count"] == 2
+    assert manifest["replay_context_budget"]["selected_replay_context_bytes"] == 20
+    assert manifest["replay_context_budget"]["selected_unique_replay_context_count"] == 2
+    assert manifest["replay_context_budget"]["skipped_artifact_ref_count_over_budget"] == 2
+    assert [len(sample["strict_grpo_artifact_paths"]) for sample in groups[0]["samples"]] == [1, 1]
+
+
+def test_subset_grpo_groups_drops_unmixed_group_when_budget_removes_required_sample(tmp_path):
+    source_dir = tmp_path / "artifacts"
+    source_dir.mkdir()
+    failure = _write_replay_context_artifact(source_dir, "failure", context_bytes=10)
+    success = _write_replay_context_artifact(source_dir, "success", context_bytes=10)
+    group = {
+        "group_id": "g0",
+        "task": "move_stapler_pad",
+        "group_size": 2,
+        "reward_mean": 0.5,
+        "reward_std": 0.5,
+        "samples": [
+            {
+                **_sample(0, 0, artifact_count=0),
+                "strict_grpo_artifact_paths": [str(failure)],
+            },
+            {
+                **_sample(1, 1, artifact_count=0),
+                "strict_grpo_artifact_paths": [str(success)],
+            },
+        ],
+    }
+    source = tmp_path / "groups.jsonl"
+    source.write_text(json.dumps(group) + "\n", encoding="utf-8")
+
+    groups, manifest = subset_grpo_groups(
+        source,
+        samples_per_reward=1,
+        require_artifacts=True,
+        max_replay_context_gb=10 / 1024**3,
+    )
+
+    assert groups == []
+    assert manifest["output_group_count"] == 0
+    assert manifest["skipped_unmixed_group_count"] == 1
+    assert manifest["replay_context_budget"]["selected_replay_context_bytes"] == 0

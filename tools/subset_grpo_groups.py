@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from dataclasses import dataclass, field
 from math import sqrt
 from pathlib import Path
 from typing import Iterable
@@ -16,7 +17,7 @@ except ModuleNotFoundError:
 
 ensure_repo_root_on_path()
 
-from wan_va.rl.dataset import read_grpo_group_dicts
+from wan_va.rl.dataset import REPLAY_CONTEXT_INLINE_KEY, REPLAY_CONTEXT_PATH_KEY, read_grpo_group_dicts
 
 
 def subset_grpo_groups(
@@ -26,6 +27,7 @@ def subset_grpo_groups(
     max_groups: int | None = None,
     samples_per_reward: int | None = None,
     max_artifacts_per_sample: int | None = None,
+    max_replay_context_gb: float | None = None,
     require_artifacts: bool = False,
     preserve_advantages: bool = False,
     group_id_suffix: str = "_subset",
@@ -45,9 +47,12 @@ def subset_grpo_groups(
         raise ValueError("samples_per_reward must be positive when set")
     if max_artifacts_per_sample is not None and max_artifacts_per_sample <= 0:
         raise ValueError("max_artifacts_per_sample must be positive when set")
+    if max_replay_context_gb is not None and max_replay_context_gb <= 0:
+        raise ValueError("max_replay_context_gb must be positive when set")
 
     source_groups = list(read_grpo_group_dicts(groups_jsonl.expanduser()))
     selected: list[dict] = []
+    replay_context_budget = ReplayContextBudget.from_gb(max_replay_context_gb)
     skipped_task = 0
     skipped_unmixed = 0
     skipped_empty = 0
@@ -57,10 +62,12 @@ def subset_grpo_groups(
         if tasks is not None and task not in tasks:
             skipped_task += 1
             continue
+        group_budget = replay_context_budget.clone()
         samples = _select_samples(
             group.get("samples", []),
             samples_per_reward=samples_per_reward,
             max_artifacts_per_sample=max_artifacts_per_sample,
+            replay_context_budget=group_budget,
             require_artifacts=require_artifacts,
         )
         if not samples:
@@ -77,6 +84,7 @@ def subset_grpo_groups(
             preserve_group_id=preserve_group_id,
         )
         selected.append(selected_group)
+        replay_context_budget = group_budget
         if max_groups is not None and len(selected) >= max_groups:
             break
 
@@ -88,6 +96,7 @@ def subset_grpo_groups(
         max_groups=max_groups,
         samples_per_reward=samples_per_reward,
         max_artifacts_per_sample=max_artifacts_per_sample,
+        replay_context_budget=replay_context_budget,
         require_artifacts=require_artifacts,
         preserve_advantages=preserve_advantages,
         preserve_group_id=preserve_group_id,
@@ -119,6 +128,7 @@ def _select_samples(
     *,
     samples_per_reward: int | None,
     max_artifacts_per_sample: int | None,
+    replay_context_budget: "ReplayContextBudget",
     require_artifacts: bool,
 ) -> list[dict]:
     copied = []
@@ -134,12 +144,55 @@ def _select_samples(
         copied.append(item)
 
     if samples_per_reward is None:
-        return copied
+        return _apply_replay_context_budget(
+            copied,
+            replay_context_budget=replay_context_budget,
+            require_artifacts=require_artifacts,
+        )
 
     failures = [sample for sample in copied if float(sample.get("reward", 0.0)) <= 0.0]
     successes = [sample for sample in copied if float(sample.get("reward", 0.0)) > 0.0]
     selected = failures[:samples_per_reward] + successes[:samples_per_reward]
-    return sorted(selected, key=lambda sample: int(sample.get("sample_idx", 0)))
+    selected = sorted(selected, key=lambda sample: int(sample.get("sample_idx", 0)))
+    return _apply_replay_context_budget(
+        selected,
+        replay_context_budget=replay_context_budget,
+        require_artifacts=require_artifacts,
+    )
+
+
+def _apply_replay_context_budget(
+    samples: list[dict],
+    *,
+    replay_context_budget: "ReplayContextBudget",
+    require_artifacts: bool,
+) -> list[dict]:
+    if not replay_context_budget.enabled:
+        return samples
+
+    per_sample_paths = [list(sample.get("strict_grpo_artifact_paths", []) or []) for sample in samples]
+    selected_paths: list[list[str]] = [[] for _ in samples]
+    max_len = max((len(paths) for paths in per_sample_paths), default=0)
+
+    # Round-robin keeps one success and one failure useful under tight budgets
+    # instead of spending the whole budget on the first selected sample.
+    for artifact_idx in range(max_len):
+        for sample_idx, paths in enumerate(per_sample_paths):
+            if artifact_idx >= len(paths):
+                continue
+            path = str(paths[artifact_idx])
+            if replay_context_budget.try_add(path):
+                selected_paths[sample_idx].append(path)
+
+    trimmed = []
+    for sample, paths in zip(samples, selected_paths, strict=True):
+        if require_artifacts and not paths:
+            continue
+        item = dict(sample)
+        item["strict_grpo_artifact_paths"] = paths
+        item["strict_grpo_artifact_count"] = len(paths)
+        trimmed.append(item)
+    return trimmed
 
 
 def _rewrite_group(
@@ -196,6 +249,7 @@ def _build_manifest(
     max_groups: int | None,
     samples_per_reward: int | None,
     max_artifacts_per_sample: int | None,
+    replay_context_budget: "ReplayContextBudget",
     require_artifacts: bool,
     preserve_advantages: bool,
     preserve_group_id: bool,
@@ -214,6 +268,7 @@ def _build_manifest(
             "max_groups": max_groups,
             "samples_per_reward": samples_per_reward,
             "max_artifacts_per_sample": max_artifacts_per_sample,
+            "max_replay_context_gb": replay_context_budget.max_gb,
             "require_artifacts": require_artifacts,
             "preserve_advantages": preserve_advantages,
             "preserve_group_id": preserve_group_id,
@@ -231,9 +286,106 @@ def _build_manifest(
         "skipped_unmixed_group_count": skipped_unmixed,
         "tasks": _task_summary(selected_groups),
     }
+    if replay_context_budget.enabled:
+        manifest["replay_context_budget"] = replay_context_budget.to_manifest()
     if include_file_sizes:
         manifest["output_existing_artifact_bytes"] = _existing_bytes(selected_artifacts)
     return manifest
+
+
+@dataclass
+class ReplayContextBudget:
+    max_bytes: int | None = None
+    max_gb: float | None = None
+    selected_bytes: int = 0
+    selected_keys: set[str] = field(default_factory=set)
+    selected_artifact_ref_count: int = 0
+    skipped_artifact_ref_count: int = 0
+    entry_cache: dict[str, tuple[str | None, int]] = field(default_factory=dict)
+
+    @classmethod
+    def from_gb(cls, value: float | None) -> "ReplayContextBudget":
+        if value is None:
+            return cls()
+        return cls(max_bytes=int(value * 1024**3), max_gb=value)
+
+    @property
+    def enabled(self) -> bool:
+        return self.max_bytes is not None
+
+    def clone(self) -> "ReplayContextBudget":
+        return ReplayContextBudget(
+            max_bytes=self.max_bytes,
+            max_gb=self.max_gb,
+            selected_bytes=self.selected_bytes,
+            selected_keys=set(self.selected_keys),
+            selected_artifact_ref_count=self.selected_artifact_ref_count,
+            skipped_artifact_ref_count=self.skipped_artifact_ref_count,
+            entry_cache=self.entry_cache,
+        )
+
+    def try_add(self, artifact_path: str) -> bool:
+        if not self.enabled:
+            self.selected_artifact_ref_count += 1
+            return True
+
+        key, size_bytes = self._entry(artifact_path)
+        additional_bytes = 0 if key is None or key in self.selected_keys else size_bytes
+        if self.selected_bytes + additional_bytes > int(self.max_bytes):
+            self.skipped_artifact_ref_count += 1
+            return False
+
+        self.selected_artifact_ref_count += 1
+        if key is not None and key not in self.selected_keys:
+            self.selected_keys.add(key)
+            self.selected_bytes += size_bytes
+        return True
+
+    def to_manifest(self) -> dict:
+        return {
+            "max_replay_context_gb": self.max_gb,
+            "max_replay_context_bytes": self.max_bytes,
+            "selected_replay_context_bytes": self.selected_bytes,
+            "selected_replay_context_gb": self.selected_bytes / 1024**3,
+            "selected_unique_replay_context_count": len(self.selected_keys),
+            "selected_artifact_ref_count": self.selected_artifact_ref_count,
+            "skipped_artifact_ref_count_over_budget": self.skipped_artifact_ref_count,
+        }
+
+    def _entry(self, artifact_path: str) -> tuple[str | None, int]:
+        if artifact_path not in self.entry_cache:
+            self.entry_cache[artifact_path] = _replay_context_budget_entry(Path(artifact_path).expanduser())
+        return self.entry_cache[artifact_path]
+
+
+def _replay_context_budget_entry(artifact_path: Path) -> tuple[str | None, int]:
+    if not artifact_path.exists():
+        raise FileNotFoundError(f"referenced artifact does not exist: {artifact_path}")
+    metadata = _load_strict_artifact_metadata(artifact_path)
+    if not isinstance(metadata, dict):
+        raise ValueError(f"strict artifact must be a dict: {artifact_path}")
+
+    context_value = metadata.get(REPLAY_CONTEXT_PATH_KEY)
+    if context_value is not None:
+        if not isinstance(context_value, str) or not context_value:
+            raise ValueError(f"artifact {artifact_path} has invalid {REPLAY_CONTEXT_PATH_KEY!r}: {context_value!r}")
+        context_path = Path(context_value).expanduser()
+        if not context_path.is_absolute():
+            context_path = artifact_path.parent / context_path
+        if not context_path.exists():
+            raise FileNotFoundError(f"referenced replay context does not exist: {context_path}")
+        return str(context_path), context_path.stat().st_size
+
+    if REPLAY_CONTEXT_INLINE_KEY in metadata:
+        return str(artifact_path), artifact_path.stat().st_size
+
+    return None, 0
+
+
+def _load_strict_artifact_metadata(path: Path) -> dict:
+    import torch
+
+    return torch.load(path, map_location="meta")
 
 
 def _sample_count(groups: list[dict]) -> int:
@@ -300,6 +452,14 @@ def main() -> None:
     parser.add_argument("--max-groups", type=int, help="Maximum number of mixed groups to write.")
     parser.add_argument("--samples-per-reward", type=int, help="Keep up to N failures and N successes per group.")
     parser.add_argument("--max-artifacts-per-sample", type=int, help="Keep only the first N artifact refs per sample.")
+    parser.add_argument(
+        "--max-replay-context-gb",
+        type=float,
+        help=(
+            "Trim selected artifact refs so the unique resolved replay-context footprint stays under this budget. "
+            "Requires referenced strict artifacts and replay-context files to exist."
+        ),
+    )
     parser.add_argument("--require-artifacts", action="store_true", help="Drop samples that have no artifact refs.")
     parser.add_argument("--preserve-advantages", action="store_true", help="Keep original sample advantages.")
     parser.add_argument("--preserve-group-id", action="store_true", help="Do not suffix output group ids.")
@@ -315,6 +475,7 @@ def main() -> None:
         max_groups=args.max_groups,
         samples_per_reward=args.samples_per_reward,
         max_artifacts_per_sample=args.max_artifacts_per_sample,
+        max_replay_context_gb=args.max_replay_context_gb,
         require_artifacts=args.require_artifacts,
         preserve_advantages=args.preserve_advantages,
         group_id_suffix=args.group_id_suffix,

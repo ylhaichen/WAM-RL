@@ -127,6 +127,7 @@ def test_subset_grpo_groups_help_does_not_require_external_pythonpath():
     assert result.returncode == 0, result.stderr
     assert "Create small GRPO group JSONL subsets" in result.stdout
     assert "--samples-per-reward" in result.stdout
+    assert "--max-replay-context-gb" in result.stdout
 
 
 def test_materialize_grpo_artifacts_help_does_not_require_external_pythonpath():
