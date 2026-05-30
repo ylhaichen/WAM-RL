@@ -46,6 +46,25 @@ is seeded.
 | Stage 2: Native + Iterative Online | in progress | 25-35% | real actor replay trainer, replay-context validation, checkpoint loading, eval plumbing | reliable improvement loop and scalable replay-context storage |
 | Stage 3: veRL Scale-Up | not started | 0% | intentionally deferred | native actor replay must first show a signal |
 
+### Plan Alignment Check
+
+Current work is aligned with the original implementation plan, but the active
+frontier has moved. The missing piece is no longer the GRPO loss, grouped
+rollout data contract, or basic actor replay trainer. The missing piece is a
+repeatable Stage 2 loop:
+
+```text
+bounded replay-context collection
+-> storage-audited subset
+-> actor replay update with measured parameter movement
+-> paired baseline-vs-actor eval
+-> promotion gate against baseline repeatability
+```
+
+Work that is currently off-scope: paper writing, veRL migration, video-action
+consistency, and large unbounded replay-context collections. These should wait
+until the bounded native actor replay loop shows a credible signal.
+
 ## Implemented And Validated
 
 ### Grouped Rollout Data Path

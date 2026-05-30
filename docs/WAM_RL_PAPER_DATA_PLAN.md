@@ -1,6 +1,7 @@
 # WAM-RL Paper Data Collection Plan
 
 **Date:** 2026-05-18
+**Last updated:** 2026-05-30
 **Purpose:** local record for paper writing, experiment accounting, and future data collection
 **Scope:** early-stage WAM-RL paper around Denoising-step GRPO for LingBot-VA on RoboTwin
 
@@ -110,15 +111,15 @@ Purpose: provide the main current dataset used by smoke training and paper audit
 Current main combined dataset:
 
 ```text
-/home/zcably0/Scratch/wam-rl/results_grpo_datasets/a_partial_b_mw_nomw_accepted4_20260518_164531/grpo_groups.jsonl
+/home/zcably0/Scratch/wam-rl/results_grpo_datasets/a_b_m_n_20260519_164542/grpo_groups.jsonl
 ```
 
 Known stats:
 
 ```text
-groups: 23
-samples: 184
-strict transitions: 3077
+groups: 35
+samples: 280
+strict transitions: 4644
 validation: ok=true, error_count=0
 tasks: 7
 ```
@@ -128,21 +129,22 @@ Per-task current stats:
 | task | groups | samples | success | failure | transitions |
 |---|---:|---:|---:|---:|---:|
 | adjust_bottle | 2 | 16 | 14 | 2 | 90 |
-| hanging_mug | 2 | 16 | 5 | 11 | 370 |
-| move_stapler_pad | 5 | 40 | 29 | 11 | 308 |
+| hanging_mug | 4 | 32 | 11 | 21 | 724 |
+| move_stapler_pad | 9 | 72 | 42 | 30 | 641 |
 | open_microwave | 5 | 40 | 20 | 20 | 1251 |
 | place_mouse_pad | 2 | 16 | 13 | 3 | 109 |
-| put_bottles_dustbin | 2 | 16 | 7 | 9 | 634 |
-| turn_switch | 5 | 40 | 22 | 18 | 315 |
+| put_bottles_dustbin | 5 | 40 | 23 | 17 | 1354 |
+| turn_switch | 8 | 64 | 38 | 26 | 475 |
 
 Use this local tool for reproducible summaries:
 
 ```bash
 python tools/summarize_grpo_groups.py \
-  /home/zcably0/Scratch/wam-rl/results_grpo_datasets/a_partial_b_mw_nomw_accepted4_20260518_164531/grpo_groups.jsonl \
-  --out-json /home/zcably0/Scratch/wam-rl/results_grpo_datasets/a_partial_b_mw_nomw_accepted4_20260518_164531/summary.json \
-  --out-csv /home/zcably0/Scratch/wam-rl/results_grpo_datasets/a_partial_b_mw_nomw_accepted4_20260518_164531/summary_by_task.csv \
-  --out-markdown /home/zcably0/Scratch/wam-rl/results_grpo_datasets/a_partial_b_mw_nomw_accepted4_20260518_164531/summary.md
+  /home/zcably0/Scratch/wam-rl/results_grpo_datasets/a_b_m_n_20260519_164542/grpo_groups.jsonl \
+  --inspect-artifacts \
+  --out-json /home/zcably0/Scratch/wam-rl/results_grpo_datasets/a_b_m_n_20260519_164542/summary_inspected.json \
+  --out-csv /home/zcably0/Scratch/wam-rl/results_grpo_datasets/a_b_m_n_20260519_164542/summary_inspected.csv \
+  --out-markdown /home/zcably0/Scratch/wam-rl/results_grpo_datasets/a_b_m_n_20260519_164542/summary_inspected.md
 ```
 
 ### Table D: Strict Artifact Validation
@@ -166,8 +168,8 @@ M open_microwave:
   inspect-artifacts ok
 
 combined A+B+M+N:
-  transition_count = 3077
-  JSON/path validation ok
+  transition_count = 4644
+  inspect-artifacts ok
 ```
 
 Artifact inspection requires `torch`, so run it in the container or a compute node:
@@ -239,9 +241,13 @@ Future smoke runs should be submitted with `qsub` or run on an interactive compu
 
 ### 3.1 Full Denoising-Step Capture Data
 
-The current strict artifacts mainly represent the first action denoising transition. The final method needs full or multi-step denoising capture.
+Full action-denoising trajectory capture is implemented for actor replay
+collection, but paper-scale full-capture data is still limited by
+replay-context storage. The next paper-facing table should therefore come from
+a storage-bounded replay-context dataset, not from an unbounded multi-task
+collection.
 
-After implementing full capture, export:
+For any new bounded capture run, export:
 
 - transitions per rollout;
 - chunks per rollout;
@@ -259,7 +265,8 @@ Target table:
 
 ### 3.2 Real Actor Replay Diagnostics
 
-Once real actor replay is implemented, collect:
+Real actor replay is implemented. Before using it for claims, collect and
+preserve diagnostics from storage-bounded runs:
 
 - new logprob finite rate;
 - old/new logprob difference distribution;
@@ -267,6 +274,8 @@ Once real actor replay is implemented, collect:
 - clip fraction;
 - gradient norm by module;
 - parameter update norm by module;
+- `parameter_update_detected` from
+  `tools/summarize_actor_replay_training.py`;
 - GPU memory;
 - train step time.
 
@@ -362,26 +371,31 @@ python tools/summarize_grpo_groups.py \
 
 - The project defines a denoising-transition policy interface for FlowMatch VLA RL.
 - The grouped rollout pipeline has produced validated mixed GRPO datasets on RoboTwin.
-- The current combined dataset contains `23` groups, `184` samples, and `3077` strict transitions across `7` tasks.
+- The current combined strict-artifact dataset contains `35` groups, `280`
+  samples, and `4644` strict transitions across `7` tasks.
 - Task selection strongly affects mixed-group yield.
 - Isolating `open_microwave` turns an unstable task into a usable high-signal dataset.
 - Offline smoke training validates the strict-artifact GRPO loss and checkpoint path.
+- Real actor replay is implemented and has passed smoke-scale training on a
+  tiny replay-context dataset, but that is not yet policy-improvement evidence.
 
 ### Claims To Avoid Until More Work Is Done
 
 - WAM-RL improves LingBot-VA performance.
-- The current trainer updates the real LingBot-VA actor.
+- The current actor replay runs demonstrate reliable policy improvement.
 - Full online GRPO is complete.
-- Full denoising trajectory replay is complete.
+- Replay-context storage is solved at scale.
 - Video-action consistency is validated.
 
 ---
 
 ## 6. Immediate Next Actions
 
-1. Run `tools/summarize_grpo_groups.py` on the combined dataset and preserve JSON/CSV/Markdown outputs.
-2. Record artifact-inspected validation for the combined dataset from a compute node or container.
-3. Submit smoke training for the combined dataset via `qsub`, not on the login node.
-4. Implement full denoising-step capture with backward-compatible artifact schema.
-5. Add a schema-summary tool for full denoising artifacts.
-6. Update this document after every major dataset or checkpoint.
+1. Keep this document secondary to `docs/WAM_RL_CURRENT_PROJECT_STATUS.md`;
+   do not use it as the active engineering plan.
+2. Preserve current JSON/CSV/Markdown summaries for the combined strict-artifact
+   dataset.
+3. For real actor replay, prioritize storage-bounded subsets and paired eval
+   repeatability before collecting new paper-facing tables.
+4. Update this document after any dataset or checkpoint becomes strong enough
+   to support a paper claim.

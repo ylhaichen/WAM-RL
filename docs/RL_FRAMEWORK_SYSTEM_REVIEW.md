@@ -124,22 +124,41 @@ Scratch or relying on full 400GB+ replay-context directories.
 
 ## Recommended Next Milestones
 
-1. Run large rollout collection on Myriad with `ecab4e2` or later.
-2. After collection, run:
+1. Keep the next rollout collection storage-bounded. Before submitting, run
+   the bounded replay-context wrapper in dry-run mode and check Scratch
+   headroom:
+
+   ```bash
+   DRY_RUN=1 \
+   TASK_NAMES=move_stapler_pad \
+   GROUP_SIZE=4 \
+   GROUPS_PER_TASK=1 \
+   GROUP_MAX_ATTEMPTS=1 \
+   STRICT_GRPO_CAPTURE_MAX_CHUNKS=1 \
+   ACTION_NUM_INFERENCE_STEPS=10 \
+   bash jobs/myriad/39_submit_grpo_replayctx_bounded_4gpu.sh
+   ```
+
+2. After any accepted replay-context collection, validate it with replay-context
+   requirements enabled:
 
    ```bash
    python tools/validate_grpo_dataset.py \
        "$RESULTS/groups/grpo_groups.jsonl" \
+       --inspect-artifacts \
+       --require-replay-context \
        --out-summary "$RESULTS/groups/grpo_dataset_validation.json" \
        --fail-on-error
    ```
 
-3. Run the strict-artifact smoke trainer:
+3. Inspect at least one replay-context file with compact metadata-only output
+   before training:
 
    ```bash
-   qsub -V \
-     -v RESULTS_ROOT="$RESULTS",GRPO_GROUPS_PATH="$RESULTS/groups/grpo_groups.jsonl" \
-     jobs/myriad/31_train_denoising_grpo_robotwin.sh
+   python tools/inspect_grpo_replay_context.py \
+     /path/to/strict_grpo_replay_context_0.pt \
+     --metadata-only \
+     --print-summary
    ```
 
 4. Prepare a storage-bounded actor replay subset:
@@ -152,16 +171,21 @@ Scratch or relying on full 400GB+ replay-context directories.
    bash jobs/myriad/35_prepare_actor_replay_subset.sh
    ```
 
-5. Submit the actor replay subset smoke only after the storage audit passes:
+5. Submit the actor replay subset smoke only after the storage audit passes and
+   after reviewing the dry-run command:
 
    ```bash
    SUBSET_ROOT="/home/zcably0/Scratch/wam-rl/results_grpo_actor_replay_subset/<run>" \
    bash jobs/myriad/36_submit_actor_replay_subset_smoke.sh --dry-run
    ```
 
-6. Only after actor replay produces finite ratios, non-zero gradients, and a
-   reproducible paired eval signal on a bounded dataset, replace the offline
-   fallback in `jobs/myriad/40_rl_iteration_robotwin.sh`.
+6. Inspect the training output with
+   `tools/summarize_actor_replay_training.py`; require finite ratios and
+   `parameter_update_detected=true` for nonzero-learning-rate smoke runs.
+7. Only after actor replay produces finite ratios, non-zero gradients/nonzero
+   parameter updates, and a reproducible paired eval signal on a bounded
+   dataset, replace the offline fallback in
+   `jobs/myriad/40_rl_iteration_robotwin.sh`.
 
 ## Review Conclusion
 
