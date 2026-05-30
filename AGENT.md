@@ -192,6 +192,9 @@ current system:
   not a full simulator determinism guarantee; repeated RoboTwin closed-loop
   runs can still diverge after the first action chunk, so interpret small
   `n=5` differences as smoke signals rather than policy improvement claims.
+- Set `SEED` explicitly for eval jobs. RoboTwin starts from
+  `st_seed = 10000 * (1 + SEED)`, so leaving `SEED` to `qsub -V` inheritance can
+  silently change the matched episode set.
 - Compare baseline and actor evals with
   `tools/compare_robotwin_eval_episodes.py` on matched episode keys before
   interpreting aggregate success-rate differences.

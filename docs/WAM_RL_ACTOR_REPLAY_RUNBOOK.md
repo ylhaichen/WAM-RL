@@ -223,11 +223,16 @@ Use fixed prompt and sampling controls for paired smoke evaluation:
 
 ```bash
 PROMPT_INDEX=0
+SEED=0
 SAMPLING_SEED=12345
 SAMPLING_SEED_PER_ENV=true
 ACTION_NUM_INFERENCE_STEPS=10
 SAVE_SERVER_DEBUG_TENSORS=false
 ```
+
+`SEED` controls RoboTwin's starting env seed through
+`st_seed = 10000 * (1 + SEED)`. Keep it explicit in paired comparisons; do not
+depend on `qsub -V` inheriting whatever `SEED` happened to be in the shell.
 
 Submit baseline and actor checkpoint evals on the same task, prompt, env seeds,
 and sampling seed policy:
@@ -237,6 +242,7 @@ ACTOR_REPLAY_CHECKPOINT_PATH=/path/to/actor/checkpoint.pt \
 RUN_ID=actor_eval_pair_<date> \
 TASK_NAME=move_stapler_pad \
 TEST_NUM=2 \
+SEED=0 \
 jobs/myriad/37_submit_actor_eval_pair_smoke.sh
 ```
 

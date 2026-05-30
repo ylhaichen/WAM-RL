@@ -67,6 +67,8 @@ def test_selected_eval_job_can_load_actor_replay_checkpoint():
     assert 'SERVER_HOST="${SERVER_HOST:-127.0.0.1}"' in text
     assert 'SAVE_SERVER_DEBUG_TENSORS="${SAVE_SERVER_DEBUG_TENSORS:-false}"' in text
     assert 'save_server_debug_tensors="${SAVE_SERVER_DEBUG_TENSORS}"' in text
+    assert 'SEED="${SEED:-0}"' in text
+    assert "echo \"SEED=${SEED}\"" in text
 
 
 def test_one_gpu_eval_smoke_job_can_load_actor_replay_checkpoint():
@@ -81,6 +83,8 @@ def test_one_gpu_eval_smoke_job_can_load_actor_replay_checkpoint():
     assert 'PROMPT_INDEX="${PROMPT_INDEX:-}"' in text
     assert 'SAMPLING_SEED="${SAMPLING_SEED:-}"' in text
     assert 'SAMPLING_SEED_PER_ENV="${SAMPLING_SEED_PER_ENV:-}"' in text
+    assert 'SEED="${SEED:-0}"' in text
+    assert "echo \"SEED=${SEED}\"" in text
     assert "PROMPT_INDEX=${PROMPT_INDEX:-}" in launch_text
     assert "SAMPLING_SEED=${SAMPLING_SEED:-}" in launch_text
     assert "SAMPLING_SEED_PER_ENV=${SAMPLING_SEED_PER_ENV:-}" in launch_text
@@ -225,6 +229,8 @@ def test_actor_eval_pair_smoke_submitter_uses_matched_eval_controls():
     assert 'SAMPLING_SEED="${SAMPLING_SEED:-12345}"' in text
     assert 'SAMPLING_SEED_PER_ENV="${SAMPLING_SEED_PER_ENV:-true}"' in text
     assert 'SAVE_SERVER_DEBUG_TENSORS="${SAVE_SERVER_DEBUG_TENSORS:-false}"' in text
+    assert 'SEED="${SEED:-0}"' in text
+    assert '"SEED=${SEED}"' in text
     assert 'BASELINE_PORT="${BASELINE_PORT:-29656}"' in text
     assert 'ACTOR_PORT="${ACTOR_PORT:-29756}"' in text
     assert "BASELINE_PORT and ACTOR_PORT must differ" in text
