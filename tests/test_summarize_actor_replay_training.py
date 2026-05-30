@@ -1,9 +1,11 @@
 import json
+import os
 from pathlib import Path
 
 import torch
 
 from tools.summarize_actor_replay_training import (
+    discover_output_dirs,
     summarize_actor_replay_output,
     write_csv_report,
     write_markdown_report,
@@ -81,6 +83,21 @@ def test_summarize_actor_replay_output_reports_complete_run(tmp_path):
     assert summary["parameter_update_detected"] is True
     assert summary["warnings"] == []
     assert summary["last_step"]["grad_norm"] == 0.2
+
+
+def test_discover_output_dirs_filters_pattern_and_latest(tmp_path):
+    root = tmp_path / "runs"
+    root.mkdir()
+    old_run = root / "actor_old"
+    new_run = root / "actor_new"
+    ignored = root / "baseline_new"
+    for idx, path in enumerate([old_run, ignored, new_run], start=1):
+        path.mkdir()
+        os.utime(path, (idx, idx))
+
+    discovered = discover_output_dirs(root, pattern="actor_*", latest=1)
+
+    assert discovered == [new_run]
 
 
 def test_summarize_actor_replay_output_marks_failure_diagnostics(tmp_path):

@@ -280,6 +280,17 @@ python tools/inspect_actor_replay_checkpoint.py \
   --out-markdown "$OUT/checkpoint_inspection.md"
 ```
 
+For a sweep table over recent actor replay runs:
+
+```bash
+python tools/summarize_actor_replay_training.py \
+  --discover-root /home/zcably0/Scratch/wam-rl/results_grpo_actor_replay \
+  --latest 20 \
+  --out-json /home/zcably0/Scratch/wam-rl/results_grpo_actor_replay/recent_summary.json \
+  --out-csv /home/zcably0/Scratch/wam-rl/results_grpo_actor_replay/recent_summary.csv \
+  --out-markdown /home/zcably0/Scratch/wam-rl/results_grpo_actor_replay/recent_summary.md
+```
+
 `summary.json` / `summary.csv` record the training config saved in
 `metrics.json` for new runs (`learning_rate`, `action_num_inference_steps`,
 `logprob_reduction`, `logprob_std_floor`, and `trainable_mode`). If an older

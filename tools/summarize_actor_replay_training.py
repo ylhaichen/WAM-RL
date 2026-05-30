@@ -75,6 +75,22 @@ def summarize_actor_replay_output(output_dir: Path) -> dict:
     return summary
 
 
+def discover_output_dirs(root: Path, *, pattern: str = "*", latest: int | None = None) -> list[Path]:
+    expanded_root = root.expanduser()
+    if not expanded_root.exists():
+        raise FileNotFoundError(f"discover root does not exist: {expanded_root}")
+    if not expanded_root.is_dir():
+        raise NotADirectoryError(f"discover root is not a directory: {expanded_root}")
+    if latest is not None and latest <= 0:
+        raise ValueError("latest must be positive when set")
+
+    dirs = [path for path in expanded_root.glob(pattern) if path.is_dir()]
+    dirs = sorted(dirs, key=lambda path: (path.stat().st_mtime, str(path)))
+    if latest is not None:
+        dirs = dirs[-latest:]
+    return dirs
+
+
 def write_json_report(summaries: list[dict], out_json: Path) -> None:
     out_json.expanduser().parent.mkdir(parents=True, exist_ok=True)
     out_json.expanduser().write_text(json.dumps({"runs": summaries}, indent=2) + "\n", encoding="utf-8")
@@ -270,13 +286,33 @@ def _bool_cell(value: bool) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Summarize actor replay GRPO training output directories.")
-    parser.add_argument("output_dirs", nargs="+", type=Path, help="Actor replay training output directories.")
+    parser.add_argument("output_dirs", nargs="*", type=Path, help="Actor replay training output directories.")
+    parser.add_argument(
+        "--discover-root",
+        action="append",
+        type=Path,
+        default=[],
+        help="Discover immediate child run directories under this root. Can be passed more than once.",
+    )
+    parser.add_argument("--discover-pattern", default="*", help="Glob pattern for --discover-root child directories.")
+    parser.add_argument("--latest", type=int, default=None, help="Keep only the latest N discovered/explicit run dirs.")
     parser.add_argument("--out-json", type=Path, help="Optional JSON summary path.")
     parser.add_argument("--out-csv", type=Path, help="Optional CSV summary path.")
     parser.add_argument("--out-markdown", type=Path, help="Optional Markdown summary path.")
     args = parser.parse_args()
 
-    summaries = [summarize_actor_replay_output(path) for path in args.output_dirs]
+    output_dirs = list(args.output_dirs)
+    for root in args.discover_root:
+        output_dirs.extend(discover_output_dirs(root, pattern=args.discover_pattern))
+    if args.latest is not None:
+        if args.latest <= 0:
+            parser.error("--latest must be positive")
+        expanded_dirs = [path.expanduser() for path in output_dirs]
+        output_dirs = sorted(expanded_dirs, key=lambda path: (path.stat().st_mtime, str(path)))[-args.latest :]
+    if not output_dirs:
+        parser.error("provide at least one output directory or --discover-root")
+
+    summaries = [summarize_actor_replay_output(path) for path in output_dirs]
     report = {"runs": summaries}
     if args.out_json is not None:
         write_json_report(summaries, args.out_json)
