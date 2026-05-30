@@ -314,6 +314,8 @@ def test_actor_eval_pair_smoke_submitter_uses_matched_eval_controls():
     assert 'REFERENCE_CHECKPOINT="${REFERENCE_CHECKPOINT:-${WAM_ROOT}/checkpoints/lingbot-va-posttrain-robotwin}"' in text
     assert 'BASELINE_POLICY_CHECKPOINT="${BASELINE_POLICY_CHECKPOINT:-${REFERENCE_CHECKPOINT}}"' in text
     assert 'ACTOR_POLICY_CHECKPOINT="${ACTOR_POLICY_CHECKPOINT:-${ACTOR_REPLAY_CHECKPOINT_PATH}}"' in text
+    assert 'QSUB_EXPORT_CURRENT_ENV="${QSUB_EXPORT_CURRENT_ENV:-0}"' in text
+    assert 'if [ "${QSUB_EXPORT_CURRENT_ENV}" = "1" ]; then' in text
     assert '"SEED=${SEED}"' in text
     assert 'BASELINE_PORT="${BASELINE_PORT:-29656}"' in text
     assert 'ACTOR_PORT="${ACTOR_PORT:-29756}"' in text
@@ -362,6 +364,7 @@ def test_actor_eval_pair_dry_run_flag_does_not_call_qsub(tmp_path):
 
     assert result.returncode == 0, result.stderr
     assert sum(line.startswith("qsub ") for line in result.stdout.splitlines()) == 2
+    assert "qsub -V" not in result.stdout
     assert not qsub_called.exists()
 
 

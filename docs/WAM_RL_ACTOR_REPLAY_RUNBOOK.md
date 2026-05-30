@@ -388,6 +388,9 @@ self-describing after logs move or get archived.
 The pair submitter also prints and passes these checkpoint labels explicitly,
 so dry-run output should be enough to audit baseline/actor provenance before
 spending GPU time.
+It does not export the whole submit shell by default; keep
+`QSUB_EXPORT_CURRENT_ENV=0` unless you intentionally need `qsub -V`, because
+the baseline job must not inherit the actor checkpoint path.
 
 After both jobs finish, summarize aggregate results, per-episode exports, and
 matched comparisons in one pass:
