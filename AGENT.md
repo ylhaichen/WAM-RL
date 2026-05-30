@@ -9,6 +9,7 @@ plan and the current implementation state instead of inventing a new direction.
 Use the planning documents as the source of truth:
 
 - `docs/WAM_RL_RESEARCH_IMPLEMENTATION_PLAN_FRAMEWORK_FINAL.md`
+- `docs/WAM_RL_CURRENT_PROJECT_STATUS.md`
 - `docs/WAM_RL_EARLY_STAGE_WORK_SUMMARY.md`
 - `docs/GRPO_STRICT_ARTIFACT_SCHEMA.md`
 - `docs/WAM_RL_MYRIAD_STORAGE_POLICY.md`
@@ -30,6 +31,10 @@ RoboTwin baseline and task selection
 
 Do not skip directly to paper claims, veRL migration, reward shaping, or
 video-action consistency before the real actor replay trainer is working.
+
+For current stage, completion, blockers, and claims boundaries, read
+`docs/WAM_RL_CURRENT_PROJECT_STATUS.md` first. The older early-stage summary is
+historical and may describe limitations that have since been implemented.
 
 ## Truthfulness
 
