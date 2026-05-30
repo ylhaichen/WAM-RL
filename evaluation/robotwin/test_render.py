@@ -12,8 +12,16 @@ import numpy as np
 import pdb
 import json
 import torch
-import sapien.core as sapien
-from sapien.utils.viewer import Viewer
+try:
+    import sapien.core as sapien
+    from sapien.utils.viewer import Viewer
+except ImportError as exc:
+    import pytest
+
+    pytest.skip(
+        f"SAPIEN render smoke dependencies are unavailable: {exc}",
+        allow_module_level=True,
+    )
 import gymnasium as gym
 import toppra as ta
 import transforms3d as t3d

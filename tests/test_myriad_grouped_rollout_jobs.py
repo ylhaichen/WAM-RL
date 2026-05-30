@@ -158,6 +158,10 @@ def test_scale_submit_wrapper_derives_output_roots_by_default():
 
     assert 'USE_EXISTING_RESULTS_ROOT="${USE_EXISTING_RESULTS_ROOT:-0}"' in text
     assert 'USE_EXISTING_STABLE_SEED_CACHE_DIR="${USE_EXISTING_STABLE_SEED_CACHE_DIR:-0}"' in text
+    assert 'DEFAULT_JOB_SCRIPT="jobs/myriad/30_collect_grouped_rollouts_4gpu.sh"' in text
+    assert '[ "${JOB_SCRIPT}" = "QRLOGIN" ]' in text
+    assert '[ "${JOB_SCRIPT}" = "QRSH" ]' in text
+    assert '[ "${JOB_NAME}" = "bash" ]' in text
     assert 'DEFAULT_WAM_ROOT="${HOME}/Scratch/wam-rl"' in text
     assert 'WAM_ROOT="${WAM_ROOT:-${DEFAULT_WAM_ROOT}}"' in text
     assert 'SUBMIT_GIT_COMMIT="${SUBMIT_GIT_COMMIT:-$(git -C "${REPO_ROOT}" rev-parse --short HEAD' in text
@@ -207,6 +211,8 @@ def test_scale_submit_wrapper_dry_run_uses_explicit_qsub_vars(tmp_path):
             "TASK_NAMES": "move_stapler_pad",
             "DRY_RUN": "1",
             "ACTOR_REPLAY_CHECKPOINT_PATH": str(tmp_path / "actor.pt"),
+            "JOB_SCRIPT": "QRLOGIN",
+            "JOB_NAME": "bash",
             "QSUB_H_RT": "6:00:00",
             "QSUB_TMPFS": "80G",
         }
@@ -222,6 +228,7 @@ def test_scale_submit_wrapper_dry_run_uses_explicit_qsub_vars(tmp_path):
 
     assert result.returncode == 0, result.stderr
     assert "qsub -V" not in result.stdout
+    assert "qsub -N wam_grpo_s8" in result.stdout
     assert f"ACTOR_REPLAY_CHECKPOINT_PATH={tmp_path / 'actor.pt'}" in result.stdout
     assert "TASK_NAMES=move_stapler_pad" in result.stdout
     assert "SUBMIT_GIT_COMMIT=" in result.stdout
@@ -644,6 +651,7 @@ def test_bounded_replayctx_submitter_uses_storage_safe_defaults():
     assert 'STRICT_GRPO_REPLAY_CONTEXT_MAX_GB="${STRICT_GRPO_REPLAY_CONTEXT_MAX_GB}"' in text
     assert 'QSUB_H_RT="${QSUB_H_RT}"' in text
     assert 'QSUB_TMPFS="${QSUB_TMPFS}"' in text
+    assert '[ "${JOB_NAME}" = "bash" ]' in text
     assert 'bash "${SUBMIT_SCRIPT}"' in text
 
 
@@ -665,6 +673,8 @@ def test_bounded_replayctx_dry_run_budgets_attempts(tmp_path):
             "STRICT_GRPO_CAPTURE_MAX_CHUNKS": "1",
             "REPLAY_CONTEXT_ESTIMATE_GB": "4",
             "CHECK_SCRATCH_HEADROOM": "0",
+            "JOB_SCRIPT": "QRLOGIN",
+            "JOB_NAME": "bash",
             "SUCCESS_RATE": "0.5",
         }
     )
@@ -709,6 +719,8 @@ def test_bounded_replayctx_dry_run_can_write_plan_json(tmp_path):
             "STRICT_GRPO_CAPTURE_MAX_CHUNKS": "1",
             "REPLAY_CONTEXT_ESTIMATE_GB": "4",
             "CHECK_SCRATCH_HEADROOM": "0",
+            "JOB_SCRIPT": "QRSH",
+            "JOB_NAME": "bash",
             "PLAN_JSON": str(plan_json),
         }
     )
@@ -748,6 +760,8 @@ def test_bounded_replayctx_dry_run_can_budget_accepted_only(tmp_path):
             "REPLAY_CONTEXT_ESTIMATE_GB": "4",
             "CHECK_SCRATCH_HEADROOM": "0",
             "STORAGE_BUDGET_MODE": "accepted",
+            "JOB_SCRIPT": "QRSH",
+            "JOB_NAME": "bash",
         }
     )
 
@@ -809,7 +823,12 @@ def test_myriad_common_initializes_modules_for_interactive_shells():
     text = Path("jobs/myriad/common.sh").read_text()
 
     assert "if ! command -v apptainer" in text
-    assert 'GIT_COMMIT=$(git -C "${REPO_ROOT}" rev-parse --short HEAD' in text
+    assert 'GIT_COMMIT="${GIT_COMMIT:-$(git -C "${REPO_ROOT}" rev-parse --short HEAD' in text
+    assert 'SUBMIT_GIT_COMMIT="${SUBMIT_GIT_COMMIT:-${GIT_COMMIT}}"' in text
+    assert "export GIT_COMMIT" in text
+    assert "export SUBMIT_GIT_COMMIT" in text
+    assert 'echo "GIT_COMMIT=${GIT_COMMIT}"' in text
+    assert 'echo "SUBMIT_GIT_COMMIT=${SUBMIT_GIT_COMMIT}"' in text
     assert "/shared/ucl/apps/modules/5.3.1/init/bash" in text
     assert "[ -x /usr/bin/tclsh ]" in text
     assert "module load apptainer/1.2.4-1" in text

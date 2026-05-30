@@ -12,8 +12,13 @@ if [ -z "${REPO_ROOT:-}" ]; then
 fi
 cd "${REPO_ROOT}"
 
-JOB_SCRIPT="${JOB_SCRIPT:-jobs/myriad/30_collect_grouped_rollouts_4gpu.sh}"
-JOB_NAME="${JOB_NAME:-wam_grpo_s8}"
+DEFAULT_JOB_SCRIPT="jobs/myriad/30_collect_grouped_rollouts_4gpu.sh"
+if [ -z "${JOB_SCRIPT:-}" ] || [ "${JOB_SCRIPT}" = "QRLOGIN" ] || [ "${JOB_SCRIPT}" = "QRSH" ] || [ "${JOB_SCRIPT}" = "sshorig" ]; then
+    JOB_SCRIPT="${DEFAULT_JOB_SCRIPT}"
+fi
+if [ -z "${JOB_NAME:-}" ] || [ "${JOB_NAME}" = "QRLOGIN" ] || [ "${JOB_NAME}" = "QRSH" ] || [ "${JOB_NAME}" = "bash" ] || [ "${JOB_NAME}" = "sshorig" ]; then
+    JOB_NAME="wam_grpo_s8"
+fi
 NUM_GPUS="${NUM_GPUS:-4}"
 GROUP_SIZE="${GROUP_SIZE:-4}"
 GROUPS_PER_TASK="${GROUPS_PER_TASK:-8}"

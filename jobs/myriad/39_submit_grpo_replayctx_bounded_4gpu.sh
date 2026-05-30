@@ -45,7 +45,9 @@ cd "${REPO_ROOT}"
 SUBMIT_SCRIPT="${SUBMIT_SCRIPT:-jobs/myriad/32_submit_grpo_scale_8tasks_4gpu.sh}"
 DRY_RUN="${DRY_RUN:-0}"
 
-JOB_NAME="${JOB_NAME:-wam_grpo_replayctx_bounded}"
+if [ -z "${JOB_NAME:-}" ] || [ "${JOB_NAME}" = "QRLOGIN" ] || [ "${JOB_NAME}" = "QRSH" ] || [ "${JOB_NAME}" = "bash" ] || [ "${JOB_NAME}" = "sshorig" ]; then
+    JOB_NAME="wam_grpo_replayctx_bounded"
+fi
 TASK_NAMES="${TASK_NAMES:-move_stapler_pad}"
 GROUP_SIZE="${GROUP_SIZE:-8}"
 GROUPS_PER_TASK="${GROUPS_PER_TASK:-1}"

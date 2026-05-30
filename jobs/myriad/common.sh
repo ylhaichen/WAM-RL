@@ -23,6 +23,8 @@ WAN_VA_DATASET_PATH="${WAN_VA_DATASET_PATH:-${WAM_ROOT}/datasets/robotwin-clean-
 WAN_VA_EMPTY_EMB_PATH="${WAN_VA_EMPTY_EMB_PATH:-${WAN_VA_DATASET_PATH}/empty_emb.pt}"
 ROBOTWIN_ROOT="${ROBOTWIN_ROOT:-${WAN_VA_ROBOTWIN_ROOT:-${WAM_ROOT}/RoboTwin}}"
 WAN_VA_ROBOTWIN_ROOT="${WAN_VA_ROBOTWIN_ROOT:-${ROBOTWIN_ROOT}}"
+GIT_COMMIT="${GIT_COMMIT:-$(git -C "${REPO_ROOT}" rev-parse --short HEAD 2>/dev/null || echo unknown)}"
+SUBMIT_GIT_COMMIT="${SUBMIT_GIT_COMMIT:-${GIT_COMMIT}}"
 
 export REPO_ROOT
 export WAM_ROOT
@@ -37,6 +39,8 @@ export WAN_VA_DATASET_PATH
 export WAN_VA_EMPTY_EMB_PATH
 export ROBOTWIN_ROOT
 export WAN_VA_ROBOTWIN_ROOT
+export GIT_COMMIT
+export SUBMIT_GIT_COMMIT
 export TOKENIZERS_PARALLELISM="${TOKENIZERS_PARALLELISM:-false}"
 export WAN_VA_ENABLE_WANDB="${WAN_VA_ENABLE_WANDB:-false}"
 export SETUPTOOLS_SCM_PRETEND_VERSION="${SETUPTOOLS_SCM_PRETEND_VERSION:-0.0.0}"
@@ -119,7 +123,8 @@ print_job_context() {
     echo "HOST=$(hostname)"
     echo "DATE=$(date -Is)"
     echo "REPO_ROOT=${REPO_ROOT}"
-    echo "GIT_COMMIT=$(git -C "${REPO_ROOT}" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+    echo "GIT_COMMIT=${GIT_COMMIT}"
+    echo "SUBMIT_GIT_COMMIT=${SUBMIT_GIT_COMMIT}"
     echo "WAM_ROOT=${WAM_ROOT}"
     echo "SIF=${SIF}"
     echo "WAN_VA_VENV=${WAN_VA_VENV}"

@@ -1,6 +1,8 @@
 import subprocess
 import sys
 
+from tools.train_actor_replay_grpo import _git_commit
+
 
 def test_build_grpo_groups_script_entrypoint_can_resolve_repo_imports():
     result = subprocess.run(
@@ -222,6 +224,20 @@ def test_train_actor_replay_grpo_help_does_not_require_external_pythonpath():
 
     assert result.returncode == 0, result.stderr
     assert "real LingBot actor replay GRPO training" in result.stdout
+
+
+def test_train_actor_replay_grpo_git_commit_prefers_job_env(monkeypatch):
+    monkeypatch.setenv("GIT_COMMIT", "runtime123")
+    monkeypatch.setenv("SUBMIT_GIT_COMMIT", "submit456")
+
+    assert _git_commit() == "runtime123"
+
+
+def test_train_actor_replay_grpo_git_commit_falls_back_to_submit_env(monkeypatch):
+    monkeypatch.setenv("GIT_COMMIT", "unknown")
+    monkeypatch.setenv("SUBMIT_GIT_COMMIT", "submit456")
+
+    assert _git_commit() == "submit456"
 
 
 def test_summarize_actor_replay_training_help_does_not_require_external_pythonpath():

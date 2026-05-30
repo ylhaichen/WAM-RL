@@ -25,6 +25,10 @@ REPO_ROOT = ensure_repo_root_on_path()
 
 
 def _git_commit(repo_root: Path = REPO_ROOT) -> str | None:
+    for env_key in ("GIT_COMMIT", "SUBMIT_GIT_COMMIT"):
+        value = os.environ.get(env_key)
+        if value and value != "unknown":
+            return value
     try:
         result = subprocess.run(
             ["git", "rev-parse", "HEAD"],
