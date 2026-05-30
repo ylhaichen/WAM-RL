@@ -185,6 +185,49 @@ subset preparation and 40GB for the actor replay smoke trainer.
 materialization by counting strict artifacts plus materialized replay-context
 symlink targets.
 
+### Self-Contained Subset Before Source Cleanup
+
+The default subset flow uses `MATERIALIZE_LINK_MODE=symlink`, so the subset can
+be only a few KB while still depending on large source `server_vis/` replay
+contexts. Do not delete the source run while any active subset or checkpoint
+training record still points through those symlinks.
+
+If the goal is to eventually reclaim a large source run, first prepare a
+self-contained copy subset with explicit storage headroom:
+
+```bash
+SOURCE_GROUPS_PATH=/path/to/source/groups/grpo_groups.jsonl \
+SUBSET_ROOT=/home/zcably0/Scratch/wam-rl/results_grpo_actor_replay_subsets/<name>_copy \
+SUBSET_TASKS="move_stapler_pad" \
+SUBSET_MAX_GROUPS=1 \
+SUBSET_SAMPLES_PER_REWARD=1 \
+SUBSET_MAX_ARTIFACTS_PER_SAMPLE=2 \
+SUBSET_MAX_REPLAY_CONTEXT_GB=30 \
+SUBSET_STORAGE_MAX_RESOLVED_GB=40 \
+MATERIALIZE_LINK_MODE=copy \
+jobs/myriad/35_submit_prepare_actor_replay_subset.sh --dry-run
+```
+
+Only rerun without `--dry-run` after checking `df -h /home/zcably0/Scratch`.
+For the current staplerpad two-sample/two-artifact subset, the resolved replay
+context footprint is about 29GB; copying it is useful only if it enables a later
+reviewed cleanup of the much larger source `server_vis/`.
+
+After a copy subset finishes, validate that it is self-contained:
+
+```bash
+python tools/audit_grpo_artifact_storage.py \
+  "$SUBSET_ROOT/groups/grpo_groups.jsonl" \
+  --materialize-manifest "$SUBSET_ROOT/manifest.json" \
+  --out-json "$SUBSET_ROOT/storage_audit.json" \
+  --fail-on-missing \
+  --max-resolved-gb 40
+```
+
+Then re-run `tools/plan_myriad_storage_cleanup.py`. Treat any source cleanup as
+a separate reviewed action; the planner deliberately does not emit destructive
+commands.
+
 Then submit a low-resource one-step actor replay smoke from the materialized
 subset:
 

@@ -221,6 +221,12 @@ By default the subset job validates strict artifacts with
 metadata-only loading so the validation count reflects expanded transitions
 without allocating the full KV-cache tensors.
 
+The default `MATERIALIZE_LINK_MODE=symlink` keeps the subset small but still
+depends on the original source `server_vis/`. Use
+`MATERIALIZE_LINK_MODE=copy` only when deliberately creating a self-contained
+subset before a reviewed source cleanup; check Scratch headroom first because a
+small two-sample subset can still copy tens of GB of replay-context tensors.
+
 ## 3. Audit Subset Storage Dependencies
 
 For symlink materialized subsets, the subset directory can be tiny while still
