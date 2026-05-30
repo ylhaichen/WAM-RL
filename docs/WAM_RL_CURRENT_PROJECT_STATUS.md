@@ -214,10 +214,13 @@ storage audit with replay contexts:
   /home/zcably0/Scratch/wam-rl/results_grouped_rollouts/grpo_replayctx_staplerpad_k8_g1_s10_20260521_161720/groups/storage_audit_with_replay_contexts.json
   /home/zcably0/Scratch/wam-rl/results_grouped_rollouts/grpo_replayctx_staplerpad_k8_g1_s10_20260521_161720/groups/storage_audit_summary_mode.json
   /home/zcably0/Scratch/wam-rl/results_grouped_rollouts/grpo_replayctx_staplerpad_k8_g1_s10_20260521_161720/groups/grpo_group_summary_replay_context_audit.json
+  /home/zcably0/Scratch/wam-rl/results_grouped_rollouts/grpo_replayctx_staplerpad_k8_g1_s10_20260521_161720/groups/grpo_replay_context_summary.json
   strict artifacts: 64 unique, 0.006 GiB resolved
   replay contexts: 64 unique
   artifacts + replay contexts: 430.996 GiB resolved
   summary replay-context file footprint: 430.990 GiB
+  aggregate replay-context summary: 64 contexts, 430.990 GiB file footprint,
+    context_tensor_inspected=false
 representative replay-context metadata-only inspection:
   file_bytes: 7,230,819,664
   tensor_bytes: 7,230,772,480
@@ -430,6 +433,21 @@ move_stapler_pad -> turn_switch -> open_microwave -> put_bottles_dustbin
 Avoid making `hanging_mug` the first actor-replay scaling task unless the goal
 is specifically to study low-success hard-task collection; its low success rate
 means k=4 is unlikely to produce useful mixed groups reliably.
+
+Latest storage-vs-mixing check on 2026-05-30 with about 77.8 GiB free Scratch
+and 50 GiB reserved headroom:
+
+```text
+move_stapler_pad success_rate: 0.625
+k=4 mixed probability: 0.828, expected attempts per mixed group: 1.21
+k=8 mixed probability: 0.976, expected attempts per mixed group: 1.02
+k=4/g1/max-1-chunk storage budget: 16 GiB + 50 GiB headroom -> ok
+k=8/g1/max-1-chunk storage budget: 32 GiB + 50 GiB headroom -> not ok
+planning outputs:
+  /home/zcably0/Scratch/wam-rl/debug_logs/storage_audits/next_collection_plan_20260530_094128_mixing.json
+  /home/zcably0/Scratch/wam-rl/debug_logs/storage_audits/next_collection_plan_20260530_094128_k4_storage.json
+  /home/zcably0/Scratch/wam-rl/debug_logs/storage_audits/next_collection_plan_20260530_094128_k8_storage.json
+```
 
 ## Claims Boundary
 

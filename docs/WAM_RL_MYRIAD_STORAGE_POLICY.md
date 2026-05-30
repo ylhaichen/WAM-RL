@@ -397,6 +397,25 @@ sizes, and the conditional-only branch estimate. If the KV batch size is 2 but
 `action_guidance_scale<=1`, future collection should use the pruned conditional
 branch instead of storing both CFG branches.
 
+Summarize all replay-context files referenced by a groups file without loading
+their tensor metadata:
+
+```bash
+python tools/summarize_grpo_replay_contexts.py \
+  /path/to/groups/grpo_groups.jsonl \
+  --inspect-artifacts \
+  --print-summary \
+  --out-json /path/to/groups/grpo_replay_context_summary.json \
+  --out-csv /path/to/groups/grpo_replay_context_summary.csv \
+  --out-markdown /path/to/groups/grpo_replay_context_summary.md
+```
+
+This command stats replay-context files by default and is suitable for large
+legacy sources. Add `--inspect-context-tensors` only for small or explicitly
+bounded sources. On multi-GB replay-context files, metadata-only `torch.load`
+can still create heavy filesystem IO even though it avoids CPU tensor
+allocation.
+
 In the report, `apparent_bytes` is the bytes consumed by the listed files or
 symlinks themselves, while `resolved_bytes` follows symlinks to the target
 files. A symlink subset can have tiny `apparent_bytes` but large

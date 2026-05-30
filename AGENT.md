@@ -234,6 +234,11 @@ consume tens or hundreds of GB because they include transformer KV-cache state.
 - Use `tools/inspect_grpo_replay_context.py` on one representative
   `strict_grpo_replay_context_*.pt` before designing storage slimming changes;
   it reports tensor bytes by top-level key and largest nested tensors.
+- Use `tools/summarize_grpo_replay_contexts.py` on `grpo_groups.jsonl` for
+  low-IO aggregate replay-context file footprint. It only stats context files
+  by default; add `--inspect-context-tensors` only for small or explicitly
+  bounded sources because even metadata-only `torch.load` can create heavy
+  filesystem IO on multi-GB context files.
 - Use `tools/plan_myriad_storage_cleanup.py` to produce non-destructive cleanup
   candidate reports before proposing deletion. It checks all
   `grpo_groups*.jsonl` files so partial or accepted group files still protect
