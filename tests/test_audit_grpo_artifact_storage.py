@@ -89,3 +89,17 @@ def test_audit_grpo_artifact_storage_reads_materialization_manifest(tmp_path):
     assert report["materialized_replay_contexts"]["symlink_count"] == 1
     assert report["materialized_replay_contexts"]["resolved_bytes"] == len(b"context")
     assert report["source_replay_contexts"]["regular_file_count"] == 1
+
+
+def test_audit_grpo_artifact_storage_reports_broken_symlink(tmp_path):
+    missing_target = tmp_path / "missing.pt"
+    broken = tmp_path / "broken.pt"
+    os.symlink(missing_target, broken)
+    groups_jsonl = tmp_path / "groups.jsonl"
+    _write_group(groups_jsonl, [broken])
+
+    report = audit_grpo_artifact_storage(groups_jsonl)
+
+    assert report["artifacts"]["missing_count"] == 1
+    assert report["artifacts"]["broken_symlink_count"] == 1
+    assert report["artifacts"]["missing_paths"] == [str(broken)]

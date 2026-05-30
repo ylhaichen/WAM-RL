@@ -95,6 +95,7 @@ def _path_summary(paths: Iterable[str]) -> dict:
         "existing_count": len(existing),
         "missing_count": len(unique_paths) - len(existing),
         "symlink_count": sum(1 for item in existing if item["is_symlink"]),
+        "broken_symlink_count": sum(1 for item in items if item["is_symlink"] and not item["exists"]),
         "regular_file_count": sum(1 for item in existing if item["is_file"] and not item["is_symlink"]),
         "apparent_bytes": sum(int(item["lstat_size"] or 0) for item in existing),
         "resolved_bytes": sum(int(item["stat_size"] or 0) for item in existing),

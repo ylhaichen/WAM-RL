@@ -265,6 +265,8 @@ In the report, `apparent_bytes` is the bytes consumed by the listed files or
 symlinks themselves, while `resolved_bytes` follows symlinks to the target
 files. A symlink subset can have tiny `apparent_bytes` but large
 `resolved_bytes`, meaning the original source `server_vis/` is still required.
+If `broken_symlink_count` is non-zero, the subset is no longer trainable until
+the missing source artifacts are restored or the subset is rebuilt.
 
 ## Current Practical Guidance
 
