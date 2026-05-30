@@ -17,6 +17,24 @@
 https://github.com/user-attachments/assets/cec7b7a6-953b-4fa4-8f1a-47efc1fce547
 
 
+## WAM-RL Research Fork Note
+
+This fork is being used for WAM-RL: SimpleVLA-style grouped GRPO for
+LingBot-VA on RoboTwin, with the policy defined over continuous FlowMatch
+action-denoising transitions rather than discrete action tokens.
+
+Current project status, safe claims, and next engineering priorities are tracked
+in [`docs/WAM_RL_CURRENT_PROJECT_STATUS.md`](docs/WAM_RL_CURRENT_PROJECT_STATUS.md).
+Operational rules for agents are in [`AGENT.md`](AGENT.md). Storage and Myriad
+cleanup rules are in
+[`docs/WAM_RL_MYRIAD_STORAGE_POLICY.md`](docs/WAM_RL_MYRIAD_STORAGE_POLICY.md),
+and the strict GRPO artifact contract is documented in
+[`docs/GRPO_STRICT_ARTIFACT_SCHEMA.md`](docs/GRPO_STRICT_ARTIFACT_SCHEMA.md).
+
+Do not interpret current actor replay smoke runs as benchmark improvement
+claims. Real LingBot-VA actor replay is implemented, but policy improvement
+still requires larger controlled datasets and paired RoboTwin evaluation.
+
 
 
 ## Table of Contents
