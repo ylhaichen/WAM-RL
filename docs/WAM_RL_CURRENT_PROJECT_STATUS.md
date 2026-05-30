@@ -119,6 +119,9 @@ Implemented:
   budgets via `tools/audit_grpo_artifact_storage.py`;
 - per-file replay-context tensor storage inspection with
   `tools/inspect_grpo_replay_context.py`;
+- non-destructive Myriad storage cleanup planning with
+  `tools/plan_myriad_storage_cleanup.py`, including protection for any
+  non-empty `grpo_groups*.jsonl` source file;
 - low-resource subset smoke submission with
   `jobs/myriad/36_submit_actor_replay_subset_smoke.sh`;
 - operational runbook in `docs/WAM_RL_ACTOR_REPLAY_RUNBOOK.md`;
@@ -341,6 +344,8 @@ Safe claims:
 - Real actor replay is implemented end to end on a tiny replay-context dataset.
 - Replay-context storage and RoboTwin eval nondeterminism are current scaling
   blockers.
+- Storage cleanup is now reviewable through a non-destructive planner, but
+  cleanup should not be treated as automatic deletion permission.
 
 Unsafe claims:
 
@@ -357,7 +362,8 @@ Unsafe claims:
 1. Keep docs and agent instructions aligned with the current Stage 1 -> Stage 2
    state.
 2. Preserve the current curated datasets and avoid deleting referenced
-   artifacts.
+   artifacts. Run `tools/plan_myriad_storage_cleanup.py` before proposing any
+   large cleanup.
 3. Use Myriad container tests as the source of truth for actor replay and
    RoboTwin-adjacent code.
 4. Keep actor replay training defaults conservative:

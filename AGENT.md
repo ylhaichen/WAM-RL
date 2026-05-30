@@ -155,10 +155,10 @@ consume tens or hundreds of GB because they include transformer KV-cache state.
 - Prefer archiving `groups/`, `attempts/`, job logs, manifests, summaries, and
   validation JSON files before deleting large unusable `server_vis/` trees.
 - Failed replay-context runs and all-success/all-failure replay-context runs
-  with empty `grpo_groups.jsonl` are cleanup candidates after preserving small
+  with empty `grpo_groups*.jsonl` are cleanup candidates after preserving small
   debug evidence.
 - Do not delete A/B/M/N source datasets, curated combined datasets, or any
-  `server_vis/` referenced by a non-empty current `grpo_groups.jsonl` without
+  `server_vis/` referenced by a non-empty current `grpo_groups*.jsonl` without
   explicit user approval.
 - Check `qstat` before deleting data so no running job is writing to the target
   directory.
@@ -187,6 +187,10 @@ consume tens or hundreds of GB because they include transformer KV-cache state.
 - Use `tools/inspect_grpo_replay_context.py` on one representative
   `strict_grpo_replay_context_*.pt` before designing storage slimming changes;
   it reports tensor bytes by top-level key and largest nested tensors.
+- Use `tools/plan_myriad_storage_cleanup.py` to produce non-destructive cleanup
+  candidate reports before proposing deletion. It checks all
+  `grpo_groups*.jsonl` files so partial or accepted group files still protect
+  their source artifacts.
 
 For concrete commands and RDSS archival patterns, use
 `docs/WAM_RL_MYRIAD_STORAGE_POLICY.md`.

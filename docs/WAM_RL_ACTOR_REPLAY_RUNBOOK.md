@@ -335,10 +335,24 @@ compression policy.
 
 Do not delete a source run's `server_vis/` while:
 
-- a non-empty `grpo_groups.jsonl` references it;
+- a non-empty `grpo_groups*.jsonl` references it;
 - a symlink materialized subset depends on it;
 - an active queued/running job may write to or read from it.
 
 Safe cleanup candidates are failed replay-context attempts, all-success or
-all-failure replay-context runs with empty `grpo_groups.jsonl`, and old debug
+all-failure replay-context runs with empty `grpo_groups*.jsonl`, and old debug
 directories after preserving `groups/`, `attempts/`, and job logs.
+
+Before proposing cleanup, run the non-destructive planner:
+
+```bash
+python tools/plan_myriad_storage_cleanup.py \
+  /home/zcably0/Scratch/wam-rl/results_grouped_rollouts \
+  --min-candidate-gb 1 \
+  --large-run-gb 10 \
+  --print-summary
+```
+
+If this reports no candidates, do not delete large source runs just because they
+look old. They may be protected by `grpo_groups_partial.jsonl` or
+`grpo_groups_accepted*.jsonl` files that are still part of curated datasets.

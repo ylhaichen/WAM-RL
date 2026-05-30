@@ -103,7 +103,7 @@ Usually safe to delete:
 - `server_vis/` from failed replay-context runs after saving job logs and
   `groups/failed_attempt_roots.txt`;
 - `server_vis/` from all-success or all-failure replay-context runs when
-  `groups/grpo_groups.jsonl` has zero lines;
+  every `groups/grpo_groups*.jsonl` file has zero lines;
 - old debug/sanity rollout directories that are not used by the current
   combined dataset.
 
@@ -112,9 +112,28 @@ Do not delete without explicit review:
 - A/B/M/N grouped rollout datasets used to build the current combined GRPO
   dataset;
 - any `server_vis/` directory referenced by a non-empty current
-  `grpo_groups.jsonl`;
+  `grpo_groups*.jsonl`;
 - `results_grpo_datasets/a_b_m_n_*` and other curated combined datasets;
 - actor replay outputs that contain a real checkpoint to evaluate.
+
+Before manual cleanup, generate a non-destructive candidate report. The planner
+checks all `groups/grpo_groups*.jsonl` files, so partial or accepted group files
+still protect their source artifacts:
+
+```bash
+python tools/plan_myriad_storage_cleanup.py \
+  /home/zcably0/Scratch/wam-rl/results_grouped_rollouts \
+  --min-candidate-gb 1 \
+  --large-run-gb 10 \
+  --out-json /home/zcably0/Scratch/wam-rl/debug_logs/storage_cleanup_plan.json \
+  --out-markdown /home/zcably0/Scratch/wam-rl/debug_logs/storage_cleanup_plan.md \
+  --print-summary
+```
+
+Treat this as a review artifact, not permission to delete. A run with a
+non-empty `grpo_groups_partial.jsonl` or `grpo_groups_accepted*.jsonl` can still
+be part of a trainable combined dataset even when canonical `grpo_groups.jsonl`
+is empty or missing.
 
 Targeted cleanup pattern:
 
@@ -247,6 +266,16 @@ Inspect replay-context usage:
 ```bash
 du -sh /home/zcably0/Scratch/wam-rl/results_grouped_rollouts/*replayctx* 2>/dev/null \
   | sort -h
+```
+
+Plan cleanup candidates without deleting files:
+
+```bash
+python tools/plan_myriad_storage_cleanup.py \
+  /home/zcably0/Scratch/wam-rl/results_grouped_rollouts \
+  --min-candidate-gb 1 \
+  --large-run-gb 10 \
+  --print-summary
 ```
 
 List largest files without breaking paths containing spaces:

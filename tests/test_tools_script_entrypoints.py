@@ -157,6 +157,19 @@ def test_audit_grpo_artifact_storage_help_does_not_require_external_pythonpath()
     assert "--print-summary" in result.stdout
 
 
+def test_plan_myriad_storage_cleanup_help_does_not_require_external_pythonpath():
+    result = subprocess.run(
+        [sys.executable, "tools/plan_myriad_storage_cleanup.py", "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "Plan non-destructive WAM-RL Myriad storage cleanup candidates" in result.stdout
+    assert "--out-markdown" in result.stdout
+
+
 def test_train_actor_replay_grpo_help_does_not_require_external_pythonpath():
     result = subprocess.run(
         [sys.executable, "tools/train_actor_replay_grpo.py", "--help"],
