@@ -16,6 +16,7 @@ from typing import Any
 GiB = 1024**3
 LOG_VALUE_KEYS = (
     "JOB_ID",
+    "REPO_ROOT",
     "GIT_COMMIT",
     "SUBMIT_GIT_COMMIT",
     "RUN_ID",
@@ -175,10 +176,17 @@ def report_grpo_run_status(
     results_root: Path | None = None,
     training_output_dir: Path | None = None,
     qstat_job: dict[str, Any] | None = None,
+    repo_root: Path | None = None,
+    repo_git_commit: str | None = None,
     inspect_files: bool = False,
 ) -> dict[str, Any]:
     log_report = parse_job_log(job_log) if job_log is not None else None
     qstat_values = (qstat_job or {}).get("values") or {}
+    current_git_commit = repo_git_commit or _infer_current_git_commit(
+        repo_root=repo_root,
+        log_report=log_report,
+        qstat_job=qstat_job,
+    )
     inferred_results_root = _first_present_path(
         results_root,
         _value_path(log_report, "RESULTS_ROOT"),
@@ -197,6 +205,7 @@ def report_grpo_run_status(
     report: dict[str, Any] = {
         "job_log": log_report,
         "qstat_job": qstat_job,
+        "repo_git_commit": current_git_commit,
         "results_root": _summarize_results_root(inferred_results_root, inspect_files=inspect_files)
         if inferred_results_root is not None
         else None,
@@ -233,6 +242,7 @@ def format_markdown(report: dict[str, Any]) -> str:
         f"| validation_ok | {_md(status.get('validation_ok'))} |",
         f"| traceback_count | {status.get('traceback_count', 0)} |",
         f"| disk_quota_count | {status.get('disk_quota_count', 0)} |",
+        f"| repo_git_commit | {_md(status.get('repo_git_commit'))} |",
         "",
     ]
     warnings = status.get("warnings") or []
@@ -308,6 +318,7 @@ def _derive_status(report: dict[str, Any]) -> dict[str, Any]:
     summary = results.get("grpo_summary") or {}
     training = report.get("training_output_dir") or {}
     qstat_job = report.get("qstat_job") or {}
+    current_git_commit = report.get("repo_git_commit")
 
     group_lines = int(results.get("grpo_group_line_count", 0) or 0)
     transition_count = int(validation.get("transition_count", 0) or summary.get("transition_count", 0) or 0)
@@ -339,23 +350,53 @@ def _derive_status(report: dict[str, Any]) -> dict[str, Any]:
         "discarded_group_attempt_count": int(counters.get("discarded_group_attempt_count", 0) or 0),
         "qstat_job_number": qstat_job.get("job_number"),
         "qstat_job_name": qstat_job.get("job_name"),
-        "warnings": _status_warnings(qstat_job),
+        "repo_git_commit": current_git_commit,
+        "warnings": _status_warnings(
+            qstat_job=qstat_job,
+            log_report=log_report,
+            current_git_commit=current_git_commit,
+        ),
     }
 
 
-def _status_warnings(qstat_job: dict[str, Any]) -> list[str]:
-    if not qstat_job or not qstat_job.get("exists"):
-        return []
+def _status_warnings(
+    *,
+    qstat_job: dict[str, Any],
+    log_report: dict[str, Any],
+    current_git_commit: str | None,
+) -> list[str]:
     warnings: list[str] = []
-    values = qstat_job.get("values") or {}
+    qstat_values = (qstat_job or {}).get("values") or {}
+    log_values = (log_report or {}).get("values") or {}
+    values = {**log_values, **qstat_values}
+
+    submit_git_commit = values.get("SUBMIT_GIT_COMMIT")
+    runtime_git_commit = values.get("GIT_COMMIT")
+    if current_git_commit:
+        if submit_git_commit and not _same_git_commit(submit_git_commit, current_git_commit):
+            warnings.append(
+                f"job submit commit {submit_git_commit} differs from current repo HEAD {current_git_commit}"
+            )
+        if runtime_git_commit and not _same_git_commit(runtime_git_commit, current_git_commit):
+            warnings.append(
+                f"job runtime commit {runtime_git_commit} differs from current repo HEAD {current_git_commit}"
+            )
+        if values and not submit_git_commit:
+            warnings.append(
+                "job metadata does not include SUBMIT_GIT_COMMIT; code provenance cannot be checked"
+            )
+
+    if not qstat_job or not qstat_job.get("exists"):
+        return warnings
+
     resources = qstat_job.get("resources") or {}
     job_name = str(qstat_job.get("job_name") or "")
 
     if (
         _looks_like_grouped_rollout_qstat(qstat_job)
-        and values.get("RUN_ID")
-        and not values.get("RESULTS_ROOT")
-        and not values.get("GRPO_GROUPS_PATH")
+        and qstat_values.get("RUN_ID")
+        and not qstat_values.get("RESULTS_ROOT")
+        and not qstat_values.get("GRPO_GROUPS_PATH")
     ):
         warnings.append(
             "qstat env does not include explicit RESULTS_ROOT/GRPO_GROUPS_PATH; "
@@ -376,6 +417,42 @@ def _status_warnings(qstat_job: dict[str, Any]) -> list[str]:
                 "above the current 80G smoke default"
             )
     return warnings
+
+
+def _infer_current_git_commit(
+    *,
+    repo_root: Path | None,
+    log_report: dict[str, Any] | None,
+    qstat_job: dict[str, Any] | None,
+) -> str | None:
+    candidates: list[Path] = []
+    if repo_root is not None:
+        candidates.append(repo_root)
+    for values in ((qstat_job or {}).get("values") or {}, (log_report or {}).get("values") or {}):
+        value = values.get("REPO_ROOT")
+        if value:
+            candidates.append(Path(str(value)))
+
+    for candidate in candidates:
+        try:
+            result = subprocess.run(
+                ["git", "-C", str(candidate.expanduser()), "rev-parse", "--short", "HEAD"],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        except OSError:
+            continue
+        commit = result.stdout.strip()
+        if result.returncode == 0 and commit:
+            return commit
+    return None
+
+
+def _same_git_commit(left: str, right: str) -> bool:
+    if left == "unknown" or right == "unknown":
+        return True
+    return left.startswith(right) or right.startswith(left)
 
 
 def _summarize_results_root(root: Path, *, inspect_files: bool) -> dict[str, Any]:
@@ -702,6 +779,15 @@ def main() -> None:
     parser.add_argument("--results-root", type=Path, help="Optional grouped rollout result root.")
     parser.add_argument("--training-output-dir", type=Path, help="Optional GRPO training output directory.")
     parser.add_argument(
+        "--repo-root",
+        type=Path,
+        help="Optional repo root for comparing job provenance against the current git HEAD.",
+    )
+    parser.add_argument(
+        "--repo-git-commit",
+        help="Optional current git commit override for deterministic tests or saved reports.",
+    )
+    parser.add_argument(
         "--inspect-files",
         action="store_true",
         help="Walk the result root to count strict artifacts/replay contexts and disk blocks.",
@@ -739,6 +825,8 @@ def main() -> None:
         results_root=args.results_root,
         training_output_dir=args.training_output_dir,
         qstat_job=qstat_job,
+        repo_root=args.repo_root,
+        repo_git_commit=args.repo_git_commit,
         inspect_files=args.inspect_files,
     )
 

@@ -23,6 +23,7 @@ def test_parse_job_log_extracts_direct_and_env_values(tmp_path):
         "\n".join(
             [
                 "JOB_ID=123",
+                "REPO_ROOT=/tmp/repo",
                 "GIT_COMMIT=abc1234",
                 "env_list: TERM=NONE,RUN_ID=run_a,RESULTS_ROOT="
                 + str(root)
@@ -42,6 +43,7 @@ def test_parse_job_log_extracts_direct_and_env_values(tmp_path):
     report = parse_job_log(log)
 
     assert report["values"]["JOB_ID"] == "123"
+    assert report["values"]["REPO_ROOT"] == "/tmp/repo"
     assert report["values"]["GIT_COMMIT"] == "abc1234"
     assert report["values"]["SUBMIT_GIT_COMMIT"] == "def5678"
     assert report["values"]["RUN_ID"] == "run_a"
@@ -218,6 +220,7 @@ project:                    AllUsers
     assert report["job_name"] == "wam_grpo_replayctx_bounded"
     assert report["script_file"] == "jobs/myriad/30_collect_grouped_rollouts_4gpu.sh"
     assert report["values"]["JOB_ID"] == "458528"
+    assert report["values"]["REPO_ROOT"] == "/home/zcably0/Scratch/WAM-RL"
     assert report["values"]["RUN_ID"] == "grpo_run"
     assert report["values"]["SUBMIT_GIT_COMMIT"] == "abc1234"
     assert report["values"]["GROUP_SIZE"] == "4"
@@ -335,6 +338,75 @@ def test_report_grpo_run_status_warns_on_stale_bounded_resources():
     warnings = report["status"]["warnings"]
     assert any("h_rt=172800" in warning for warning in warnings)
     assert any("tmpfs=200G" in warning for warning in warnings)
+
+
+def test_report_grpo_run_status_warns_on_stale_git_provenance():
+    qstat_report = parse_qstat_job_detail_text(
+        "\n".join(
+            [
+                "job_number:                 458528",
+                "job_name:                   wam_grpo_actor_subset",
+                "env_list:                   SUBMIT_GIT_COMMIT=abc1234,GIT_COMMIT=abc1234",
+            ]
+        )
+    )
+
+    report = report_grpo_run_status(qstat_job=qstat_report, repo_git_commit="def5678")
+
+    warnings = report["status"]["warnings"]
+    assert any("job submit commit abc1234 differs" in warning for warning in warnings)
+    assert any("job runtime commit abc1234 differs" in warning for warning in warnings)
+
+
+def test_report_grpo_run_status_accepts_matching_git_prefixes():
+    qstat_report = parse_qstat_job_detail_text(
+        "\n".join(
+            [
+                "job_number:                 458528",
+                "job_name:                   wam_grpo_actor_subset",
+                "env_list:                   SUBMIT_GIT_COMMIT=abc1234,GIT_COMMIT=abc123456789",
+            ]
+        )
+    )
+
+    report = report_grpo_run_status(qstat_job=qstat_report, repo_git_commit="abc123456")
+
+    warnings = report["status"]["warnings"]
+    assert not any("differs from current repo HEAD" in warning for warning in warnings)
+
+
+def test_report_grpo_run_status_cli_can_compare_saved_qstat_commit(tmp_path):
+    qstat_file = tmp_path / "qstat_458528.txt"
+    qstat_file.write_text(
+        "\n".join(
+            [
+                "job_number:                 458528",
+                "job_name:                   wam_grpo_actor_subset",
+                "env_list:                   SUBMIT_GIT_COMMIT=old1234",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "tools/report_grpo_run_status.py",
+            "--qstat-job-file",
+            str(qstat_file),
+            "--repo-git-commit",
+            "new5678",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["status"]["repo_git_commit"] == "new5678"
+    assert any("job submit commit old1234 differs" in warning for warning in payload["status"]["warnings"])
 
 
 def test_report_grpo_run_status_cli_accepts_qstat_job_file(tmp_path):
