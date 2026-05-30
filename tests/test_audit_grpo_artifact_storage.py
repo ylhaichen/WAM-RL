@@ -94,6 +94,14 @@ def test_audit_grpo_artifact_storage_reads_materialization_manifest(tmp_path):
     assert report["materialized_replay_contexts"]["resolved_bytes"] == len(b"context")
     assert report["source_replay_contexts"]["regular_file_count"] == 1
 
+    summary = compact_storage_summary(report)
+    assert summary["materialize_link_mode"] == "symlink"
+    assert summary["manifest_unique_replay_context_count"] == 1
+    assert summary["materialized_replay_context_resolved_gb"] == len(b"context") / 1024**3
+    assert summary["materialized_replay_context_missing_count"] == 0
+    assert summary["source_replay_context_resolved_gb"] == len(b"context") / 1024**3
+    assert summary["source_replay_context_missing_count"] == 0
+
 
 def test_audit_grpo_artifact_storage_reports_broken_symlink(tmp_path):
     missing_target = tmp_path / "missing.pt"

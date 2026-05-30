@@ -208,6 +208,22 @@ def compact_storage_summary(report: dict) -> dict:
                 "replay_context_error_count": report["replay_context_error_count"],
             }
         )
+    if "materialized_replay_contexts" in report:
+        summary.update(
+            {
+                "materialize_link_mode": report.get("materialize_link_mode"),
+                "manifest_unique_replay_context_count": report["manifest_unique_replay_context_count"],
+                "materialized_replay_context_resolved_gb": report["materialized_replay_contexts"][
+                    "resolved_bytes"
+                ]
+                / 1024**3,
+                "materialized_replay_context_missing_count": report["materialized_replay_contexts"][
+                    "missing_count"
+                ],
+                "source_replay_context_resolved_gb": report["source_replay_contexts"]["resolved_bytes"] / 1024**3,
+                "source_replay_context_missing_count": report["source_replay_contexts"]["missing_count"],
+            }
+        )
     if "storage_budget" in report:
         summary["storage_budget"] = report["storage_budget"]
     return summary
