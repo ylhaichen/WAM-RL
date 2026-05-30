@@ -107,6 +107,39 @@ Local checks are useful but incomplete. Anything involving `torch` GPU,
 RoboTwin, SAPIEN, Apptainer, or large checkpoint loading must be verified on the
 server.
 
+## Myriad Remote Operation Rules
+
+Canonical remote target:
+
+```text
+ssh alias/host: myriad / myriad.rc.ucl.ac.uk
+user: zcably0
+project root: /home/zcably0/Scratch/WAM-RL
+data root: /home/zcably0/Scratch/wam-rl
+```
+
+Allowed without extra confirmation when the user has asked for Myriad
+development:
+
+- inspect files, logs, queue state, disk usage, and git state;
+- run lightweight read-only commands such as `pwd`, `ls`, `find`, `rg`, `sed`,
+  `tail`, `qstat`, and `git status`;
+- run containerized unit/tool tests that do not submit scheduler jobs;
+- edit docs/code, commit, and push when the current task clearly requires it.
+
+Require explicit user review before:
+
+- submitting `qsub` jobs or starting long `qrsh` sessions;
+- running `qdel`;
+- deleting, moving, archiving, or compressing rollout data, checkpoints,
+  artifacts, logs, model paths, dataset paths, or `/home/zcably0/Scratch/WAM-RL`;
+- changing branch strategy or pushing to a non-obvious remote/branch.
+
+Before any `qsub`, state the exact command/script, resource request, expected
+runtime class, output/log paths, and git commit being used. If the user has
+already granted a bounded development session, keep them updated at important
+milestones and still avoid destructive file operations without explicit review.
+
 ## Myriad Storage Rules
 
 Treat storage as part of the experiment design. Replay-context artifacts can
