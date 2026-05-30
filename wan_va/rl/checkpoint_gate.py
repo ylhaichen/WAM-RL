@@ -1,4 +1,11 @@
-"""Checkpoint promotion rules for iterative RL runs."""
+"""Aggregate checkpoint promotion rules for iterative RL runs.
+
+This module is intentionally lightweight and only handles aggregate success
+metrics. For RoboTwin actor-replay closed-loop evals, where matched episode
+keys and baseline repeatability matter, use
+`tools/gate_actor_eval_promotion.py` before treating a checkpoint as more than
+smoke status.
+"""
 
 from __future__ import annotations
 
