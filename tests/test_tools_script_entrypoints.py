@@ -89,6 +89,19 @@ def test_subset_grpo_groups_help_does_not_require_external_pythonpath():
     assert "--samples-per-reward" in result.stdout
 
 
+def test_materialize_grpo_artifacts_help_does_not_require_external_pythonpath():
+    result = subprocess.run(
+        [sys.executable, "tools/materialize_grpo_artifacts.py", "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "Materialize referenced GRPO artifacts" in result.stdout
+    assert "--include-replay-context" in result.stdout
+
+
 def test_train_actor_replay_grpo_help_does_not_require_external_pythonpath():
     result = subprocess.run(
         [sys.executable, "tools/train_actor_replay_grpo.py", "--help"],

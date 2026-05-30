@@ -111,6 +111,8 @@ Implemented:
 - v2 strict artifacts with full action denoising trajectory capture;
 - replay context capture and external per-chunk replay-context files;
 - safe JSON-only GRPO group subsetting with `tools/subset_grpo_groups.py`;
+- artifact materialization with `tools/materialize_grpo_artifacts.py`, using
+  symlink mode by default and optional replay-context materialization;
 - real actor replay trainer over LingBot-VA transformer parameters;
 - checkpoint loading into the inference server via
   `actor_replay_checkpoint_path`;
@@ -208,6 +210,10 @@ Next engineering target:
 - `tools/subset_grpo_groups.py` for building small train/debug subsets that
   keep only selected success/failure samples and artifact references without
   copying or deleting large `.pt` files.
+- `tools/materialize_grpo_artifacts.py` for turning such subsets into a small
+  rewritten groups file plus symlinked or copied artifact tree. Use symlink mode
+  for Scratch debug runs; use copy mode only when intentionally creating an
+  archive/package.
 
 ### 2. Closed-Loop Evaluation Nondeterminism
 
