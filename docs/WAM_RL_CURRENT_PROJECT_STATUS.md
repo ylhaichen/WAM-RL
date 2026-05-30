@@ -207,6 +207,8 @@ actor lr=0 no-op:        1/2
 actor one-step subset:   0/2
 comparison output:
   /home/zcably0/Scratch/wam-rl/results_actor_eval/seed10000_controls_20260530_0422/four_way_comparison.json
+baseline repeatability output:
+  /home/zcably0/Scratch/wam-rl/results_actor_eval/seed10000_controls_20260530_0422/baseline_repeatability_summary.json
 ```
 
 The baseline repeat and `lr=0` no-op checkpoint had the same success pattern on
@@ -214,6 +216,11 @@ the two matched episodes: seed `100010000` succeeded with 144 actions, while
 seed `100010001` reached the 400-step limit and failed. This makes the previous
 baseline-vs-`lr=0` delta primarily an eval repeatability issue, not direct
 evidence that actor checkpoint loading is broken.
+
+The two baseline runs alone had one stable-success key and one flipped key,
+giving a baseline repeatability flip rate of `0.5` on this tiny control set.
+This is diagnostic, not a benchmark estimate, but it is enough to make `n=2`
+policy deltas non-actionable.
 
 The one-step actor subset checkpoint was compared against the `lr=0` no-op
 checkpoint at the tensor level:
