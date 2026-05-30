@@ -65,6 +65,8 @@ def test_selected_eval_job_can_load_actor_replay_checkpoint():
     assert 'ACTION_NUM_INFERENCE_STEPS="${ACTION_NUM_INFERENCE_STEPS:-}"' in text
     assert 'action_num_inference_steps="${ACTION_NUM_INFERENCE_STEPS}"' in text
     assert 'SERVER_HOST="${SERVER_HOST:-127.0.0.1}"' in text
+    assert 'SAVE_SERVER_DEBUG_TENSORS="${SAVE_SERVER_DEBUG_TENSORS:-false}"' in text
+    assert 'save_server_debug_tensors="${SAVE_SERVER_DEBUG_TENSORS}"' in text
 
 
 def test_one_gpu_eval_smoke_job_can_load_actor_replay_checkpoint():
@@ -89,6 +91,8 @@ def test_one_gpu_eval_smoke_job_can_load_actor_replay_checkpoint():
     assert "--server_host ${SERVER_HOST}" in launch_text
     assert "extra_args=()" in launch_text
     assert "--action_num_inference_steps" in launch_text
+    assert 'SAVE_SERVER_DEBUG_TENSORS="${SAVE_SERVER_DEBUG_TENSORS:-false}"' in text
+    assert 'save_server_debug_tensors="${SAVE_SERVER_DEBUG_TENSORS}"' in text
 
 
 def test_robotwin_client_launcher_generates_task_specific_group_ids():
@@ -220,6 +224,7 @@ def test_actor_eval_pair_smoke_submitter_uses_matched_eval_controls():
     assert 'PROMPT_INDEX="${PROMPT_INDEX:-0}"' in text
     assert 'SAMPLING_SEED="${SAMPLING_SEED:-12345}"' in text
     assert 'SAMPLING_SEED_PER_ENV="${SAMPLING_SEED_PER_ENV:-true}"' in text
+    assert 'SAVE_SERVER_DEBUG_TENSORS="${SAVE_SERVER_DEBUG_TENSORS:-false}"' in text
     assert 'BASELINE_PORT="${BASELINE_PORT:-29656}"' in text
     assert 'ACTOR_PORT="${ACTOR_PORT:-29756}"' in text
     assert "BASELINE_PORT and ACTOR_PORT must differ" in text

@@ -219,6 +219,11 @@ preserve previous behavior. Increasing the stride or setting a max chunk count
 reduces replay-context files and trainable transitions; it should be treated as
 a storage/compute tradeoff, not as an algorithmic improvement.
 
+For pure RoboTwin eval jobs, keep `SAVE_SERVER_DEBUG_TENSORS=false` unless you
+need per-chunk `latents_*.pt`, `actions_*.pt`, or `obs_data_*.pt` for a
+specific diagnosis. Episode JSON, executed actions, metrics, and videos are
+still written by the eval client.
+
 Do not delete the source run's `server_vis/` while a symlink materialized subset
 is still active. The symlink package depends on the original artifact files.
 

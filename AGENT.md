@@ -205,6 +205,9 @@ current system:
   `jobs/myriad/37_submit_actor_eval_pair_smoke.sh` so both runs share task,
   prompt, env seed, sampling seed, and action-step settings while using
   separate ports.
+- Keep `SAVE_SERVER_DEBUG_TENSORS=false` for routine eval jobs so the server
+  does not write per-chunk latent/action/observation tensors unless a diagnosis
+  needs them.
 - After paired eval finishes, use `tools/summarize_actor_eval_pair.py` to
   write aggregate summaries, per-episode exports, and matched comparison files
   before interpreting any success-rate difference.

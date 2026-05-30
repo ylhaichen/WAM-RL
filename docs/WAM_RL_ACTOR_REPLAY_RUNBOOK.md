@@ -206,6 +206,7 @@ PROMPT_INDEX=0
 SAMPLING_SEED=12345
 SAMPLING_SEED_PER_ENV=true
 ACTION_NUM_INFERENCE_STEPS=10
+SAVE_SERVER_DEBUG_TENSORS=false
 ```
 
 Submit baseline and actor checkpoint evals on the same task, prompt, env seeds,

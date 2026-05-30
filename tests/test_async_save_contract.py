@@ -11,6 +11,15 @@ def test_server_flushes_async_saves_before_returning_artifact_paths():
     assert "strict_grpo_paths" in server_source
 
 
+def test_server_debug_tensor_saves_can_be_disabled():
+    server_source = Path("wan_va/wan_va_server.py").read_text()
+
+    assert "save_server_debug_tensors" in server_source
+    assert "latent_path = None" in server_source
+    assert '"latent_path": latent_path or ""' in server_source
+    assert "obs_data_{self.frame_st_id}.pt" in server_source
+
+
 def test_server_can_gate_strict_grpo_capture_by_chunk():
     server_source = Path("wan_va/wan_va_server.py").read_text()
 

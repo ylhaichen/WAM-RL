@@ -703,13 +703,18 @@ class VA_Server:
 
         actions[:, ~self.action_mask.to(device=actions.device)] *= 0
 
+        save_server_debug_tensors = bool(getattr(self.job_config, "save_server_debug_tensors", True))
         latent_path = os.path.join(self.exp_save_root, f'latents_{frame_st_id}.pt')
         action_path = os.path.join(self.exp_save_root, f'actions_{frame_st_id}.pt')
         strict_grpo_path = None
         strict_grpo_replay_context_path = None
         strict_grpo_scope = None
-        save_async(latents, latent_path)
-        save_async(actions, action_path)
+        if save_server_debug_tensors:
+            save_async(latents, latent_path)
+            save_async(actions, action_path)
+        else:
+            latent_path = None
+            action_path = None
         if strict_grpo_transitions:
             strict_grpo_path = os.path.join(self.exp_save_root, f'strict_grpo_{frame_st_id}.pt')
             if strict_grpo_capture_scope == STRICT_ARTIFACT_SCOPE_TRAJECTORY:
@@ -744,8 +749,8 @@ class VA_Server:
         actions = self.postprocess_action(actions)
         torch.cuda.empty_cache()
         return actions, latents, {
-            "latent_path": latent_path,
-            "action_path": action_path,
+            "latent_path": latent_path or "",
+            "action_path": action_path or "",
             "strict_grpo_path": strict_grpo_path,
             "strict_grpo_paths": [strict_grpo_path] if strict_grpo_path else [],
             "strict_grpo_replay_context_path": strict_grpo_replay_context_path,
@@ -756,7 +761,8 @@ class VA_Server:
     def _compute_kv_cache(self, obs):
         ### optional async save obs for debug
         self.transformer.clear_pred_cache(self.cache_name)
-        save_async(obs['obs'], os.path.join(self.exp_save_root, f'obs_data_{self.frame_st_id}.pt'))
+        if bool(getattr(self.job_config, "save_server_debug_tensors", True)):
+            save_async(obs['obs'], os.path.join(self.exp_save_root, f'obs_data_{self.frame_st_id}.pt'))
         latent_model_input = self._encode_obs(obs)
         if self.frame_st_id == 0:
             latent_model_input = torch.cat(
