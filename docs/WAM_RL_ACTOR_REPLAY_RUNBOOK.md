@@ -148,6 +148,7 @@ PLAN_JSON=/home/zcably0/Scratch/wam-rl/debug_logs/storage_audits/<run>_collectio
 TASK_NAMES="move_stapler_pad" \
 GROUP_SIZE=8 \
 GROUPS_PER_TASK=1 \
+SUCCESS_RATE=0.625 \
 bash jobs/myriad/39_submit_grpo_replayctx_bounded_4gpu.sh
 ```
 
@@ -161,10 +162,12 @@ runtime and local scratch needs. The submit path explicitly exports the
 canonical `RESULTS_ROOT` derived from `RUN_ID`, so `qstat -j` status reports can
 locate the result directory before the SGE stdout log is available. The wrapper
 dry-run prints both the replay-context storage estimate and the final underlying
-`qsub` command, so review both before submitting. The default estimate is
-4.0GB/context for new action-scale-one collections, where replay context capture
-prunes the unused CFG negative action branch. Override
-`REPLAY_CONTEXT_ESTIMATE_GB` upward for action-guided
+`qsub` command, so review both before submitting. If `SUCCESS_RATE` is set from
+a recent task summary, the same dry-run also prints the mixed-group probability
+and the probability that the configured attempt budget sees at least one mixed
+group. The default estimate is 4.0GB/context for new action-scale-one
+collections, where replay context capture prunes the unused CFG negative action
+branch. Override `REPLAY_CONTEXT_ESTIMATE_GB` upward for action-guided
 (`action_guidance_scale > 1`) or unpruned legacy collections. If `PLAN_JSON` is
 set, the wrapper writes the same estimate as JSON for later audit.
 
@@ -185,6 +188,7 @@ python tools/plan_replay_context_collection.py \
   --save-replay-context true \
   --replay-context-estimate-gb 4 \
   --storage-budget-mode attempt \
+  --success-rate 0.625 \
   --check-scratch-headroom true \
   --scratch-path /home/zcably0/Scratch \
   --min-scratch-headroom-gb 50 \

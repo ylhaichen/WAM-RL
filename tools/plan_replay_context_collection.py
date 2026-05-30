@@ -21,6 +21,7 @@ def plan_replay_context_collection(
     save_replay_context: bool,
     replay_context_estimate_gb: float,
     storage_budget_mode: str,
+    success_rate: float | None = None,
     check_scratch_headroom: bool = False,
     scratch_path: Path | None = None,
     min_scratch_headroom_gb: float = 0.0,
@@ -31,6 +32,8 @@ def plan_replay_context_collection(
     mode = storage_budget_mode.strip().lower()
     if mode not in {"attempt", "accepted"}:
         raise ValueError("storage_budget_mode must be 'attempt' or 'accepted'")
+    if success_rate is not None and not 0.0 <= success_rate <= 1.0:
+        raise ValueError("success_rate must be in [0, 1]")
     if save_replay_context and capture_max_chunks <= 0 and not allow_unbounded_replayctx:
         raise ValueError(
             "Refusing bounded replay-context submission with STRICT_GRPO_CAPTURE_MAX_CHUNKS<=0. "
@@ -64,6 +67,18 @@ def plan_replay_context_collection(
         "check_scratch_headroom": check_scratch_headroom,
         "dry_run": dry_run,
     }
+
+    if success_rate is not None:
+        mixed_probability = _mixed_group_probability(success_rate, group_size)
+        report["mixing"] = {
+            "success_rate": success_rate,
+            "mixed_group_probability": mixed_probability,
+            "expected_attempts_per_mixed_group": None
+            if mixed_probability <= 0.0
+            else 1.0 / mixed_probability,
+            "probability_at_least_one_mixed_with_attempt_budget": 1.0
+            - (1.0 - mixed_probability) ** group_max_attempts,
+        }
 
     if check_scratch_headroom:
         if scratch_path is None:
@@ -114,7 +129,25 @@ def format_shell_summary(report: dict[str, Any]) -> str:
         )
         if report.get("headroom_ok") is not None:
             lines.append(f"  headroom_ok={str(report['headroom_ok']).lower()}")
+    if report.get("mixing"):
+        mixing = report["mixing"]
+        expected = mixing.get("expected_attempts_per_mixed_group")
+        lines.extend(
+            [
+                "Mixed-group estimate",
+                f"  success_rate={mixing['success_rate']:.4f}",
+                f"  mixed_group_probability={mixing['mixed_group_probability']:.4f}",
+                "  expected_attempts_per_mixed_group="
+                + ("unavailable" if expected is None else f"{expected:.2f}"),
+                "  probability_at_least_one_mixed_with_attempt_budget="
+                f"{mixing['probability_at_least_one_mixed_with_attempt_budget']:.4f}",
+            ]
+        )
     return "\n".join(lines)
+
+
+def _mixed_group_probability(success_rate: float, group_size: int) -> float:
+    return 1.0 - success_rate**group_size - (1.0 - success_rate) ** group_size
 
 
 def _str_bool(value: str) -> bool:
@@ -137,6 +170,11 @@ def main() -> None:
     parser.add_argument("--allow-unbounded-replayctx", default="false", type=_str_bool)
     parser.add_argument("--replay-context-estimate-gb", required=True, type=float)
     parser.add_argument("--storage-budget-mode", default="attempt", choices=("attempt", "accepted"))
+    parser.add_argument(
+        "--success-rate",
+        type=float,
+        help="Optional recent task success rate for mixed-group probability planning.",
+    )
     parser.add_argument("--check-scratch-headroom", default="false", type=_str_bool)
     parser.add_argument("--scratch-path", type=Path)
     parser.add_argument("--min-scratch-headroom-gb", default=0.0, type=float)
@@ -159,6 +197,7 @@ def main() -> None:
             save_replay_context=args.save_replay_context,
             replay_context_estimate_gb=args.replay_context_estimate_gb,
             storage_budget_mode=args.storage_budget_mode,
+            success_rate=args.success_rate,
             check_scratch_headroom=args.check_scratch_headroom,
             scratch_path=args.scratch_path,
             min_scratch_headroom_gb=args.min_scratch_headroom_gb,

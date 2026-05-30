@@ -604,6 +604,7 @@ def test_bounded_replayctx_submitter_uses_storage_safe_defaults():
     assert 'CHECK_SCRATCH_HEADROOM="${CHECK_SCRATCH_HEADROOM:-1}"' in text
     assert 'MIN_SCRATCH_HEADROOM_GB="${MIN_SCRATCH_HEADROOM_GB:-50}"' in text
     assert 'STORAGE_BUDGET_MODE="${STORAGE_BUDGET_MODE:-attempt}"' in text
+    assert 'SUCCESS_RATE="${SUCCESS_RATE:-}"' in text
     assert 'PLAN_JSON="${PLAN_JSON:-}"' in text
     assert 'QSUB_H_RT="${QSUB_H_RT:-6:00:00}"' in text
     assert 'QSUB_TMPFS="${QSUB_TMPFS:-80G}"' in text
@@ -616,6 +617,7 @@ def test_bounded_replayctx_submitter_uses_storage_safe_defaults():
     assert '--capture-max-chunks "${STRICT_GRPO_CAPTURE_MAX_CHUNKS}"' in text
     assert '--save-replay-context "${STRICT_GRPO_SAVE_REPLAY_CONTEXT}"' in text
     assert '--replay-context-estimate-gb "${REPLAY_CONTEXT_ESTIMATE_GB}"' in text
+    assert '--success-rate "${SUCCESS_RATE}"' in text
     assert '--format shell' in text
     assert "STRICT_GRPO_REPLAY_CONTEXT_MAX_GB" in text
     assert "ALLOW_UNBOUNDED_REPLAYCTX=1" in text
@@ -648,6 +650,7 @@ def test_bounded_replayctx_dry_run_budgets_attempts(tmp_path):
             "STRICT_GRPO_CAPTURE_MAX_CHUNKS": "1",
             "REPLAY_CONTEXT_ESTIMATE_GB": "4",
             "CHECK_SCRATCH_HEADROOM": "0",
+            "SUCCESS_RATE": "0.5",
         }
     )
 
@@ -664,6 +667,8 @@ def test_bounded_replayctx_dry_run_budgets_attempts(tmp_path):
     assert "attempt_budget_estimate_gb=48.00" in result.stdout
     assert "storage_budget_mode=attempt" in result.stdout
     assert "storage_budget_estimate_gb=48.00" in result.stdout
+    assert "Mixed-group estimate" in result.stdout
+    assert "mixed_group_probability=0.8750" in result.stdout
     assert "DRY_RUN=1, printing underlying qsub command" in result.stdout
     assert "qsub -N wam_grpo_replayctx_bounded" in result.stdout
     assert "-l h_rt=6:00:00" in result.stdout

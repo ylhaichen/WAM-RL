@@ -80,6 +80,26 @@ def test_plan_replay_context_collection_reports_headroom(tmp_path):
     assert report["required_for_budget_plus_headroom_gb"] == 4_000_001.0
 
 
+def test_plan_replay_context_collection_reports_mixing_probability():
+    report = plan_replay_context_collection(
+        task_names="move_stapler_pad",
+        group_size=4,
+        groups_per_task=1,
+        group_max_attempts=3,
+        capture_max_chunks=1,
+        save_replay_context=True,
+        replay_context_estimate_gb=4.0,
+        storage_budget_mode="attempt",
+        success_rate=0.5,
+    )
+
+    assert report["mixing"]["mixed_group_probability"] == pytest.approx(0.875)
+    assert report["mixing"]["expected_attempts_per_mixed_group"] == pytest.approx(1 / 0.875)
+    assert report["mixing"]["probability_at_least_one_mixed_with_attempt_budget"] == pytest.approx(
+        1 - (1 - 0.875) ** 3
+    )
+
+
 def test_format_shell_summary_matches_submitter_output():
     report = plan_replay_context_collection(
         task_names="move_stapler_pad",
@@ -90,6 +110,7 @@ def test_format_shell_summary_matches_submitter_output():
         save_replay_context=True,
         replay_context_estimate_gb=4.0,
         storage_budget_mode="attempt",
+        success_rate=0.5,
     )
 
     text = format_shell_summary(report)
@@ -98,6 +119,8 @@ def test_format_shell_summary_matches_submitter_output():
     assert "accepted_estimate_gb=16.00" in text
     assert "attempt_budget_estimate_gb=48.00" in text
     assert "storage_budget_estimate_gb=48.00" in text
+    assert "Mixed-group estimate" in text
+    assert "mixed_group_probability=0.8750" in text
 
 
 def test_plan_replay_context_collection_cli_shell_format(tmp_path):
@@ -127,6 +150,8 @@ def test_plan_replay_context_collection_cli_shell_format(tmp_path):
             str(tmp_path),
             "--min-scratch-headroom-gb",
             "0",
+            "--success-rate",
+            "0.5",
             "--dry-run",
             "true",
             "--format",
@@ -139,4 +164,5 @@ def test_plan_replay_context_collection_cli_shell_format(tmp_path):
 
     assert result.returncode == 0, result.stderr
     assert "Replay-context storage estimate" in result.stdout
+    assert "Mixed-group estimate" in result.stdout
     assert "headroom_ok=" in result.stdout

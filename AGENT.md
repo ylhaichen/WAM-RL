@@ -235,6 +235,9 @@ consume tens or hundreds of GB because they include transformer KV-cache state.
   default estimate is 4GB/context. The final `qsub` command should include an
   explicit canonical `RESULTS_ROOT` derived from `RUN_ID`, which lets
   `tools/report_grpo_run_status.py --qstat-job-id <job-id>` locate output early.
+  Set `SUCCESS_RATE=<recent_task_success_rate>` for dry-runs when a recent
+  summary exists; the storage planner will report mixed-group probability and
+  the chance that `GROUP_MAX_ATTEMPTS` gets at least one mixed group.
   Override `REPLAY_CONTEXT_ESTIMATE_GB` upward for action-guided
   (`action_guidance_scale > 1`) or legacy unpruned data.
   Keep `STORAGE_BUDGET_MODE=attempt` unless the user explicitly accepts the
