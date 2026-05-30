@@ -131,7 +131,7 @@ def _inspect_replay_contexts(artifact_paths: Iterable[str]) -> tuple[dict[str, s
         if not artifact_path.exists():
             continue
         try:
-            artifact = torch.load(artifact_path, map_location="cpu")
+            artifact = torch.load(artifact_path, map_location="meta")
             if not isinstance(artifact, dict):
                 raise ValueError("strict artifact is not a dict")
             replay_context_value = artifact.get(REPLAY_CONTEXT_PATH_KEY)

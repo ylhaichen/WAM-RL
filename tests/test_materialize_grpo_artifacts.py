@@ -104,3 +104,31 @@ def test_materialize_grpo_artifacts_checks_torch_before_partial_output(tmp_path,
         )
 
     assert not out_root.exists()
+
+
+def test_materialize_reads_replay_context_path_with_meta_map_location(tmp_path, monkeypatch):
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    artifact = source_dir / "strict.pt"
+    artifact.write_bytes(b"artifact-placeholder")
+    context = source_dir / "ctx.pt"
+    context.write_bytes(b"context")
+    groups_jsonl = tmp_path / "groups.jsonl"
+    _write_group(groups_jsonl, artifact)
+
+    seen_map_locations = []
+
+    def fake_load(path, *, map_location):
+        seen_map_locations.append(map_location)
+        assert path == artifact
+        return {"replay_context_path": context.name}
+
+    monkeypatch.setattr(torch, "load", fake_load)
+
+    materialize_grpo_artifacts(
+        groups_jsonl,
+        out_root=tmp_path / "out",
+        include_replay_context=True,
+    )
+
+    assert seen_map_locations == ["meta"]

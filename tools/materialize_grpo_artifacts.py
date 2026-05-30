@@ -109,7 +109,7 @@ def _context_materialization_paths(source_artifact: Path, dest_artifact: Path) -
 def _load_replay_context_path(artifact_path: Path) -> str | None:
     import torch
 
-    artifact = torch.load(artifact_path, map_location="cpu")
+    artifact = torch.load(artifact_path, map_location="meta")
     if not isinstance(artifact, dict):
         raise ValueError(f"strict artifact must be a dict: {artifact_path}")
     value = artifact.get(REPLAY_CONTEXT_PATH_KEY)

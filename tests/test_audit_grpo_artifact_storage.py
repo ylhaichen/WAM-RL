@@ -133,6 +133,31 @@ def test_audit_grpo_artifact_storage_can_inspect_replay_contexts(tmp_path):
     assert summary["combined_resolved_gb"] == report["artifacts_plus_replay_contexts"]["resolved_bytes"] / 1024**3
 
 
+def test_audit_grpo_artifact_storage_inspects_replay_contexts_with_meta_map_location(tmp_path, monkeypatch):
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    artifact = source_dir / "strict_grpo_0.pt"
+    artifact.write_bytes(b"artifact-placeholder")
+    context = source_dir / "strict_grpo_replay_context_0.pt"
+    context.write_bytes(b"context")
+    groups_jsonl = tmp_path / "groups.jsonl"
+    _write_group(groups_jsonl, [artifact])
+
+    seen_map_locations = []
+
+    def fake_load(path, *, map_location):
+        seen_map_locations.append(map_location)
+        assert path == artifact
+        return {"replay_context_path": context.name}
+
+    monkeypatch.setattr(torch, "load", fake_load)
+
+    report = audit_grpo_artifact_storage(groups_jsonl, inspect_replay_contexts=True)
+
+    assert seen_map_locations == ["meta"]
+    assert report["replay_context_mapping"] == {str(artifact): str(context)}
+
+
 def test_audit_grpo_artifact_storage_can_omit_replay_context_mapping(tmp_path):
     source_dir = tmp_path / "source"
     source_dir.mkdir()
