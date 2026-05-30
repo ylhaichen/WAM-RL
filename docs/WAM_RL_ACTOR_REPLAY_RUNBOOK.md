@@ -422,6 +422,9 @@ The summary command fails by default if zero matched episodes are found. Treat
 that as a control mismatch, usually `SEED`, `PROMPT_INDEX`, or
 `SAMPLING_SEED`. Use `--min-matched-episodes 0` only when intentionally doing
 aggregate-only inspection.
+The comparison directory includes `summary.json` and `summary.md`; both include
+run-level provenance such as `policy_checkpoint`, `reference_checkpoint`,
+`action_num_inference_steps`, `sampling_seed`, and `prompt_index`.
 
 Treat `n <= 5` as smoke only. Because RoboTwin closed-loop execution can diverge
 even after identical first actions, use matched per-episode comparisons before

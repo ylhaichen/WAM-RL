@@ -71,6 +71,9 @@ def test_summarize_eval_pair_writes_summaries_and_comparison(tmp_path):
     assert (out / "baseline_summary.csv").exists()
     assert (out / "actor_summary.csv").exists()
     assert json.loads((out / "comparison.json").read_text())["matched_episode_count"] == 2
+    summary_json = json.loads((out / "summary.json").read_text())
+    assert summary_json["run_provenance"]["actor"]["policy_checkpoint"] == ["/tmp/policy.pt"]
+    assert summary["outputs"]["summary_json"] == str(out / "summary.json")
     summary_md = (out / "summary.md").read_text()
     assert "## Run Provenance" in summary_md
     assert "policy_checkpoint: `/tmp/policy.pt`" in summary_md

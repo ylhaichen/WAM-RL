@@ -101,7 +101,7 @@ def summarize_eval_pair(
         run_provenance=run_provenance,
     )
 
-    return {
+    summary = {
         "baseline_root": str(baseline_root),
         "actor_root": str(actor_root),
         "out_root": str(out_root),
@@ -119,8 +119,11 @@ def summarize_eval_pair(
             "comparison_json": str(out_root / "comparison.json"),
             "comparison_csv": str(out_root / "comparison.csv"),
             "summary_markdown": str(out_root / "summary.md"),
+            "summary_json": str(out_root / "summary.json"),
         },
     }
+    (out_root / "summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
+    return summary
 
 
 def write_pair_markdown(
