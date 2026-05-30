@@ -144,6 +144,19 @@ def test_materialize_grpo_artifacts_help_does_not_require_external_pythonpath():
     assert "--dry-run" in result.stdout
 
 
+def test_merge_grpo_groups_help_does_not_require_external_pythonpath():
+    result = subprocess.run(
+        [sys.executable, "tools/merge_grpo_groups.py", "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "Merge GRPO group JSONL files" in result.stdout
+    assert "--allow-duplicate-group-ids" in result.stdout
+
+
 def test_audit_grpo_artifact_storage_help_does_not_require_external_pythonpath():
     result = subprocess.run(
         [sys.executable, "tools/audit_grpo_artifact_storage.py", "--help"],

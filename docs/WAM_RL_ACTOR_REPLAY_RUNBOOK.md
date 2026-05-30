@@ -211,6 +211,18 @@ record of retained `sample_idx`, reward, advantage, seeds, and artifact counts.
 Use it to confirm the subset kept both success and failure samples before
 spending GPU time on actor replay training.
 
+When combining several bounded mixed-group sources into one train set, avoid
+manual `cat`. Use the merge helper so duplicate `group_id` values are caught
+before validation or training:
+
+```bash
+python tools/merge_grpo_groups.py \
+  /path/to/source_a/groups/grpo_groups.jsonl \
+  /path/to/source_b/groups/grpo_groups.jsonl \
+  --out-jsonl /home/zcably0/Scratch/wam-rl/results_grpo_datasets/<name>/grpo_groups.jsonl \
+  --out-manifest /home/zcably0/Scratch/wam-rl/results_grpo_datasets/<name>/merge_manifest.json
+```
+
 `SUBSET_MAX_REPLAY_CONTEXT_GB` is a resolved replay-context footprint budget
 for the selected subset. It trims artifact references round-robin across the
 selected success/failure samples, which keeps a tiny actor replay smoke useful

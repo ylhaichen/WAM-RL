@@ -134,6 +134,8 @@ Implemented:
   avoiding an otherwise unused negative action branch and clones only the kept
   branch during cache snapshot;
 - safe JSON-only GRPO group subsetting with `tools/subset_grpo_groups.py`;
+- safe GRPO group curation/merge checks with `tools/merge_grpo_groups.py`,
+  which writes a manifest and rejects duplicate `group_id` values by default;
 - replay-context-footprint-aware subsetting with
   `--max-replay-context-gb`, so actor replay smoke subsets are bounded by
   actual resolved KV-cache storage rather than artifact count alone;
@@ -611,6 +613,9 @@ GRPO_PROGRESS_EVERY=50
    subsets before running expensive jobs. For queued Myriad subset preparation,
    use `jobs/myriad/35_submit_prepare_actor_replay_subset.sh --dry-run` and
    review the explicit `qsub -v` variables before submission.
+   When combining multiple bounded mixed-group sources, use
+   `tools/merge_grpo_groups.py` instead of manual `cat` so duplicate group ids
+   are caught before validation/training.
 2. Use `jobs/myriad/39_submit_grpo_replayctx_bounded_4gpu.sh` for any new
    replay-context collection smoke, with dry-run review before submission.
 3. Use `jobs/myriad/37_submit_actor_eval_pair_smoke.sh` and
