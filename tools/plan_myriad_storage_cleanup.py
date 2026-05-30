@@ -91,7 +91,7 @@ def write_markdown_report(report: dict) -> str:
     lines.extend(["", "## Protected Runs", ""])
     protected = [run for run in report["runs"] if run["protection_reasons"]]
     if protected:
-        lines.extend(["| Run | Size | Groups | Reason |", "|---|---:|---:|---|"])
+        lines.extend(["| Run | Size | Group JSONL lines | Reason |", "|---|---:|---:|---|"])
         for run in protected:
             lines.append(
                 "| "
@@ -99,7 +99,7 @@ def write_markdown_report(report: dict) -> str:
                     [
                         _md(run["name"]),
                         _format_gb(run["disk_bytes"]),
-                        str(run["grpo_group_line_count"]),
+                        str(run["grpo_group_total_line_count"]),
                         _md("; ".join(run["protection_reasons"])),
                     ]
                 )

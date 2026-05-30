@@ -83,6 +83,10 @@ def test_plan_myriad_storage_cleanup_protects_non_empty_partial_group_files(tmp_
         "non-empty groups/grpo_groups*.jsonl may reference trainable artifacts",
         "name matches curated dataset/source run pattern",
     ]
+    text = write_markdown_report(report)
+    assert "Group JSONL lines" in text
+    assert "| grpo_scale_tasks_a_k8_g8_retry |" in text
+    assert "| 0.000 GiB | 1 |" in text
 
 
 def test_write_markdown_report_has_candidate_and_protected_sections(tmp_path):
