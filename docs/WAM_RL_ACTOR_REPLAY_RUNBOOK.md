@@ -109,6 +109,18 @@ This is intentionally conservative because discarded failed attempts can still
 leave large `server_vis/` replay-context files behind. Use
 `STORAGE_BUDGET_MODE=accepted` only after explicit review.
 
+Before choosing `GROUP_SIZE`, estimate the probability of getting a mixed
+success/failure group from recent per-task success rates:
+
+```bash
+python tools/estimate_group_mixing.py \
+  --summary /path/to/grpo_group_summary_actor_replay.json \
+  --group-sizes 4 8
+```
+
+This estimate is not a simulator guarantee; it is a planning check for the
+storage-vs-mixed-group tradeoff.
+
 Promotion criteria for a source dataset:
 
 - validation `ok=true`;

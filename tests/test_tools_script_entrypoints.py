@@ -171,6 +171,19 @@ def test_plan_myriad_storage_cleanup_help_does_not_require_external_pythonpath()
     assert "--out-markdown" in result.stdout
 
 
+def test_estimate_group_mixing_help_does_not_require_external_pythonpath():
+    result = subprocess.run(
+        [sys.executable, "tools/estimate_group_mixing.py", "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "Estimate mixed-group probabilities" in result.stdout
+    assert "--group-sizes" in result.stdout
+
+
 def test_train_actor_replay_grpo_help_does_not_require_external_pythonpath():
     result = subprocess.run(
         [sys.executable, "tools/train_actor_replay_grpo.py", "--help"],
