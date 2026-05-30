@@ -34,6 +34,8 @@ def _write_output(root: Path) -> None:
                         "ratio_mean": 1.1,
                         "grad_norm": 0.2,
                         "param_update_norm": 0.01,
+                        "param_update_max": 0.005,
+                        "param_update_param_count": 3,
                     }
                 ],
             }
@@ -56,6 +58,12 @@ def test_summarize_actor_replay_output_reports_complete_run(tmp_path):
     assert summary["transition_count"] == 2
     assert summary["steps"] == 1
     assert summary["final_loss"] == 0.25
+    assert summary["final_grad_norm"] == 0.2
+    assert summary["final_param_update_norm"] == 0.01
+    assert summary["final_param_update_max"] == 0.005
+    assert summary["parameter_update_measured"] is True
+    assert summary["parameter_update_detected"] is True
+    assert summary["warnings"] == []
     assert summary["last_step"]["grad_norm"] == 0.2
 
 
@@ -81,4 +89,39 @@ def test_write_markdown_report(tmp_path):
     text = out.read_text(encoding="utf-8")
     assert "Actor Replay Training Summary" in text
     assert "| output_dir | ok | validation |" in text
+    assert "update_norm" in text
     assert "0.25" in text
+
+
+def test_summarize_actor_replay_output_warns_when_update_is_zero(tmp_path):
+    root = tmp_path / "run"
+    _write_output(root)
+    metrics_path = root / "metrics.json"
+    metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+    metrics["history"][0]["param_update_norm"] = 0.0
+    metrics["history"][0]["param_update_max"] = 0.0
+    metrics_path.write_text(json.dumps(metrics) + "\n", encoding="utf-8")
+
+    summary = summarize_actor_replay_output(root)
+
+    assert summary["ok"] is True
+    assert summary["parameter_update_measured"] is True
+    assert summary["parameter_update_detected"] is False
+    assert "no_parameter_update_detected" in summary["warnings"]
+
+
+def test_summarize_actor_replay_output_warns_when_update_metric_is_missing(tmp_path):
+    root = tmp_path / "run"
+    _write_output(root)
+    metrics_path = root / "metrics.json"
+    metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+    del metrics["history"][0]["param_update_norm"]
+    del metrics["history"][0]["param_update_max"]
+    metrics_path.write_text(json.dumps(metrics) + "\n", encoding="utf-8")
+
+    summary = summarize_actor_replay_output(root)
+
+    assert summary["ok"] is True
+    assert summary["parameter_update_measured"] is False
+    assert summary["parameter_update_detected"] is False
+    assert "missing_parameter_update_metric" in summary["warnings"]

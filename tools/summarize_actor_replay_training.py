@@ -19,6 +19,7 @@ def summarize_actor_replay_output(output_dir: Path) -> dict:
     result = metrics.get("result", {}) if isinstance(metrics, dict) else {}
     history = metrics.get("history", []) if isinstance(metrics, dict) else []
     last_step = history[-1] if history else {}
+    last_step_summary = _last_step_summary(last_step)
     checkpoint_path = Path(result.get("checkpoint_path") or root / "checkpoint.pt").expanduser()
 
     summary = {
@@ -40,7 +41,13 @@ def summarize_actor_replay_output(output_dir: Path) -> dict:
         "final_ratio_mean": _number(result.get("final_ratio_mean")),
         "trainable_param_count": _number(result.get("trainable_param_count")),
         "total_param_count": _number(result.get("total_param_count")),
-        "last_step": _last_step_summary(last_step),
+        "final_grad_norm": last_step_summary.get("grad_norm"),
+        "final_param_update_norm": last_step_summary.get("param_update_norm"),
+        "final_param_update_max": last_step_summary.get("param_update_max"),
+        "final_param_update_param_count": last_step_summary.get("param_update_param_count"),
+        "parameter_update_measured": "param_update_norm" in last_step_summary,
+        "parameter_update_detected": _positive_number(last_step_summary.get("param_update_norm")),
+        "last_step": last_step_summary,
     }
     summary["ok"] = (
         summary["metrics_exists"]
@@ -48,6 +55,7 @@ def summarize_actor_replay_output(output_dir: Path) -> dict:
         and summary["checkpoint_exists"]
         and not summary["failure_diagnostics_exists"]
     )
+    summary["warnings"] = _warnings(summary)
     return summary
 
 
@@ -60,13 +68,15 @@ def write_markdown_report(summaries: list[dict], out_markdown: Path) -> None:
     lines = [
         "# Actor Replay Training Summary",
         "",
-        "| output_dir | ok | validation | transitions | steps | final_loss | ratio | checkpoint | failure_diag |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+        "| output_dir | ok | validation | transitions | steps | final_loss | ratio | grad_norm | update_norm | update_max | update | checkpoint | failure_diag | warnings |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|",
     ]
     for item in summaries:
         lines.append(
             "| {output_dir} | {ok} | {validation_ok} | {transition_count} | {steps} | {final_loss} | "
-            "{final_ratio_mean} | {checkpoint_exists} | {failure_diagnostics_exists} |".format(
+            "{final_ratio_mean} | {final_grad_norm} | {final_param_update_norm} | "
+            "{final_param_update_max} | {parameter_update_detected} | {checkpoint_exists} | "
+            "{failure_diagnostics_exists} | {warnings} |".format(
                 output_dir=item["output_dir"],
                 ok=_bool_cell(item["ok"]),
                 validation_ok=_bool_cell(item["validation_ok"]),
@@ -74,8 +84,13 @@ def write_markdown_report(summaries: list[dict], out_markdown: Path) -> None:
                 steps=_cell(item["steps"]),
                 final_loss=_cell(item["final_loss"]),
                 final_ratio_mean=_cell(item["final_ratio_mean"]),
+                final_grad_norm=_cell(item["final_grad_norm"]),
+                final_param_update_norm=_cell(item["final_param_update_norm"]),
+                final_param_update_max=_cell(item["final_param_update_max"]),
+                parameter_update_detected=_bool_cell(item["parameter_update_detected"]),
                 checkpoint_exists=_bool_cell(item["checkpoint_exists"]),
                 failure_diagnostics_exists=_bool_cell(item["failure_diagnostics_exists"]),
+                warnings=", ".join(item["warnings"]),
             )
         )
     out_markdown.expanduser().parent.mkdir(parents=True, exist_ok=True)
@@ -117,6 +132,39 @@ def _last_step_summary(step: dict) -> dict:
         "param_update_max",
     ]
     return {key: _number(step.get(key)) for key in keys if key in step}
+
+
+def _positive_number(value) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and value > 0.0
+
+
+def _warnings(summary: dict) -> list[str]:
+    warnings = []
+    if not summary["metrics_exists"]:
+        warnings.append("missing_metrics")
+    if not summary["validation_exists"]:
+        warnings.append("missing_validation")
+    if summary["validation_exists"] and not summary["validation_ok"]:
+        warnings.append("validation_failed")
+    if not summary["checkpoint_exists"]:
+        warnings.append("missing_checkpoint")
+    if summary["failure_diagnostics_exists"]:
+        warnings.append("failure_diagnostics_present")
+
+    steps = summary.get("steps")
+    trainable_param_count = summary.get("trainable_param_count")
+    should_have_update_metric = (
+        summary["metrics_exists"]
+        and isinstance(steps, (int, float))
+        and steps > 0
+        and isinstance(trainable_param_count, (int, float))
+        and trainable_param_count > 0
+    )
+    if should_have_update_metric and not summary["parameter_update_measured"]:
+        warnings.append("missing_parameter_update_metric")
+    if should_have_update_metric and summary["parameter_update_measured"] and not summary["parameter_update_detected"]:
+        warnings.append("no_parameter_update_detected")
+    return warnings
 
 
 def _cell(value) -> str:

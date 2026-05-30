@@ -266,6 +266,9 @@ Pass criteria:
 - `input_dataset_validation.json` has `ok=true`;
 - a `checkpoint.pt` exists;
 - `metrics.json` exists and has finite loss/ratio diagnostics;
+- `summary.json` has `parameter_update_detected=true` for nonzero-learning-rate
+  smoke runs; `ok=true` alone only means the output/validation/checkpoint chain
+  completed;
 - no `Traceback`, `CUDA out of memory`, or `Disk quota exceeded`.
 
 For no-op controls or regression debugging, compare checkpoints without loading
