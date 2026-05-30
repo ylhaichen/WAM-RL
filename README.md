@@ -28,6 +28,8 @@ in [`docs/WAM_RL_CURRENT_PROJECT_STATUS.md`](docs/WAM_RL_CURRENT_PROJECT_STATUS.
 Operational rules for agents are in [`AGENT.md`](AGENT.md). Storage and Myriad
 cleanup rules are in
 [`docs/WAM_RL_MYRIAD_STORAGE_POLICY.md`](docs/WAM_RL_MYRIAD_STORAGE_POLICY.md),
+the actor replay operational workflow is in
+[`docs/WAM_RL_ACTOR_REPLAY_RUNBOOK.md`](docs/WAM_RL_ACTOR_REPLAY_RUNBOOK.md),
 and the strict GRPO artifact contract is documented in
 [`docs/GRPO_STRICT_ARTIFACT_SCHEMA.md`](docs/GRPO_STRICT_ARTIFACT_SCHEMA.md).
 

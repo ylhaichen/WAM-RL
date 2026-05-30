@@ -13,6 +13,7 @@ Use the planning documents as the source of truth:
 - `docs/WAM_RL_EARLY_STAGE_WORK_SUMMARY.md`
 - `docs/GRPO_STRICT_ARTIFACT_SCHEMA.md`
 - `docs/WAM_RL_MYRIAD_STORAGE_POLICY.md`
+- `docs/WAM_RL_ACTOR_REPLAY_RUNBOOK.md`
 - `docs/WAM_RL_PAPER_DATA_PLAN.md`
 
 The current route is:
