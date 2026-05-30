@@ -3,6 +3,7 @@ from pathlib import Path
 
 from tools.summarize_actor_replay_training import (
     summarize_actor_replay_output,
+    write_csv_report,
     write_markdown_report,
 )
 
@@ -105,6 +106,21 @@ def test_write_markdown_report(tmp_path):
     assert "mean" in text
     assert "update_norm" in text
     assert "0.25" in text
+
+
+def test_write_csv_report(tmp_path):
+    root = tmp_path / "run"
+    _write_output(root)
+    summary = summarize_actor_replay_output(root)
+    out = tmp_path / "summary.csv"
+
+    write_csv_report([summary], out)
+
+    text = out.read_text(encoding="utf-8")
+    assert "output_dir,ok,validation_ok" in text
+    assert "learning_rate" in text
+    assert "1e-07" in text
+    assert "mean" in text
 
 
 def test_summarize_actor_replay_output_warns_when_update_is_zero(tmp_path):

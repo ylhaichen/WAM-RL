@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 from pathlib import Path
 
@@ -107,6 +108,38 @@ def write_markdown_report(summaries: list[dict], out_markdown: Path) -> None:
     out_markdown.expanduser().write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def write_csv_report(summaries: list[dict], out_csv: Path) -> None:
+    fields = [
+        "output_dir",
+        "ok",
+        "validation_ok",
+        "transition_count",
+        "steps",
+        "learning_rate",
+        "action_num_inference_steps",
+        "logprob_reduction",
+        "logprob_std_floor",
+        "trainable_mode",
+        "final_loss",
+        "final_ratio_mean",
+        "final_grad_norm",
+        "final_param_update_norm",
+        "final_param_update_max",
+        "parameter_update_detected",
+        "checkpoint_exists",
+        "failure_diagnostics_exists",
+        "warnings",
+    ]
+    out_csv.expanduser().parent.mkdir(parents=True, exist_ok=True)
+    with out_csv.expanduser().open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fields)
+        writer.writeheader()
+        for item in summaries:
+            row = {field: item.get(field) for field in fields}
+            row["warnings"] = ";".join(item.get("warnings", []))
+            writer.writerow(row)
+
+
 def _read_json(path: Path) -> dict:
     if not path.exists():
         return {}
@@ -193,6 +226,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Summarize actor replay GRPO training output directories.")
     parser.add_argument("output_dirs", nargs="+", type=Path, help="Actor replay training output directories.")
     parser.add_argument("--out-json", type=Path, help="Optional JSON summary path.")
+    parser.add_argument("--out-csv", type=Path, help="Optional CSV summary path.")
     parser.add_argument("--out-markdown", type=Path, help="Optional Markdown summary path.")
     args = parser.parse_args()
 
@@ -200,6 +234,8 @@ def main() -> None:
     report = {"runs": summaries}
     if args.out_json is not None:
         write_json_report(summaries, args.out_json)
+    if args.out_csv is not None:
+        write_csv_report(summaries, args.out_csv)
     if args.out_markdown is not None:
         write_markdown_report(summaries, args.out_markdown)
     print(json.dumps(report, indent=2))

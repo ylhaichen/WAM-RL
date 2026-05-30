@@ -271,6 +271,7 @@ ls -lh "$OUT"
 python tools/summarize_actor_replay_training.py \
   "$OUT" \
   --out-json "$OUT/summary.json" \
+  --out-csv "$OUT/summary.csv" \
   --out-markdown "$OUT/summary.md"
 
 python tools/inspect_actor_replay_checkpoint.py \
