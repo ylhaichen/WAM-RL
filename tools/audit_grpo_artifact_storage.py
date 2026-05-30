@@ -23,6 +23,7 @@ def audit_grpo_artifact_storage(
     *,
     materialize_manifest: Path | None = None,
     inspect_replay_contexts: bool = False,
+    include_replay_context_mapping: bool = True,
 ) -> dict:
     groups = list(read_grpo_group_dicts(groups_jsonl.expanduser()))
     artifact_paths = _artifact_paths(groups)
@@ -43,13 +44,14 @@ def audit_grpo_artifact_storage(
             {
                 "replay_context_ref_count": len(replay_context_paths),
                 "unique_replay_context_count": len(set(replay_context_paths)),
-                "replay_context_mapping": replay_context_mapping,
                 "replay_context_error_count": len(replay_context_errors),
                 "replay_context_errors": replay_context_errors,
                 "replay_contexts": _path_summary(replay_context_paths),
                 "artifacts_plus_replay_contexts": _path_summary([*artifact_paths, *replay_context_paths]),
             }
         )
+        if include_replay_context_mapping:
+            report["replay_context_mapping"] = replay_context_mapping
 
     if materialize_manifest is not None:
         manifest = json.loads(materialize_manifest.expanduser().read_text(encoding="utf-8"))
@@ -185,6 +187,32 @@ def _budget_summary(report: dict) -> dict:
     return report["artifacts"]
 
 
+def compact_storage_summary(report: dict) -> dict:
+    summary = {
+        "groups_jsonl": report["groups_jsonl"],
+        "group_count": report["group_count"],
+        "sample_count": report["sample_count"],
+        "artifact_ref_count": report["artifact_ref_count"],
+        "unique_artifact_count": report["unique_artifact_count"],
+        "artifact_resolved_gb": report["artifacts"]["resolved_bytes"] / 1024**3,
+        "artifact_missing_count": report["artifacts"]["missing_count"],
+    }
+    if "replay_contexts" in report:
+        summary.update(
+            {
+                "replay_context_ref_count": report["replay_context_ref_count"],
+                "unique_replay_context_count": report["unique_replay_context_count"],
+                "replay_context_resolved_gb": report["replay_contexts"]["resolved_bytes"] / 1024**3,
+                "combined_resolved_gb": report["artifacts_plus_replay_contexts"]["resolved_bytes"] / 1024**3,
+                "replay_context_missing_count": report["replay_contexts"]["missing_count"],
+                "replay_context_error_count": report["replay_context_error_count"],
+            }
+        )
+    if "storage_budget" in report:
+        summary["storage_budget"] = report["storage_budget"]
+    return summary
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Audit filesystem footprint of GRPO artifact references.")
     parser.add_argument("groups_jsonl", type=Path, help="Input GRPO groups JSONL.")
@@ -193,6 +221,16 @@ def main() -> None:
         "--inspect-replay-contexts",
         action="store_true",
         help="Load strict artifacts and include replay_context_path file footprint in the report.",
+    )
+    parser.add_argument(
+        "--omit-replay-context-mapping",
+        action="store_true",
+        help="Do not include the per-artifact replay-context mapping in JSON output.",
+    )
+    parser.add_argument(
+        "--print-summary",
+        action="store_true",
+        help="Print compact summary JSON to stdout instead of the full report.",
     )
     parser.add_argument("--out-json", type=Path, help="Optional output JSON report.")
     parser.add_argument("--fail-on-missing", action="store_true", help="Exit non-zero if referenced files are missing.")
@@ -208,6 +246,7 @@ def main() -> None:
         args.groups_jsonl,
         materialize_manifest=args.materialize_manifest,
         inspect_replay_contexts=args.inspect_replay_contexts,
+        include_replay_context_mapping=not args.omit_replay_context_mapping,
     )
     if args.max_resolved_gb is not None:
         max_resolved_bytes = int(args.max_resolved_gb * 1024**3)
@@ -222,7 +261,10 @@ def main() -> None:
     if args.out_json is not None:
         args.out_json.expanduser().parent.mkdir(parents=True, exist_ok=True)
         args.out_json.expanduser().write_text(text, encoding="utf-8")
-    print(text, end="")
+    if args.print_summary:
+        print(json.dumps(compact_storage_summary(report), ensure_ascii=False, indent=2))
+    else:
+        print(text, end="")
     if args.fail_on_missing and _has_missing(report):
         raise SystemExit(1)
     if "storage_budget" in report and not report["storage_budget"]["ok"]:

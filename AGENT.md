@@ -181,7 +181,9 @@ consume tens or hundreds of GB because they include transformer KV-cache state.
   strict artifacts or replay-context symlink targets. Add
   `--inspect-replay-contexts` when auditing real actor replay data, because
   replay-context files are usually referenced from inside each strict artifact
-  rather than directly from the JSONL.
+  rather than directly from the JSONL. Use `--print-summary` for logs and
+  `--omit-replay-context-mapping` when the full per-artifact mapping would make
+  reports too large.
 - Use `tools/inspect_grpo_replay_context.py` on one representative
   `strict_grpo_replay_context_*.pt` before designing storage slimming changes;
   it reports tensor bytes by top-level key and largest nested tensors.

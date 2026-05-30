@@ -6,7 +6,7 @@ from pathlib import Path
 
 import torch
 
-from tools.audit_grpo_artifact_storage import audit_grpo_artifact_storage
+from tools.audit_grpo_artifact_storage import audit_grpo_artifact_storage, compact_storage_summary
 
 
 def _write_group(path: Path, artifact_paths: list[Path]) -> None:
@@ -126,6 +126,31 @@ def test_audit_grpo_artifact_storage_can_inspect_replay_contexts(tmp_path):
     assert report["replay_contexts"]["resolved_bytes"] == len(b"context-bytes")
     assert report["artifacts_plus_replay_contexts"]["existing_count"] == 2
     assert report["replay_context_errors"] == []
+    assert report["replay_context_mapping"] == {str(artifact): str(context)}
+
+    summary = compact_storage_summary(report)
+    assert summary["unique_replay_context_count"] == 1
+    assert summary["combined_resolved_gb"] == report["artifacts_plus_replay_contexts"]["resolved_bytes"] / 1024**3
+
+
+def test_audit_grpo_artifact_storage_can_omit_replay_context_mapping(tmp_path):
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    artifact = source_dir / "strict_grpo_0.pt"
+    context = source_dir / "strict_grpo_replay_context_0.pt"
+    torch.save({"replay_context_path": context.name}, artifact)
+    context.write_bytes(b"context")
+    groups_jsonl = tmp_path / "groups.jsonl"
+    _write_group(groups_jsonl, [artifact])
+
+    report = audit_grpo_artifact_storage(
+        groups_jsonl,
+        inspect_replay_contexts=True,
+        include_replay_context_mapping=False,
+    )
+
+    assert "replay_context_mapping" not in report
+    assert report["unique_replay_context_count"] == 1
 
 
 def test_audit_grpo_artifact_storage_reports_invalid_replay_context_artifact(tmp_path):
@@ -162,3 +187,27 @@ def test_audit_grpo_artifact_storage_cli_fails_over_budget(tmp_path):
 
     assert result.returncode == 1
     assert '"ok": false' in result.stdout
+
+
+def test_audit_grpo_artifact_storage_cli_prints_compact_summary(tmp_path):
+    artifact = tmp_path / "strict_grpo_0.pt"
+    artifact.write_bytes(b"artifact")
+    groups_jsonl = tmp_path / "groups.jsonl"
+    _write_group(groups_jsonl, [artifact])
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "tools/audit_grpo_artifact_storage.py",
+            str(groups_jsonl),
+            "--print-summary",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    summary = json.loads(result.stdout)
+    assert summary["artifact_ref_count"] == 2
+    assert "tasks" not in summary

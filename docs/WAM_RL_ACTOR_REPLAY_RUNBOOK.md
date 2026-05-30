@@ -311,12 +311,15 @@ python tools/audit_grpo_artifact_storage.py \
   "$SUBSET/groups/grpo_groups.jsonl" \
   --materialize-manifest "$SUBSET/manifest.json" \
   --inspect-replay-contexts \
+  --print-summary \
   --fail-on-missing
 ```
 
 For a pre-run storage budget check, add `--max-resolved-gb <GB>`. With
 `--inspect-replay-contexts`, the budget covers both directly referenced strict
-artifacts and replay-context files referenced from inside those artifacts.
+artifacts and replay-context files referenced from inside those artifacts. Use
+`--omit-replay-context-mapping` when writing a long-lived JSON report where the
+per-artifact mapping is not needed.
 
 To inspect why a replay context is large, run:
 

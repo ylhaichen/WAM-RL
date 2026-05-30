@@ -154,6 +154,7 @@ validation with --require-replay-context: ok=true, error_count=0
 disk usage before cleanup/archive: about 432G
 storage audit with replay contexts:
   /home/zcably0/Scratch/wam-rl/results_grouped_rollouts/grpo_replayctx_staplerpad_k8_g1_s10_20260521_161720/groups/storage_audit_with_replay_contexts.json
+  /home/zcably0/Scratch/wam-rl/results_grouped_rollouts/grpo_replayctx_staplerpad_k8_g1_s10_20260521_161720/groups/storage_audit_summary_mode.json
   strict artifacts: 64 unique, 0.006 GiB resolved
   replay contexts: 64 unique
   artifacts + replay contexts: 430.996 GiB resolved
