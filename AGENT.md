@@ -201,6 +201,9 @@ current system:
   `tools/summarize_actor_replay_training.py` to inspect validation status,
   final metrics, checkpoint presence, and failure diagnostics before planning
   evaluation.
+- Use `tools/inspect_actor_replay_checkpoint.py` to inspect actor replay
+  checkpoint tensor stats or compare a candidate checkpoint against an `lr=0`
+  no-op/reference checkpoint before interpreting tiny closed-loop eval deltas.
 - For baseline-vs-actor eval smoke, prefer
   `jobs/myriad/37_submit_actor_eval_pair_smoke.sh` so both runs share task,
   prompt, env seed, sampling seed, and action-step settings while using

@@ -153,6 +153,19 @@ def test_summarize_actor_replay_training_help_does_not_require_external_pythonpa
     assert "--out-markdown" in result.stdout
 
 
+def test_inspect_actor_replay_checkpoint_help_does_not_require_external_pythonpath():
+    result = subprocess.run(
+        [sys.executable, "tools/inspect_actor_replay_checkpoint.py", "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "Inspect real actor replay checkpoint tensor statistics" in result.stdout
+    assert "--reference" in result.stdout
+
+
 def test_diagnose_actor_replay_help_does_not_require_external_pythonpath():
     result = subprocess.run(
         [sys.executable, "tools/diagnose_actor_replay.py", "--help"],

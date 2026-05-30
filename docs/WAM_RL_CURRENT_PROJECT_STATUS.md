@@ -121,6 +121,8 @@ Implemented:
 - operational runbook in `docs/WAM_RL_ACTOR_REPLAY_RUNBOOK.md`;
 - actor replay training output summaries with
   `tools/summarize_actor_replay_training.py`;
+- actor replay checkpoint tensor inspection/comparison with
+  `tools/inspect_actor_replay_checkpoint.py`;
 - real actor replay trainer over LingBot-VA transformer parameters;
 - checkpoint loading into the inference server via
   `actor_replay_checkpoint_path`;

@@ -188,6 +188,11 @@ python tools/summarize_actor_replay_training.py \
   "$OUT" \
   --out-json "$OUT/summary.json" \
   --out-markdown "$OUT/summary.md"
+
+python tools/inspect_actor_replay_checkpoint.py \
+  "$OUT/checkpoint.pt" \
+  --out-json "$OUT/checkpoint_inspection.json" \
+  --out-markdown "$OUT/checkpoint_inspection.md"
 ```
 
 Pass criteria:
@@ -196,6 +201,21 @@ Pass criteria:
 - a `checkpoint.pt` exists;
 - `metrics.json` exists and has finite loss/ratio diagnostics;
 - no `Traceback`, `CUDA out of memory`, or `Disk quota exceeded`.
+
+For no-op controls or regression debugging, compare checkpoints without loading
+the full LingBot model:
+
+```bash
+python tools/inspect_actor_replay_checkpoint.py \
+  /path/to/candidate/checkpoint.pt \
+  --reference /path/to/lr0_or_previous/checkpoint.pt \
+  --out-json /path/to/checkpoint_compare.json \
+  --out-markdown /path/to/checkpoint_compare.md
+```
+
+Interpret `delta_l2_norm`, `relative_delta_l2`, and `delta_max_abs` before
+claiming that a closed-loop eval difference came from a meaningful policy
+update.
 
 ## 6. Evaluate And Compare
 
