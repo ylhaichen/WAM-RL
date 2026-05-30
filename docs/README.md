@@ -13,6 +13,9 @@ planning/paper docs.
 - `WAM_RL_MYRIAD_STORAGE_POLICY.md`: Scratch/RDSS usage, cleanup guardrails,
   and storage-audit commands.
 - `GRPO_STRICT_ARTIFACT_SCHEMA.md`: strict artifact and replay-context schema.
+- `WAM_RL_RLINF_INTEGRATION_PLAN.md`: plan for making RLinf the future
+  mainline training infrastructure while preserving native WAM-RL as a
+  reference path.
 
 Read these before submitting jobs, deleting data, interpreting metrics, or
 claiming project progress.
