@@ -403,6 +403,47 @@ def test_bounded_replayctx_dry_run_can_budget_accepted_only(tmp_path):
     assert "storage_budget_estimate_gb=16.00" in result.stdout
 
 
+def test_bounded_replayctx_non_dry_run_blocks_insufficient_headroom_before_qsub(tmp_path):
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    qsub_called = tmp_path / "qsub_called"
+    qsub = fake_bin / "qsub"
+    qsub.write_text(
+        f"#!/usr/bin/env bash\ntouch {qsub_called}\nexit 0\n",
+        encoding="utf-8",
+    )
+    qsub.chmod(0o755)
+
+    env = os.environ.copy()
+    env.update(
+        {
+            "PATH": f"{fake_bin}:{env['PATH']}",
+            "DRY_RUN": "0",
+            "TASK_NAMES": "move_stapler_pad",
+            "GROUP_SIZE": "4",
+            "GROUPS_PER_TASK": "1",
+            "GROUP_MAX_ATTEMPTS": "1",
+            "STRICT_GRPO_CAPTURE_MAX_CHUNKS": "1",
+            "REPLAY_CONTEXT_ESTIMATE_GB": "1000000",
+            "CHECK_SCRATCH_HEADROOM": "1",
+            "SCRATCH_PATH": str(tmp_path),
+        }
+    )
+
+    result = subprocess.run(
+        ["bash", "jobs/myriad/39_submit_grpo_replayctx_bounded_4gpu.sh"],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert result.returncode == 2
+    assert "headroom_ok=false" in result.stdout
+    assert "Insufficient Scratch headroom" in result.stderr
+    assert not qsub_called.exists()
+
+
 def test_myriad_common_initializes_modules_for_interactive_shells():
     text = Path("jobs/myriad/common.sh").read_text()
 
