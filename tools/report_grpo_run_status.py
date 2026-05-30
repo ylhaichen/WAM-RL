@@ -101,14 +101,18 @@ def parse_job_log(path: Path) -> dict[str, Any]:
 
 def parse_qstat_job_detail_text(text: str) -> dict[str, Any]:
     fields: dict[str, str] = {}
+    active_key: str | None = None
     for raw_line in text.splitlines():
         if ":" not in raw_line:
+            if active_key and raw_line.strip():
+                fields[active_key] = f"{fields[active_key]},{raw_line.strip()}"
             continue
         key, value = raw_line.split(":", 1)
         key = key.strip()
         value = value.strip()
         if key:
             fields[key] = value
+            active_key = key
 
     env = _parse_key_value_list(fields.get("env_list", ""))
     resources = _parse_key_value_list(fields.get("hard resource_list", ""))
@@ -172,15 +176,19 @@ def report_grpo_run_status(
     inspect_files: bool = False,
 ) -> dict[str, Any]:
     log_report = parse_job_log(job_log) if job_log is not None else None
+    qstat_values = (qstat_job or {}).get("values") or {}
     inferred_results_root = _first_present_path(
         results_root,
         _value_path(log_report, "RESULTS_ROOT"),
         _last_path(log_report, "grouped_rollout_completion_paths"),
+        _dict_value_path(qstat_values, "RESULTS_ROOT"),
+        _groups_file_results_root(_dict_value_path(qstat_values, "GRPO_GROUPS_PATH")),
     )
     inferred_training_output_dir = _first_present_path(
         training_output_dir,
         _value_path(log_report, "GRPO_OUTPUT_DIR"),
         _last_path(log_report, "training_completion_paths"),
+        _dict_value_path(qstat_values, "GRPO_OUTPUT_DIR"),
     )
 
     report: dict[str, Any] = {
@@ -455,6 +463,23 @@ def _last_path(log_report: dict[str, Any] | None, key: str) -> Path | None:
     if not values:
         return None
     return Path(str(values[-1]))
+
+
+def _dict_value_path(values: dict[str, Any], key: str) -> Path | None:
+    value = values.get(key)
+    if not value:
+        return None
+    return Path(str(value))
+
+
+def _groups_file_results_root(path: Path | None) -> Path | None:
+    if path is None:
+        return None
+    if path.name != "grpo_groups.jsonl":
+        return None
+    if path.parent.name != "groups":
+        return None
+    return path.parent.parent
 
 
 def _first_present_path(*paths: Path | None) -> Path | None:

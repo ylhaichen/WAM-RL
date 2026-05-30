@@ -223,6 +223,21 @@ project:                    AllUsers
     assert report["resources"]["tmpfs"] == "200G"
 
 
+def test_parse_qstat_job_detail_handles_wrapped_env_list():
+    text = """
+job_number:                 458528
+env_list:                   RUN_ID=queued_run,GROUP_SIZE=4,
+                            TASK_NAMES=move_stapler_pad,ACTION_NUM_INFERENCE_STEPS=10
+"""
+
+    report = parse_qstat_job_detail_text(text)
+
+    assert report["values"]["RUN_ID"] == "queued_run"
+    assert report["values"]["GROUP_SIZE"] == "4"
+    assert report["values"]["TASK_NAMES"] == "move_stapler_pad"
+    assert report["values"]["ACTION_NUM_INFERENCE_STEPS"] == "10"
+
+
 def test_report_grpo_run_status_can_report_scheduler_only_jobs():
     qstat_report = parse_qstat_job_detail_text(
         "\n".join(
@@ -240,6 +255,34 @@ def test_report_grpo_run_status_can_report_scheduler_only_jobs():
     assert report["status"]["state"] == "scheduler_known_no_log"
     assert report["status"]["qstat_job_number"] == "458528"
     assert report["qstat_job"]["values"]["RUN_ID"] == "queued_run"
+
+
+def test_report_grpo_run_status_uses_qstat_paths_when_log_is_missing(tmp_path):
+    root = tmp_path / "results"
+    groups = root / "groups"
+    output = tmp_path / "train"
+    groups.mkdir(parents=True)
+    output.mkdir()
+    (groups / "grpo_groups.jsonl").write_text("{}\n", encoding="utf-8")
+    _write_json(groups / "grpo_dataset_validation.json", {"ok": True, "transition_count": 7})
+    _write_json(output / "metrics.json", {"history": [{"step": 1, "loss": 0.2}]})
+    (output / "checkpoint.pt").write_bytes(b"checkpoint")
+    qstat_report = parse_qstat_job_detail_text(
+        "\n".join(
+            [
+                "job_number:                 458528",
+                "job_name:                   wam_grpo_actor_subset",
+                f"env_list:                   GRPO_GROUPS_PATH={groups / 'grpo_groups.jsonl'},GRPO_OUTPUT_DIR={output}",
+            ]
+        )
+    )
+
+    report = report_grpo_run_status(qstat_job=qstat_report)
+
+    assert report["results_root"]["path"] == str(root)
+    assert report["training_output_dir"]["path"] == str(output)
+    assert report["status"]["state"] == "training_checkpoint_written"
+    assert report["status"]["transition_count"] == 7
 
 
 def test_report_grpo_run_status_cli_accepts_qstat_job_file(tmp_path):

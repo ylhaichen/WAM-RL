@@ -156,7 +156,10 @@ development:
   before hand-writing long `grep` pipelines;
 - for queued jobs without logs, use
   `tools/report_grpo_run_status.py --qstat-job-id <job-id>` to inspect
-  scheduler metadata and exported job variables;
+  scheduler metadata and exported job variables; qstat reporting handles
+  wrapped SGE `env_list` output and can infer `RESULTS_ROOT`,
+  `GRPO_GROUPS_PATH`, and `GRPO_OUTPUT_DIR` when those variables were exported
+  at submission time;
 - avoid unbounded `qacct` calls during interactive debugging. Prefer `qstat`,
   job logs, and the status reporter; if accounting is needed, query a specific
   finished job with a shell timeout;

@@ -68,6 +68,11 @@ python tools/report_grpo_run_status.py \
   --print-markdown
 ```
 
+The qstat mode handles wrapped SGE `env_list` output and will also summarize
+`RESULTS_ROOT`, `GRPO_GROUPS_PATH`, or `GRPO_OUTPUT_DIR` when those paths are
+already present in the job environment. This makes it useful for early running
+jobs before the SGE stdout log has flushed enough lines to parse by hand.
+
 Avoid unbounded `qacct` calls during interactive debugging. On Myriad, `qacct`
 can be slow and can print unrelated accounting records when queried loosely.
 Prefer job logs, `qstat`, and the status reporter above. If accounting is
