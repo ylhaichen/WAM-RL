@@ -90,6 +90,19 @@ def test_summarize_actor_eval_pair_help_does_not_require_external_pythonpath():
     assert "--min-matched-episodes" in result.stdout
 
 
+def test_summarize_robotwin_repeatability_help_does_not_require_external_pythonpath():
+    result = subprocess.run(
+        [sys.executable, "tools/summarize_robotwin_repeatability.py", "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "Summarize RoboTwin eval repeatability across matched episodes" in result.stdout
+    assert "--run" in result.stdout
+
+
 def test_subset_grpo_groups_help_does_not_require_external_pythonpath():
     result = subprocess.run(
         [sys.executable, "tools/subset_grpo_groups.py", "--help"],

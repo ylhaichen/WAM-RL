@@ -174,6 +174,8 @@ Implemented:
 - paired eval summary/export with `tools/summarize_actor_eval_pair.py`;
 - zero-match guard in paired eval summaries to catch seed/prompt/sampling
   control mismatches;
+- repeatability summaries across repeated eval roots with
+  `tools/summarize_robotwin_repeatability.py`;
 - one-GPU eval job support for actor replay checkpoint loading.
 
 Observed behavior:

@@ -265,6 +265,20 @@ Treat `n <= 5` as smoke only. Because RoboTwin closed-loop execution can diverge
 even after identical first actions, use matched per-episode comparisons before
 interpreting aggregate success rates.
 
+For baseline repeatability controls across two or more repeated eval roots:
+
+```bash
+python tools/summarize_robotwin_repeatability.py \
+  --run baseline_a=/path/to/baseline_eval_a \
+  --run baseline_b=/path/to/baseline_eval_b \
+  --out-json /path/to/repeatability.json \
+  --out-csv /path/to/repeatability.csv \
+  --out-markdown /path/to/repeatability.md
+```
+
+Use `flipped_count` and `flip_rate` to decide whether a policy delta is larger
+than the closed-loop repeat noise on the same matched episode keys.
+
 ## 7. Cleanup Boundary
 
 Before deleting anything:
