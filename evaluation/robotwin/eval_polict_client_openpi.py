@@ -76,6 +76,7 @@ ROLLOUT_CONFIG_KEYS = (
     "sample_idx",
     "group_size",
     "sampling_seed",
+    "sampling_seed_per_env",
     "prompt_index",
     "action_num_inference_steps",
     "group_seed_search",
@@ -84,6 +85,7 @@ ROLLOUT_CONFIG_KEYS = (
 )
 
 CLI_CONFIG_KEYS = (
+    "server_host",
     "port",
     "save_root",
     "video_guidance_scale",
@@ -91,6 +93,15 @@ CLI_CONFIG_KEYS = (
     "test_num",
     "robotwin_root",
 )
+
+CLI_CONFIG_DEFAULTS = {
+    "server_host": "127.0.0.1",
+    "port": 8000,
+    "save_root": "results/default_vis_path",
+    "video_guidance_scale": 5.0,
+    "action_guidance_scale": 5.0,
+    "test_num": 100,
+}
 
 
 def get_ffmpeg_executable() -> str:
@@ -128,6 +139,16 @@ def _as_bool(value) -> bool:
     if value is None:
         return False
     return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _episode_sampling_seed(args: dict, env_seed: int) -> int | None:
+    sampling_seed = args.get("sampling_seed")
+    if sampling_seed is None:
+        return None
+    sampling_seed = int(sampling_seed)
+    if _as_bool(args.get("sampling_seed_per_env")):
+        sampling_seed += int(env_seed)
+    return sampling_seed
 
 
 def _seed_eval_process(seed: int) -> None:
@@ -602,7 +623,10 @@ def main(usr_args):
     test_num = usr_args["test_num"]
 
     
-    model = WebsocketClientPolicy(port=usr_args['port'])
+    model = WebsocketClientPolicy(
+        host=usr_args.get("server_host", "127.0.0.1"),
+        port=usr_args["port"],
+    )
 
     st_seed, suc_num = eval_policy(task_name,
                                    TASK_ENV,
@@ -786,11 +810,12 @@ def eval_policy(task_name,
         succ = False
 
         prompt = TASK_ENV.get_instruction()
+        episode_sampling_seed = _episode_sampling_seed(args, now_seed)
         ret = model.infer(dict(
             reset=True,
             prompt=prompt,
             save_visualization=save_visualization,
-            sampling_seed=args.get("sampling_seed"),
+            sampling_seed=episode_sampling_seed,
         ))
         
         first = True
@@ -924,7 +949,7 @@ def eval_policy(task_name,
             group_index=args.get("group_index"),
             sample_idx=args.get("sample_idx"),
             group_size=args.get("group_size"),
-            sampling_seed=args.get("sampling_seed"),
+            sampling_seed=episode_sampling_seed,
             prompt_index=args.get("prompt_index"),
             planned_seed=st_seed,
             video_guidance_scale=video_guidance_scale,
@@ -970,11 +995,12 @@ def parse_args_and_config():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, required=True)
     parser.add_argument("--overrides", nargs=argparse.REMAINDER)
-    parser.add_argument("--port", type=int, default=8000, help='remote policy socket port.')
-    parser.add_argument("--save_root", type=str, default="results/default_vis_path")
-    parser.add_argument("--video_guidance_scale", type=float, default=5.0)
-    parser.add_argument("--action_guidance_scale", type=float, default=5.0)
-    parser.add_argument("--test_num", type=int, default=100)
+    parser.add_argument("--server_host", type=str, default=None, help="remote policy socket host.")
+    parser.add_argument("--port", type=int, default=None, help='remote policy socket port.')
+    parser.add_argument("--save_root", type=str, default=None)
+    parser.add_argument("--video_guidance_scale", type=float, default=None)
+    parser.add_argument("--action_guidance_scale", type=float, default=None)
+    parser.add_argument("--test_num", type=int, default=None)
     parser.add_argument("--robotwin_root", type=str, default=None)
     parser.add_argument("--rollout_log_dir", type=str, default=None)
     parser.add_argument("--run_id", type=str, default=None)
@@ -985,6 +1011,7 @@ def parse_args_and_config():
     parser.add_argument("--sample_idx", type=int, default=None)
     parser.add_argument("--group_size", type=int, default=None)
     parser.add_argument("--sampling_seed", type=int, default=None)
+    parser.add_argument("--sampling_seed_per_env", type=str, default=None)
     parser.add_argument("--prompt_index", type=int, default=None)
     parser.add_argument("--action_num_inference_steps", type=int, default=None)
     parser.add_argument("--group_seed_search", type=str, default=None)
@@ -1025,6 +1052,8 @@ def parse_args_and_config():
         value = getattr(args, key)
         if value is not None:
             config[key] = value
+    for key, value in CLI_CONFIG_DEFAULTS.items():
+        config.setdefault(key, value)
 
     return config
 

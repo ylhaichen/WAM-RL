@@ -26,7 +26,7 @@ from .dataset import (
     read_transition_refs,
     resolve_replay_context,
 )
-from .denoising_replay import compute_gaussian_transition_logprob
+from .denoising_replay import TransitionLogprob, compute_gaussian_transition_logprob
 from .grpo_loss import compute_clipped_grpo_loss
 
 
@@ -36,6 +36,39 @@ DEFAULT_CACHE_NAME = "pos"
 
 class MissingReplayContextError(ValueError):
     """Raised when an artifact cannot support real actor replay."""
+
+
+def load_actor_replay_checkpoint_into_transformer(
+    transformer: torch.nn.Module,
+    checkpoint_path: str | Path,
+    *,
+    map_location: str | torch.device = "cpu",
+) -> dict:
+    """Load a real actor replay checkpoint's trainable weights into a transformer."""
+
+    path = Path(checkpoint_path).expanduser()
+    if not path.exists():
+        raise FileNotFoundError(f"actor replay checkpoint does not exist: {path}")
+    checkpoint = torch.load(path, map_location=map_location)
+    state_dict = checkpoint.get("trainable_state_dict", checkpoint) if isinstance(checkpoint, dict) else checkpoint
+    if not isinstance(state_dict, dict) or not state_dict:
+        raise ValueError(f"actor replay checkpoint has no trainable_state_dict: {path}")
+
+    load_result = transformer.load_state_dict(state_dict, strict=False)
+    unexpected = list(load_result.unexpected_keys)
+    if unexpected:
+        raise ValueError(
+            "actor replay checkpoint contains unexpected transformer keys: "
+            + ", ".join(unexpected[:10])
+        )
+    tensor_count = sum(1 for value in state_dict.values() if torch.is_tensor(value))
+    param_count = sum(int(value.numel()) for value in state_dict.values() if torch.is_tensor(value))
+    return {
+        "checkpoint_path": str(path),
+        "tensor_count": tensor_count,
+        "param_count": param_count,
+        "missing_key_count": len(load_result.missing_keys),
+    }
 
 
 @dataclass(frozen=True)
@@ -61,6 +94,9 @@ class ActorReplayTrainerConfig:
     frozen_param_patterns: tuple[str, ...] = ()
     action_num_inference_steps: int = 50
     action_snr_shift: float = 1.0
+    logprob_reduction: str = "sum"
+    logprob_std_floor: float | None = None
+    progress_every: int = 0
     cache_name: str = DEFAULT_CACHE_NAME
 
 
@@ -206,6 +242,28 @@ def iter_actor_replay_examples(
             yield ActorReplayExample(ref=ref, transition=transition, replay_context=replay_context)
 
 
+def count_actor_replay_transition_items(groups_jsonl: Path, *, loader: Callable[[Path], dict] | None = None) -> int:
+    """Count replay transition items without loading external replay contexts."""
+
+    count = 0
+    for ref in read_transition_refs(groups_jsonl.expanduser()):
+        artifact_path = Path(ref.artifact_path)
+        artifact = load_strict_artifact(artifact_path, loader=loader)
+        if "replay_context" not in artifact and "replay_context_path" not in artifact:
+            raise MissingReplayContextError(
+                "strict artifact does not contain replay_context; "
+                f"real actor replay cannot use old smoke-only artifact: {ref.artifact_path}"
+            )
+        for transition in iter_strict_artifact_transitions(artifact):
+            if "replay_input" not in transition:
+                raise MissingReplayContextError(
+                    "strict artifact transition does not contain replay_input; "
+                    f"cannot recompute current actor logprob: {ref.artifact_path}"
+                )
+            count += _stored_batch_size(transition["old_logprob_sum"])
+    return count
+
+
 class LingBotActionReplayPolicy(torch.nn.Module):
     """Replay saved denoising transitions through the current LingBot transformer."""
 
@@ -216,6 +274,7 @@ class LingBotActionReplayPolicy(torch.nn.Module):
         action_scheduler: FlowMatchScheduler,
         device: torch.device,
         dtype: torch.dtype,
+        transition_std_floor: float | None = None,
         cache_name: str = DEFAULT_CACHE_NAME,
     ) -> None:
         super().__init__()
@@ -223,9 +282,27 @@ class LingBotActionReplayPolicy(torch.nn.Module):
         self.action_scheduler = action_scheduler
         self.device = device
         self.dtype = dtype
+        self.transition_std_floor = transition_std_floor
         self.cache_name = cache_name
 
     def forward_example(self, example: ActorReplayExample) -> torch.Tensor:
+        return self.forward_transition_logprob(example).logprob_sum
+
+    def forward_transition_logprob(self, example: ActorReplayExample) -> TransitionLogprob:
+        transition = example.transition
+        transition_mean = self.predict_transition_mean(example)
+        return compute_gaussian_transition_logprob(
+            transition_mean=transition_mean,
+            action_xt_next=_to_tensor(transition["action_xt_next"], device=self.device, dtype=self.dtype),
+            transition_std=_floored_transition_std(
+                transition["transition_std"],
+                floor=self.transition_std_floor,
+                device=self.device,
+            ),
+            logprob_mask=_to_tensor(transition["logprob_mask"], device=self.device, dtype=torch.bool),
+        )
+
+    def predict_transition_mean(self, example: ActorReplayExample) -> torch.Tensor:
         transition = example.transition
         context = example.replay_context
         replay_input = transition["replay_input"]
@@ -261,13 +338,7 @@ class LingBotActionReplayPolicy(torch.nn.Module):
 
         action_xt = _to_tensor(transition["action_xt"], device=self.device, dtype=self.dtype)
         timestep = _to_tensor(transition["timestep"], device=self.device, dtype=torch.float32)
-        transition_mean = self.action_scheduler.step(action_noise_pred, timestep, action_xt, return_dict=False)
-        return compute_gaussian_transition_logprob(
-            transition_mean=transition_mean,
-            action_xt_next=_to_tensor(transition["action_xt_next"], device=self.device, dtype=self.dtype),
-            transition_std=_to_tensor(transition["transition_std"], device=self.device, dtype=torch.float32),
-            logprob_mask=_to_tensor(transition["logprob_mask"], device=self.device, dtype=torch.bool),
-        ).logprob_sum
+        return self.action_scheduler.step(action_noise_pred, timestep, action_xt, return_dict=False)
 
     def _build_transformer_input(self, context: dict, transition: dict, replay_input: dict) -> dict:
         noisy_latents_source = replay_input.get("noisy_latents", transition["action_xt"])
@@ -308,15 +379,17 @@ class ActorReplayGrpoTrainer:
     ) -> None:
         if config.steps <= 0:
             raise ValueError("steps must be positive")
+        if config.logprob_reduction not in {"sum", "mean"}:
+            raise ValueError("logprob_reduction must be 'sum' or 'mean'")
+        if config.logprob_std_floor is not None and config.logprob_std_floor <= 0.0:
+            raise ValueError("logprob_std_floor must be positive when set")
         self.config = config
         self.device = torch.device(config.device)
         self.dtype = torch_dtype_from_string(config.dtype)
         torch.manual_seed(config.seed)
 
-        self.examples = tuple(iter_actor_replay_examples(config.groups_jsonl))
-        if not self.examples:
-            raise ValueError(f"no actor replay examples found in {config.groups_jsonl}")
-        self.transition_item_count = sum(_stored_batch_size(example.transition["old_logprob_sum"]) for example in self.examples)
+        self.groups_jsonl = config.groups_jsonl.expanduser()
+        self.transition_item_count = count_actor_replay_transition_items(self.groups_jsonl)
         if self.transition_item_count <= 0:
             raise ValueError(f"no actor replay transition items found in {config.groups_jsonl}")
 
@@ -336,6 +409,7 @@ class ActorReplayGrpoTrainer:
             action_scheduler=self.action_scheduler,
             device=self.device,
             dtype=self.dtype,
+            transition_std_floor=config.logprob_std_floor,
             cache_name=config.cache_name,
         )
         params = [param for param in self.transformer.parameters() if param.requires_grad]
@@ -349,8 +423,11 @@ class ActorReplayGrpoTrainer:
         for step in range(1, self.config.steps + 1):
             self.optimizer.zero_grad(set_to_none=True)
             metrics = self._backward_dataset_loss()
-            self._assert_nonzero_finite_gradients()
+            metrics.update(self._gradient_metrics())
+            self._assert_nonzero_finite_gradients(metrics)
+            before_step = self._trainable_param_snapshot()
             self.optimizer.step()
+            metrics.update(self._parameter_update_metrics(before_step))
             last_metrics = metrics
             history.append({"step": step, **metrics})
 
@@ -405,14 +482,24 @@ class ActorReplayGrpoTrainer:
             "clip_fraction": 0.0,
             "advantage_mean": 0.0,
             "logratio_mean": 0.0,
+            "logratio_clamp_fraction": 0.0,
         }
+        logratio_min: float | None = None
+        logratio_max: float | None = None
         ratio_min: float | None = None
         ratio_max: float | None = None
+        processed = 0
+        progress_every = max(0, int(self.config.progress_every))
+        next_progress = progress_every
 
-        for example in self.examples:
-            new_logprob = self.policy.forward_example(example).flatten()
+        for example in iter_actor_replay_examples(self.groups_jsonl):
+            logprob = self.policy.forward_transition_logprob(example)
+            if self.config.logprob_reduction == "mean":
+                new_logprob = logprob.logprob_mean.flatten()
+            else:
+                new_logprob = logprob.logprob_sum.flatten()
             batch_size = int(new_logprob.numel())
-            old_logprob = _as_batch_vector(example.transition["old_logprob_sum"], batch_size, self.device)
+            old_logprob = self._old_logprob_for_reduction(example.transition, batch_size)
             advantages = torch.full((batch_size,), float(example.ref.advantage), dtype=torch.float32, device=self.device)
             loss, metrics = compute_clipped_grpo_loss(
                 new_logprob_sum=new_logprob,
@@ -429,6 +516,18 @@ class ActorReplayGrpoTrainer:
             current_max = float(metrics["ratio_max"].cpu())
             ratio_min = current_min if ratio_min is None else min(ratio_min, current_min)
             ratio_max = current_max if ratio_max is None else max(ratio_max, current_max)
+            current_logratio_min = float(metrics["logratio_min"].cpu())
+            current_logratio_max = float(metrics["logratio_max"].cpu())
+            logratio_min = current_logratio_min if logratio_min is None else min(logratio_min, current_logratio_min)
+            logratio_max = current_logratio_max if logratio_max is None else max(logratio_max, current_logratio_max)
+            processed += batch_size
+            if progress_every and (processed >= next_progress or processed == self.transition_item_count):
+                print(
+                    f"actor replay progress: {processed}/{self.transition_item_count} transition items",
+                    flush=True,
+                )
+                while next_progress <= processed:
+                    next_progress += progress_every
 
         return {
             "loss": metric_sums["loss"] / self.transition_item_count,
@@ -438,11 +537,38 @@ class ActorReplayGrpoTrainer:
             "clip_fraction": metric_sums["clip_fraction"] / self.transition_item_count,
             "advantage_mean": metric_sums["advantage_mean"] / self.transition_item_count,
             "logratio_mean": metric_sums["logratio_mean"] / self.transition_item_count,
+            "logratio_min": float(logratio_min if logratio_min is not None else 0.0),
+            "logratio_max": float(logratio_max if logratio_max is not None else 0.0),
+            "logratio_clamp_fraction": metric_sums["logratio_clamp_fraction"] / self.transition_item_count,
         }
 
-    def _assert_nonzero_finite_gradients(self) -> None:
+    def _old_logprob_for_reduction(self, transition: dict, batch_size: int) -> torch.Tensor:
+        if self.config.logprob_std_floor is not None:
+            logprob = compute_gaussian_transition_logprob(
+                transition_mean=_to_tensor(transition["transition_mean"], device=self.device, dtype=self.dtype),
+                action_xt_next=_to_tensor(transition["action_xt_next"], device=self.device, dtype=self.dtype),
+                transition_std=_floored_transition_std(
+                    transition["transition_std"],
+                    floor=self.config.logprob_std_floor,
+                    device=self.device,
+                ),
+                logprob_mask=_to_tensor(transition["logprob_mask"], device=self.device, dtype=torch.bool),
+            )
+            if self.config.logprob_reduction == "mean":
+                return _as_batch_vector(logprob.logprob_mean, batch_size, self.device)
+            return _as_batch_vector(logprob.logprob_sum, batch_size, self.device)
+        if self.config.logprob_reduction == "sum":
+            return _as_batch_vector(transition["old_logprob_sum"], batch_size, self.device)
+        if "old_logprob_mean" in transition:
+            return _as_batch_vector(transition["old_logprob_mean"], batch_size, self.device)
+        old_sum = _as_batch_vector(transition["old_logprob_sum"], batch_size, self.device)
+        old_count = _as_batch_vector(transition["old_logprob_count"], batch_size, self.device).clamp_min(1.0)
+        return old_sum / old_count
+
+    def _gradient_metrics(self) -> dict[str, float]:
         total_norm = torch.zeros((), device=self.device)
         grad_tensors = 0
+        grad_params = 0
         for param in self.transformer.parameters():
             if not param.requires_grad or param.grad is None:
                 continue
@@ -450,8 +576,64 @@ class ActorReplayGrpoTrainer:
                 raise ValueError("non-finite gradient detected during actor replay GRPO")
             total_norm = total_norm + param.grad.detach().float().pow(2).sum()
             grad_tensors += 1
-        if grad_tensors == 0 or float(total_norm.detach().cpu()) <= 0.0:
-            raise ValueError("real actor replay produced zero gradients for trainable parameters")
+            grad_params += param.numel()
+        return {
+            "grad_norm": float(total_norm.sqrt().detach().cpu()),
+            "grad_tensor_count": float(grad_tensors),
+            "grad_param_count": float(grad_params),
+        }
+
+    def _trainable_param_snapshot(self) -> dict[str, torch.Tensor]:
+        return {
+            name: param.detach().clone()
+            for name, param in self.transformer.named_parameters()
+            if param.requires_grad
+        }
+
+    def _parameter_update_metrics(self, before_step: dict[str, torch.Tensor]) -> dict[str, float]:
+        total_norm = torch.zeros((), device=self.device)
+        max_abs = torch.zeros((), device=self.device)
+        update_params = 0
+        for name, param in self.transformer.named_parameters():
+            if not param.requires_grad:
+                continue
+            before = before_step[name]
+            delta = (param.detach() - before).float()
+            total_norm = total_norm + delta.pow(2).sum()
+            if delta.numel():
+                max_abs = torch.maximum(max_abs, delta.abs().max())
+            update_params += param.numel()
+        return {
+            "param_update_norm": float(total_norm.sqrt().detach().cpu()),
+            "param_update_max": float(max_abs.detach().cpu()),
+            "param_update_param_count": float(update_params),
+        }
+
+    def _assert_nonzero_finite_gradients(self, metrics: dict[str, float]) -> None:
+        if int(metrics["grad_tensor_count"]) == 0 or metrics["grad_norm"] <= 0.0:
+            self._write_failure_diagnostics(metrics)
+            raise ValueError(
+                "real actor replay produced zero gradients for trainable parameters "
+                f"(grad_norm={metrics['grad_norm']:.6g}, "
+                f"logratio_min={metrics.get('logratio_min', 0.0):.6g}, "
+                f"logratio_max={metrics.get('logratio_max', 0.0):.6g}, "
+                f"logratio_clamp_fraction={metrics.get('logratio_clamp_fraction', 0.0):.6g})"
+            )
+
+    def _write_failure_diagnostics(self, metrics: dict[str, float]) -> None:
+        diagnostics_path = self.config.output_dir / "failure_diagnostics.json"
+        diagnostics_path.write_text(
+            json.dumps(
+                {
+                    "metrics": metrics,
+                    "trainable_summary": asdict(self.trainable_summary),
+                    "transition_count": self.transition_item_count,
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
 
     def _trainable_state_dict(self) -> dict[str, torch.Tensor]:
         return {
@@ -473,6 +655,18 @@ def _as_batch_vector(value, batch_size: int, device: torch.device) -> torch.Tens
     if tensor.numel() != batch_size:
         raise ValueError(f"expected scalar or {batch_size} values, got shape {tuple(tensor.shape)}")
     return tensor
+
+
+def _floored_transition_std(
+    value,
+    *,
+    floor: float | None,
+    device: torch.device,
+) -> torch.Tensor:
+    std = _to_tensor(value, device=device, dtype=torch.float32)
+    if floor is None:
+        return std
+    return std.clamp_min(float(floor))
 
 
 def _stored_batch_size(value) -> int:

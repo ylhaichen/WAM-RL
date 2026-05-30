@@ -67,8 +67,16 @@ JSON
 export __EGL_VENDOR_LIBRARY_FILENAMES="/usr/share/glvnd/egl_vendor.d/10_nvidia.json"
 export VK_ICD_FILENAMES="/usr/share/vulkan/icd.d/nvidia_icd.json"
 
-if command -v module >/dev/null 2>&1; then
-    module load apptainer/1.2.4-1 2>/dev/null || true
+if ! command -v apptainer >/dev/null 2>&1; then
+    if ! command -v module >/dev/null 2>&1 && [ -x /usr/bin/tclsh ] && [ -f /shared/ucl/apps/modules/5.3.1/init/bash ]; then
+        # Interactive non-login shells may not have initialized environment modules.
+        # Source Myriad's module init before trying to load Apptainer.
+        # shellcheck disable=SC1091
+        source /shared/ucl/apps/modules/5.3.1/init/bash
+    fi
+    if command -v module >/dev/null 2>&1; then
+        module load apptainer/1.2.4-1 2>/dev/null || true
+    fi
 fi
 
 if ! command -v apptainer >/dev/null 2>&1; then

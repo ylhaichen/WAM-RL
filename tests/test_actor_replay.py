@@ -7,7 +7,9 @@ from wan_va.rl.actor_replay import (
     ActorReplayGrpoTrainer,
     ActorReplayTrainerConfig,
     MissingReplayContextError,
+    count_actor_replay_transition_items,
     iter_actor_replay_examples,
+    load_actor_replay_checkpoint_into_transformer,
 )
 
 
@@ -43,6 +45,11 @@ class ToyTransformer(torch.nn.Module):
         del update_cache, cache_name, action_mode
         x = input_dict["noisy_latents"].permute(0, 2, 3, 4, 1).reshape(1, 1, 1)
         return self.action_proj_out(self.action_embedder(x))
+
+
+class ZeroGradientTransformer(ToyTransformer):
+    def forward(self, input_dict, update_cache=0, cache_name="pos", action_mode=True):
+        return super().forward(input_dict, update_cache, cache_name, action_mode) * 0.0
 
 
 def _transition():
@@ -177,6 +184,207 @@ def test_actor_replay_trainer_updates_trainable_action_modules(tmp_path):
     assert result.transition_count == 1
     assert result.trainable_param_count > 0
     assert (tmp_path / "train" / "checkpoint.pt").exists()
+    metrics = json.loads((tmp_path / "train" / "metrics.json").read_text())
+    step_metrics = metrics["history"][0]
+    assert step_metrics["param_update_norm"] > 0.0
+    assert step_metrics["param_update_max"] > 0.0
+    assert step_metrics["param_update_param_count"] == result.trainable_param_count
+
+
+def test_load_actor_replay_checkpoint_into_transformer_loads_trainable_state(tmp_path):
+    source = ToyTransformer()
+    with torch.no_grad():
+        source.action_embedder.weight.fill_(2.0)
+        source.action_embedder.bias.fill_(3.0)
+    checkpoint_path = tmp_path / "checkpoint.pt"
+    torch.save(
+        {
+            "trainable_state_dict": {
+                "action_embedder.weight": source.action_embedder.weight.detach().clone(),
+                "action_embedder.bias": source.action_embedder.bias.detach().clone(),
+            }
+        },
+        checkpoint_path,
+    )
+    target = ToyTransformer()
+
+    summary = load_actor_replay_checkpoint_into_transformer(target, checkpoint_path)
+
+    assert summary["tensor_count"] == 2
+    assert summary["param_count"] == 2
+    assert torch.equal(target.action_embedder.weight, source.action_embedder.weight)
+    assert torch.equal(target.action_embedder.bias, source.action_embedder.bias)
+
+
+def test_load_actor_replay_checkpoint_rejects_unexpected_keys(tmp_path):
+    checkpoint_path = tmp_path / "checkpoint.pt"
+    torch.save({"trainable_state_dict": {"not_a_real_param": torch.ones(1)}}, checkpoint_path)
+
+    try:
+        load_actor_replay_checkpoint_into_transformer(ToyTransformer(), checkpoint_path)
+    except ValueError as exc:
+        assert "unexpected transformer keys" in str(exc)
+    else:
+        raise AssertionError("expected unexpected-key ValueError")
+
+
+def test_actor_replay_trainer_can_use_mean_logprob_reduction(tmp_path):
+    transition = _compact_transition()
+    transition["old_logprob_sum"] = torch.tensor([100.0])
+    transition["old_logprob_mean"] = torch.tensor([0.0])
+    transition["old_logprob_count"] = torch.tensor([100])
+    artifact_path = tmp_path / "strict.pt"
+    torch.save(
+        {
+            "schema_version": 2,
+            "scope": "action_denoising_trajectory",
+            "sampling_seed": 1,
+            "frame_st_id": 0,
+            "num_transitions": 1,
+            "transitions": [transition],
+            "replay_context": _replay_context(),
+        },
+        artifact_path,
+    )
+    group_path = _write_group(tmp_path, artifact_path)
+
+    result = ActorReplayGrpoTrainer(
+        ActorReplayTrainerConfig(
+            groups_jsonl=group_path,
+            output_dir=tmp_path / "train_mean",
+            steps=1,
+            learning_rate=1e-3,
+            clip_low=100.0,
+            clip_high=100.0,
+            device="cpu",
+            dtype="float32",
+            action_num_inference_steps=2,
+            logprob_reduction="mean",
+        ),
+        transformer=ToyTransformer(),
+    ).train()
+
+    assert result.transition_count == 1
+    checkpoint = torch.load(tmp_path / "train_mean" / "checkpoint.pt", map_location="cpu")
+    assert checkpoint["config"]["logprob_reduction"] == "mean"
+
+
+def test_actor_replay_trainer_rejects_unknown_logprob_reduction(tmp_path):
+    artifact_path = tmp_path / "strict.pt"
+    torch.save(
+        {
+            "schema_version": 2,
+            "scope": "action_denoising_trajectory",
+            "sampling_seed": 1,
+            "frame_st_id": 0,
+            "num_transitions": 1,
+            "transitions": [_compact_transition()],
+            "replay_context": _replay_context(),
+        },
+        artifact_path,
+    )
+    group_path = _write_group(tmp_path, artifact_path)
+
+    try:
+        ActorReplayGrpoTrainer(
+            ActorReplayTrainerConfig(
+                groups_jsonl=group_path,
+                output_dir=tmp_path / "train_bad_reduction",
+                steps=1,
+                device="cpu",
+                dtype="float32",
+                action_num_inference_steps=2,
+                logprob_reduction="median",
+            ),
+            transformer=ToyTransformer(),
+        )
+    except ValueError as exc:
+        assert "logprob_reduction" in str(exc)
+    else:
+        raise AssertionError("expected logprob_reduction ValueError")
+
+
+def test_actor_replay_trainer_can_use_logprob_std_floor(tmp_path):
+    transition = _compact_transition()
+    transition["transition_std"] = torch.tensor(0.01)
+    artifact_path = tmp_path / "strict.pt"
+    torch.save(
+        {
+            "schema_version": 2,
+            "scope": "action_denoising_trajectory",
+            "sampling_seed": 1,
+            "frame_st_id": 0,
+            "num_transitions": 1,
+            "transitions": [transition],
+            "replay_context": _replay_context(),
+        },
+        artifact_path,
+    )
+    group_path = _write_group(tmp_path, artifact_path)
+
+    result = ActorReplayGrpoTrainer(
+        ActorReplayTrainerConfig(
+            groups_jsonl=group_path,
+            output_dir=tmp_path / "train_std_floor",
+            steps=1,
+            learning_rate=1e-3,
+            clip_low=100.0,
+            clip_high=100.0,
+            device="cpu",
+            dtype="float32",
+            action_num_inference_steps=2,
+            logprob_reduction="mean",
+            logprob_std_floor=0.1,
+        ),
+        transformer=ToyTransformer(),
+    ).train()
+
+    assert result.transition_count == 1
+    checkpoint = torch.load(tmp_path / "train_std_floor" / "checkpoint.pt", map_location="cpu")
+    assert checkpoint["config"]["logprob_std_floor"] == 0.1
+
+
+def test_actor_replay_trainer_writes_zero_gradient_diagnostics(tmp_path):
+    artifact_path = tmp_path / "strict.pt"
+    torch.save(
+        {
+            "schema_version": 2,
+            "scope": "action_denoising_trajectory",
+            "sampling_seed": 1,
+            "frame_st_id": 0,
+            "num_transitions": 1,
+            "transitions": [_compact_transition()],
+            "replay_context": _replay_context(),
+        },
+        artifact_path,
+    )
+    group_path = _write_group(tmp_path, artifact_path)
+    output_dir = tmp_path / "train"
+
+    try:
+        ActorReplayGrpoTrainer(
+            ActorReplayTrainerConfig(
+                groups_jsonl=group_path,
+                output_dir=output_dir,
+                steps=1,
+                learning_rate=1e-3,
+                clip_low=100.0,
+                clip_high=100.0,
+                device="cpu",
+                dtype="float32",
+                action_num_inference_steps=2,
+            ),
+            transformer=ZeroGradientTransformer(),
+        ).train()
+    except ValueError as exc:
+        assert "zero gradients" in str(exc)
+        assert "grad_norm=0" in str(exc)
+    else:
+        raise AssertionError("expected zero-gradient ValueError")
+
+    diagnostics = json.loads((output_dir / "failure_diagnostics.json").read_text())
+    assert diagnostics["metrics"]["grad_norm"] == 0.0
+    assert diagnostics["transition_count"] == 1
 
 
 def test_actor_replay_accepts_external_replay_context(tmp_path):
@@ -201,3 +409,32 @@ def test_actor_replay_accepts_external_replay_context(tmp_path):
 
     assert len(examples) == 1
     assert examples[0].replay_context["action_num_inference_steps"] == 2
+
+
+def test_actor_replay_count_does_not_load_external_replay_context(tmp_path):
+    artifact_path = tmp_path / "strict.pt"
+    context_path = tmp_path / "context.pt"
+    torch.save(_replay_context(), context_path)
+    torch.save(
+        {
+            "schema_version": 2,
+            "scope": "action_denoising_trajectory",
+            "sampling_seed": 1,
+            "frame_st_id": 0,
+            "num_transitions": 1,
+            "transitions": [_compact_transition()],
+            "replay_context_path": "context.pt",
+        },
+        artifact_path,
+    )
+    group_path = _write_group(tmp_path, artifact_path)
+    loaded_paths = []
+
+    def loader(path):
+        loaded_paths.append(path.name)
+        if path.name == "context.pt":
+            raise AssertionError("counting should not load replay_context")
+        return torch.load(path, map_location="cpu")
+
+    assert count_actor_replay_transition_items(group_path, loader=loader) == 1
+    assert loaded_paths == ["strict.pt"]

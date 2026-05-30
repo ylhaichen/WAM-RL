@@ -19,9 +19,19 @@ task_config=${TASK_CONFIG:-demo_clean}
 train_config_name=0
 model_name=0
 seed=${SEED:-0}
+SERVER_HOST=${SERVER_HOST:-127.0.0.1}
 PORT=${PORT:-29056}
 TEST_NUM=${TEST_NUM:-10}
 ROLLOUT_LOG_DIR=${ROLLOUT_LOG_DIR:-${save_root}/rollouts}
+PROMPT_INDEX=${PROMPT_INDEX:-}
+SAMPLING_SEED=${SAMPLING_SEED:-}
+SAMPLING_SEED_PER_ENV=${SAMPLING_SEED_PER_ENV:-}
+
+extra_args=()
+[ -n "${ACTION_NUM_INFERENCE_STEPS:-}" ] && extra_args+=(--action_num_inference_steps "${ACTION_NUM_INFERENCE_STEPS}")
+[ -n "${PROMPT_INDEX}" ] && extra_args+=(--prompt_index "${PROMPT_INDEX}")
+[ -n "${SAMPLING_SEED}" ] && extra_args+=(--sampling_seed "${SAMPLING_SEED}")
+[ -n "${SAMPLING_SEED_PER_ENV}" ] && extra_args+=(--sampling_seed_per_env "${SAMPLING_SEED_PER_ENV}")
 
 PYTHONWARNINGS=ignore::UserWarning \
 XLA_PYTHON_CLIENT_MEM_FRACTION=0.9 python -m evaluation.robotwin.eval_polict_client_openpi --config policy/$policy_name/deploy_policy.yml \
@@ -34,9 +44,10 @@ XLA_PYTHON_CLIENT_MEM_FRACTION=0.9 python -m evaluation.robotwin.eval_polict_cli
     --seed ${seed} \
     --policy_name ${policy_name} \
     --save_root ${save_root} \
+    --server_host ${SERVER_HOST} \
     --video_guidance_scale 5 \
     --action_guidance_scale 1 \
     --test_num ${TEST_NUM} \
     --port ${PORT} \
-    --rollout_log_dir ${ROLLOUT_LOG_DIR}
-
+    --rollout_log_dir ${ROLLOUT_LOG_DIR} \
+    "${extra_args[@]}"

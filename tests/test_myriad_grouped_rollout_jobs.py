@@ -28,6 +28,8 @@ def test_four_gpu_grouped_rollout_job_builds_grpo_groups():
     assert 'strict_grpo_capture_scope="${STRICT_GRPO_CAPTURE_SCOPE}"' in text
     assert 'STRICT_GRPO_SAVE_REPLAY_CONTEXT="${STRICT_GRPO_SAVE_REPLAY_CONTEXT:-false}"' in text
     assert 'strict_grpo_save_replay_context="${STRICT_GRPO_SAVE_REPLAY_CONTEXT}"' in text
+    assert 'ACTOR_REPLAY_CHECKPOINT_PATH="${ACTOR_REPLAY_CHECKPOINT_PATH:-}"' in text
+    assert 'actor_replay_checkpoint_path="${ACTOR_REPLAY_CHECKPOINT_PATH}"' in text
 
 
 def test_one_gpu_grouped_rollout_job_uses_successful_attempt_roots():
@@ -43,14 +45,53 @@ def test_one_gpu_grouped_rollout_job_uses_successful_attempt_roots():
     assert 'strict_grpo_capture_scope="${STRICT_GRPO_CAPTURE_SCOPE}"' in text
     assert 'STRICT_GRPO_SAVE_REPLAY_CONTEXT="${STRICT_GRPO_SAVE_REPLAY_CONTEXT:-false}"' in text
     assert 'strict_grpo_save_replay_context="${STRICT_GRPO_SAVE_REPLAY_CONTEXT}"' in text
+    assert 'ACTOR_REPLAY_CHECKPOINT_PATH="${ACTOR_REPLAY_CHECKPOINT_PATH:-}"' in text
+    assert 'actor_replay_checkpoint_path="${ACTOR_REPLAY_CHECKPOINT_PATH}"' in text
+
+
+def test_selected_eval_job_can_load_actor_replay_checkpoint():
+    text = Path("jobs/myriad/13_eval_selected_tasks_4gpu.sh").read_text()
+
+    assert 'ACTOR_REPLAY_CHECKPOINT_PATH="${ACTOR_REPLAY_CHECKPOINT_PATH:-}"' in text
+    assert 'actor_replay_checkpoint_path="${ACTOR_REPLAY_CHECKPOINT_PATH}"' in text
+    assert 'ACTION_NUM_INFERENCE_STEPS="${ACTION_NUM_INFERENCE_STEPS:-}"' in text
+    assert 'action_num_inference_steps="${ACTION_NUM_INFERENCE_STEPS}"' in text
+    assert 'SERVER_HOST="${SERVER_HOST:-127.0.0.1}"' in text
+
+
+def test_one_gpu_eval_smoke_job_can_load_actor_replay_checkpoint():
+    text = Path("jobs/myriad/10_eval_smoke_1gpu.sh").read_text()
+    launch_text = Path("evaluation/robotwin/launch_client.sh").read_text()
+
+    assert 'ACTOR_REPLAY_CHECKPOINT_PATH="${ACTOR_REPLAY_CHECKPOINT_PATH:-}"' in text
+    assert 'actor_replay_checkpoint_path="${ACTOR_REPLAY_CHECKPOINT_PATH}"' in text
+    assert 'ACTION_NUM_INFERENCE_STEPS="${ACTION_NUM_INFERENCE_STEPS:-}"' in text
+    assert 'action_num_inference_steps="${ACTION_NUM_INFERENCE_STEPS}"' in text
+    assert 'SERVER_HOST="${SERVER_HOST:-127.0.0.1}"' in text
+    assert 'PROMPT_INDEX="${PROMPT_INDEX:-}"' in text
+    assert 'SAMPLING_SEED="${SAMPLING_SEED:-}"' in text
+    assert 'SAMPLING_SEED_PER_ENV="${SAMPLING_SEED_PER_ENV:-}"' in text
+    assert "PROMPT_INDEX=${PROMPT_INDEX:-}" in launch_text
+    assert "SAMPLING_SEED=${SAMPLING_SEED:-}" in launch_text
+    assert "SAMPLING_SEED_PER_ENV=${SAMPLING_SEED_PER_ENV:-}" in launch_text
+    assert "--prompt_index" in launch_text
+    assert "--sampling_seed" in launch_text
+    assert "--sampling_seed_per_env" in launch_text
+    assert "SERVER_HOST=${SERVER_HOST:-127.0.0.1}" in launch_text
+    assert "--server_host ${SERVER_HOST}" in launch_text
+    assert "extra_args=()" in launch_text
+    assert "--action_num_inference_steps" in launch_text
 
 
 def test_robotwin_client_launcher_generates_task_specific_group_ids():
     text = Path("evaluation/robotwin/launch_client_multigpus.sh").read_text()
 
+    assert "server_host=${SERVER_HOST:-127.0.0.1}" in text
+    assert "--server_host ${server_host}" in text
     assert "effective_group_id=" in text
     assert "${task_name}_seed${seed}_prompt${prompt_part}_group${group_part}" in text
     assert "--group_id" in text
+    assert "--sampling_seed_per_env" in text
     assert "--group_seed_search" in text
     assert "--stable_seed_cache_dir" in text
 
@@ -58,7 +99,14 @@ def test_robotwin_client_launcher_generates_task_specific_group_ids():
 def test_robotwin_eval_client_searches_and_caches_group_stable_seed():
     text = Path("evaluation/robotwin/eval_polict_client_openpi.py").read_text()
 
+    assert 'parser.add_argument("--server_host"' in text
+    assert 'parser.add_argument("--port", type=int, default=None' in text
+    assert "CLI_CONFIG_DEFAULTS" in text
+    assert "config.setdefault(key, value)" in text
+    assert 'host=usr_args.get("server_host", "127.0.0.1")' in text
     assert "grouped_rollout =" in text
+    assert "sampling_seed_per_env" in text
+    assert "_episode_sampling_seed" in text
     assert "group_seed_search =" in text
     assert "_load_cached_group_env_seed" in text
     assert "_write_cached_group_env_seed" in text
@@ -104,3 +152,17 @@ def test_actor_replay_training_job_runs_real_actor_trainer():
     assert "--inspect-artifacts" in text
     assert "--require-replay-context" in text
     assert "STRICT_GRPO_SAVE_REPLAY_CONTEXT=true" in text
+    assert 'GRPO_LOGPROB_REDUCTION="${GRPO_LOGPROB_REDUCTION:-mean}"' in text
+    assert 'GRPO_LOGPROB_STD_FLOOR="${GRPO_LOGPROB_STD_FLOOR:-0.1}"' in text
+    assert "--logprob-reduction \"${GRPO_LOGPROB_REDUCTION}\"" in text
+    assert "--logprob-std-floor \"${GRPO_LOGPROB_STD_FLOOR}\"" in text
+    assert "--progress-every \"${GRPO_PROGRESS_EVERY}\"" in text
+
+
+def test_myriad_common_initializes_modules_for_interactive_shells():
+    text = Path("jobs/myriad/common.sh").read_text()
+
+    assert "if ! command -v apptainer" in text
+    assert "/shared/ucl/apps/modules/5.3.1/init/bash" in text
+    assert "[ -x /usr/bin/tclsh ]" in text
+    assert "module load apptainer/1.2.4-1" in text

@@ -21,6 +21,21 @@ def test_clipped_grpo_loss_uses_asymmetric_clip_for_positive_and_negative_advant
     assert torch.isclose(loss, torch.tensor((-1.28 + 0.8) / 2))
     assert torch.isclose(metrics["ratio_mean"], torch.tensor(1.25))
     assert torch.isclose(metrics["clip_fraction"], torch.tensor(1.0))
+    assert "logratio_min" in metrics
+    assert "logratio_max" in metrics
+    assert "logratio_clamp_fraction" in metrics
+
+
+def test_clipped_grpo_loss_reports_logratio_clamp_saturation():
+    _, metrics = compute_clipped_grpo_loss(
+        new_logprob_sum=torch.tensor([-30.0, 30.0]),
+        old_logprob_sum=torch.zeros(2),
+        advantages=torch.ones(2),
+    )
+
+    assert torch.isclose(metrics["logratio_min"], torch.tensor(-30.0))
+    assert torch.isclose(metrics["logratio_max"], torch.tensor(30.0))
+    assert torch.isclose(metrics["logratio_clamp_fraction"], torch.tensor(1.0))
 
 
 def test_clipped_grpo_loss_rejects_nonfinite_logratios():

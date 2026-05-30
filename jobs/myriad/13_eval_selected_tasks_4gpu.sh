@@ -32,6 +32,9 @@ MASTER_PORT="${MASTER_PORT:-30061}"
 RESULTS_ROOT="${RESULTS_ROOT:-${WAM_ROOT}/results_selected_eval/${EVAL_NAME}/${JOB_ID:-manual}}"
 SERVER_WAIT_SECONDS="${SERVER_WAIT_SECONDS:-1800}"
 SELECTED_TASKS="${TASK_NAMES:-}"
+ACTOR_REPLAY_CHECKPOINT_PATH="${ACTOR_REPLAY_CHECKPOINT_PATH:-}"
+ACTION_NUM_INFERENCE_STEPS="${ACTION_NUM_INFERENCE_STEPS:-}"
+SERVER_HOST="${SERVER_HOST:-127.0.0.1}"
 
 if [ -z "${SELECTED_TASKS}" ]; then
     echo "TASK_NAMES is required, for example:" >&2
@@ -40,6 +43,7 @@ if [ -z "${SELECTED_TASKS}" ]; then
 fi
 
 export NUM_GPUS TEST_NUM SEED EVAL_NAME START_PORT MASTER_PORT RESULTS_ROOT SERVER_WAIT_SECONDS SELECTED_TASKS
+export ACTOR_REPLAY_CHECKPOINT_PATH ACTION_NUM_INFERENCE_STEPS SERVER_HOST
 
 print_job_context
 echo "EVAL_NAME=${EVAL_NAME}"
@@ -47,6 +51,9 @@ echo "RESULTS_ROOT=${RESULTS_ROOT}"
 echo "TEST_NUM=${TEST_NUM}"
 echo "NUM_GPUS=${NUM_GPUS}"
 echo "SELECTED_TASKS=${SELECTED_TASKS}"
+echo "ACTOR_REPLAY_CHECKPOINT_PATH=${ACTOR_REPLAY_CHECKPOINT_PATH}"
+echo "ACTION_NUM_INFERENCE_STEPS=${ACTION_NUM_INFERENCE_STEPS}"
+echo "SERVER_HOST=${SERVER_HOST}"
 
 container_exec_gpu <<'CONTAINER'
 set -euo pipefail
@@ -83,6 +90,11 @@ cleanup() {
 }
 trap cleanup EXIT
 
+SERVER_OPTS=(actor_replay_checkpoint_path="${ACTOR_REPLAY_CHECKPOINT_PATH}")
+if [ -n "${ACTION_NUM_INFERENCE_STEPS}" ]; then
+    SERVER_OPTS+=(action_num_inference_steps="${ACTION_NUM_INFERENCE_STEPS}")
+fi
+
 for ((gpu_id=0; gpu_id<NUM_GPUS; gpu_id++)); do
     current_port=$((START_PORT + gpu_id))
     current_master_port=$((MASTER_PORT + gpu_id))
@@ -94,6 +106,8 @@ for ((gpu_id=0; gpu_id<NUM_GPUS; gpu_id++)); do
         --config-name robotwin \
         --port "${current_port}" \
         --save_root "${RESULTS_ROOT}/server_vis" \
+        --opts \
+        "${SERVER_OPTS[@]}" \
         > "${RESULTS_ROOT}/logs/server_${gpu_id}_${current_port}.log" 2>&1 &
     SERVER_PIDS+=("$!")
     sleep 2

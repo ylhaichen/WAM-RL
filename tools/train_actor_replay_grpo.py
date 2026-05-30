@@ -41,6 +41,9 @@ def run_actor_replay_training(
     frozen_param_patterns: tuple[str, ...] = (),
     action_num_inference_steps: int | None = None,
     action_snr_shift: float | None = None,
+    logprob_reduction: str = "sum",
+    logprob_std_floor: float | None = None,
+    progress_every: int = 0,
     opts: list[str] | None = None,
 ) -> dict:
     import torch
@@ -87,6 +90,9 @@ def run_actor_replay_training(
         frozen_param_patterns=frozen_param_patterns or tuple(getattr(config, "frozen_param_patterns", ())),
         action_num_inference_steps=int(action_num_inference_steps or getattr(config, "action_num_inference_steps", 50)),
         action_snr_shift=float(action_snr_shift if action_snr_shift is not None else getattr(config, "action_snr_shift", 1.0)),
+        logprob_reduction=logprob_reduction,
+        logprob_std_floor=logprob_std_floor,
+        progress_every=progress_every,
     )
     result = ActorReplayGrpoTrainer(trainer_config, transformer=transformer).train()
     return result.to_dict()
@@ -115,6 +121,9 @@ def main() -> None:
     parser.add_argument("--frozen-param-pattern", action="append", default=[])
     parser.add_argument("--action-num-inference-steps", type=int, default=None)
     parser.add_argument("--action-snr-shift", type=float, default=None)
+    parser.add_argument("--logprob-reduction", choices=("sum", "mean"), default="sum")
+    parser.add_argument("--logprob-std-floor", type=float, default=None)
+    parser.add_argument("--progress-every", type=int, default=0)
     parser.add_argument("--opts", nargs="*", default=[], help="Config overrides as key=value.")
     args = parser.parse_args()
 
@@ -138,6 +147,9 @@ def main() -> None:
         frozen_param_patterns=tuple(args.frozen_param_pattern),
         action_num_inference_steps=args.action_num_inference_steps,
         action_snr_shift=args.action_snr_shift,
+        logprob_reduction=args.logprob_reduction,
+        logprob_std_floor=args.logprob_std_floor,
+        progress_every=args.progress_every,
         opts=args.opts,
     )
     print(json.dumps(result, indent=2))

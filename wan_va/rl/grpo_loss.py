@@ -56,6 +56,7 @@ def compute_clipped_grpo_loss(
     loss = -objective.mean()
 
     clipped = (ratio < (1.0 - clip_low)) | (ratio > (1.0 + clip_high))
+    logratio_clamped = (raw_logratio < -clamp_logratio) | (raw_logratio > clamp_logratio)
     metrics = {
         "loss": loss.detach(),
         "ratio_mean": ratio.detach().mean(),
@@ -64,5 +65,8 @@ def compute_clipped_grpo_loss(
         "clip_fraction": clipped.float().mean().detach(),
         "advantage_mean": advantages.detach().mean(),
         "logratio_mean": raw_logratio.detach().mean(),
+        "logratio_min": raw_logratio.detach().min(),
+        "logratio_max": raw_logratio.detach().max(),
+        "logratio_clamp_fraction": logratio_clamped.float().mean().detach(),
     }
     return loss, metrics

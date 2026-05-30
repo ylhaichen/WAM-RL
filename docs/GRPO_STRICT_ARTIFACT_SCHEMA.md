@@ -221,3 +221,21 @@ It requires v2 artifacts with `replay_context` and `replay_input`, restores the
 saved transformer KV cache, reruns the current actor on the saved denoising
 state, and updates trainable actor parameters such as `action_embedder`,
 `condition_embedder_action`, and `action_proj_out`.
+
+For high-dimensional action chunks, use mean-reduced transition log-probabilities
+for real actor replay (`--logprob-reduction mean` or
+`GRPO_LOGPROB_REDUCTION=mean`). Sum-reduced chunk log-probabilities are still
+available for compatibility, but can saturate the clipped GRPO ratio and produce
+zero gradients when replayed means differ slightly from the behavior artifact.
+For real actor replay training, also use a conservative training-time std floor
+(`--logprob-std-floor` or `GRPO_LOGPROB_STD_FLOOR`, default `0.1` in the Myriad
+trainer job). Strict artifacts can store diffusion transition std values around
+`0.01`; with such a narrow Gaussian, harmless replay/numerical mean drift can
+make the PPO/GRPO ratio unusably saturated even when stored behavior logprobs
+validate correctly.
+
+Trainer metrics include pre-step replay statistics (`ratio_mean`,
+`clip_fraction`, `logratio_*`) and post-step update statistics
+(`param_update_norm`, `param_update_max`). When comparing learning rates, use
+the update metrics or online eval results; pre-step replay statistics are
+expected to be identical for runs that start from the same base model.

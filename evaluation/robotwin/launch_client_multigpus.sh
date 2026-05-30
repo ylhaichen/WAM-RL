@@ -11,6 +11,7 @@ train_config_name=0
 model_name=0
 seed=${3:-0}
 test_num=${4:-${TEST_NUM:-10}}
+server_host=${SERVER_HOST:-127.0.0.1}
 start_port=${START_PORT:-29556}
 num_gpus=${NUM_GPUS:-4}
 rollout_log_dir=${ROLLOUT_LOG_DIR:-${save_root}/rollouts}
@@ -78,6 +79,7 @@ for i in "${!task_names[@]}"; do
     [ -n "${SAMPLE_IDX:-}" ] && extra_args+=(--sample_idx "$SAMPLE_IDX")
     [ -n "${GROUP_SIZE:-}" ] && extra_args+=(--group_size "$GROUP_SIZE")
     [ -n "${SAMPLING_SEED:-}" ] && extra_args+=(--sampling_seed "$SAMPLING_SEED")
+    [ -n "${SAMPLING_SEED_PER_ENV:-}" ] && extra_args+=(--sampling_seed_per_env "$SAMPLING_SEED_PER_ENV")
     [ -n "${PROMPT_INDEX:-}" ] && extra_args+=(--prompt_index "$PROMPT_INDEX")
     [ -n "${ACTION_NUM_INFERENCE_STEPS:-}" ] && extra_args+=(--action_num_inference_steps "$ACTION_NUM_INFERENCE_STEPS")
     [ -n "${GROUP_SEED_SEARCH:-}" ] && extra_args+=(--group_seed_search "$GROUP_SEED_SEARCH")
@@ -86,6 +88,7 @@ for i in "${!task_names[@]}"; do
 
     PYTHONWARNINGS=ignore::UserWarning \
     XLA_PYTHON_CLIENT_MEM_FRACTION=0.9 python -m evaluation.robotwin.eval_polict_client_openpi --config policy/$policy_name/deploy_policy.yml \
+        --server_host ${server_host} \
         --port ${port} \
         --save_root ${save_root} \
         --video_guidance_scale 5 \

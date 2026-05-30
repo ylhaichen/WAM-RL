@@ -153,6 +153,24 @@ current system:
 - Real actor replay requires saved replay context, including transformer
   conditioning and KV cache state. Old artifacts without replay context are not
   sufficient for real actor updates.
+- For real actor replay, use `GRPO_ACTION_NUM_INFERENCE_STEPS` matching the
+  collection run, `GRPO_LOGPROB_REDUCTION=mean`, and a conservative
+  `GRPO_LOGPROB_STD_FLOOR` such as `0.1`. The collected diffusion transition
+  std can be as small as `0.01`, so tiny replay/numerical mean differences can
+  otherwise saturate the clipped GRPO ratio before any useful update.
+- For one-GPU baseline vs actor eval comparisons, set `PROMPT_INDEX` explicitly
+  so both policies see the same deterministic instruction variant for each
+  environment seed. Otherwise prompt sampling can change across runs and make
+  seed-level comparisons noisy.
+- Also set `SAMPLING_SEED` for eval comparisons. Use
+  `SAMPLING_SEED_PER_ENV=true` when evaluating multiple env seeds so each
+  episode gets a deterministic but distinct server sampling seed
+  (`SAMPLING_SEED + env_seed`). This controls LingBot-VA action sampling but is
+  not a full simulator determinism guarantee; repeated RoboTwin closed-loop
+  runs can still diverge after the first action chunk, so interpret small
+  `n=5` differences as smoke signals rather than policy improvement claims.
+- Long actor replay runs should set `GRPO_PROGRESS_EVERY` so the job log is not
+  silent while replaying hundreds of denoising transitions.
 - The first real update surface should be action-specific modules:
 
 ```text

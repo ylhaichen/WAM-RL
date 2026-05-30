@@ -19,6 +19,23 @@ class TaskResult:
         return self.succ / self.total if self.total else 0.0
 
 
+@dataclass
+class EpisodeResult:
+    root: str
+    task: str
+    episode_file: str
+    episode_index: int | None
+    seed: int | None
+    planned_seed: int | None
+    success: bool
+    action_count: int
+    take_action_cnt: int | None
+    step_lim: int | None
+    sampling_seed: int | None
+    prompt_index: int | None
+    prompt: str
+
+
 def wilson_interval(successes: int, total: int, z: float = 1.96) -> tuple[float, float]:
     if total <= 0:
         return 0.0, 0.0
@@ -59,6 +76,30 @@ def load_results(root: Path) -> list[TaskResult]:
         grouped[task].total += total
         grouped[task].paths.append(path)
     return list(grouped.values())
+
+
+def load_episode_results(root: Path) -> list[EpisodeResult]:
+    episodes: list[EpisodeResult] = []
+    for path in sorted(root.rglob("rollouts/*/episode_*.json")):
+        data = json.loads(path.read_text())
+        episodes.append(
+            EpisodeResult(
+                root=str(root),
+                task=str(data.get("task", path.parent.name)),
+                episode_file=str(path),
+                episode_index=_optional_int(data.get("episode_index")),
+                seed=_optional_int(data.get("env_seed", data.get("seed"))),
+                planned_seed=_optional_int(data.get("planned_seed")),
+                success=bool(data.get("success", False)),
+                action_count=int(data.get("action_count", 0) or 0),
+                take_action_cnt=_optional_int(data.get("take_action_cnt")),
+                step_lim=_optional_int(data.get("step_lim")),
+                sampling_seed=_optional_int(data.get("sampling_seed")),
+                prompt_index=_optional_int(data.get("prompt_index")),
+                prompt=str(data.get("prompt", "")),
+            )
+        )
+    return episodes
 
 
 def format_table(results: list[TaskResult]) -> str:
@@ -119,10 +160,34 @@ def write_csv(path: Path, results: list[TaskResult]) -> None:
             )
 
 
+def write_episode_csv(path: Path, episodes: list[EpisodeResult]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="") as f:
+        fieldnames = list(EpisodeResult.__dataclass_fields__)
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for item in episodes:
+            writer.writerow(item.__dict__)
+
+
+def write_episode_json(path: Path, episodes: list[EpisodeResult]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as f:
+        json.dump([item.__dict__ for item in episodes], f, indent=2)
+
+
+def _optional_int(value) -> int | None:
+    if value is None:
+        return None
+    return int(value)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Summarize RoboTwin res.json files.")
     parser.add_argument("root", type=Path, help="Result root containing metrics/*/res.json files.")
     parser.add_argument("--csv", type=Path, help="Optional CSV output path.")
+    parser.add_argument("--episodes-csv", type=Path, help="Optional per-episode CSV output path.")
+    parser.add_argument("--episodes-json", type=Path, help="Optional per-episode JSON output path.")
     parser.add_argument(
         "--sort",
         choices=["rate", "task", "total"],
@@ -148,6 +213,14 @@ def main() -> None:
     if args.csv:
         write_csv(args.csv.expanduser(), results)
         print(f"\nWrote CSV: {args.csv}")
+    if args.episodes_csv or args.episodes_json:
+        episodes = load_episode_results(args.root.expanduser())
+        if args.episodes_csv:
+            write_episode_csv(args.episodes_csv.expanduser(), episodes)
+            print(f"Wrote episode CSV: {args.episodes_csv}")
+        if args.episodes_json:
+            write_episode_json(args.episodes_json.expanduser(), episodes)
+            print(f"Wrote episode JSON: {args.episodes_json}")
 
 
 if __name__ == "__main__":

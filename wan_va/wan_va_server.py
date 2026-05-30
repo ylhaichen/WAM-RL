@@ -46,7 +46,11 @@ from wan_va.rl.dataset import (
     STRICT_ARTIFACT_SCOPE_SINGLE,
     STRICT_ARTIFACT_SCOPE_TRAJECTORY,
 )
-from wan_va.rl.actor_replay import build_replay_context, build_transition_replay_input
+from wan_va.rl.actor_replay import (
+    build_replay_context,
+    build_transition_replay_input,
+    load_actor_replay_checkpoint_into_transformer,
+)
 
 
 class VA_Server:
@@ -97,6 +101,19 @@ class VA_Server:
             torch_device=self.device,
             attn_mode="torch"
         )
+        actor_replay_checkpoint_path = str(getattr(job_config, "actor_replay_checkpoint_path", "") or "")
+        if actor_replay_checkpoint_path:
+            load_summary = load_actor_replay_checkpoint_into_transformer(
+                self.transformer,
+                actor_replay_checkpoint_path,
+                map_location=self.device,
+            )
+            logger.info(
+                "Loaded actor replay checkpoint "
+                f"{load_summary['checkpoint_path']} "
+                f"({load_summary['tensor_count']} tensors, "
+                f"{load_summary['param_count']} params)"
+            )
         shard_fn = shard_model
         self.transformer = _configure_model(model=self.transformer,
                                             shard_fn=shard_fn,
