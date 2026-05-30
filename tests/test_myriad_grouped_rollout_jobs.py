@@ -203,3 +203,14 @@ def test_myriad_common_initializes_modules_for_interactive_shells():
     assert "/shared/ucl/apps/modules/5.3.1/init/bash" in text
     assert "[ -x /usr/bin/tclsh ]" in text
     assert "module load apptainer/1.2.4-1" in text
+
+
+def test_myriad_job_scripts_resolve_repo_root_from_sge_workdir():
+    for path in sorted(Path("jobs/myriad").glob("*.sh")):
+        text = path.read_text()
+        if 'source "${REPO_ROOT}/jobs/myriad/common.sh"' not in text:
+            continue
+        assert "SGE_O_WORKDIR" in text, path
+        assert "SGE_CWD_PATH" in text, path
+        assert '[ -f "${PWD}/jobs/myriad/common.sh" ]' in text, path
+        assert 'REPO_ROOT="$(cd "${MYRIAD_JOB_DIR}/../.." && pwd)"' in text, path

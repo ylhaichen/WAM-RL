@@ -25,7 +25,15 @@ set -euo pipefail
 
 MYRIAD_JOB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [ -z "${REPO_ROOT:-}" ]; then
-    REPO_ROOT="$(cd "${MYRIAD_JOB_DIR}/../.." && pwd)"
+    if [ -n "${SGE_O_WORKDIR:-}" ] && [ -f "${SGE_O_WORKDIR}/jobs/myriad/common.sh" ]; then
+        REPO_ROOT="${SGE_O_WORKDIR}"
+    elif [ -n "${SGE_CWD_PATH:-}" ] && [ -f "${SGE_CWD_PATH}/jobs/myriad/common.sh" ]; then
+        REPO_ROOT="${SGE_CWD_PATH}"
+    elif [ -f "${PWD}/jobs/myriad/common.sh" ]; then
+        REPO_ROOT="${PWD}"
+    else
+        REPO_ROOT="$(cd "${MYRIAD_JOB_DIR}/../.." && pwd)"
+    fi
 fi
 source "${REPO_ROOT}/jobs/myriad/common.sh"
 
