@@ -281,6 +281,33 @@ python tools/audit_grpo_artifact_storage.py \
   --fail-on-missing
 ```
 
+For real actor replay data, inspect replay-context references stored inside the
+strict artifacts and keep stdout compact:
+
+```bash
+python tools/audit_grpo_artifact_storage.py \
+  /path/to/groups/grpo_groups.jsonl \
+  --inspect-replay-contexts \
+  --omit-replay-context-mapping \
+  --print-summary \
+  --out-json /path/to/storage_audit_with_replay_contexts.json \
+  --max-resolved-gb 500 \
+  --fail-on-missing
+```
+
+`--max-resolved-gb` exits non-zero if the resolved artifact footprint exceeds
+the budget. With `--inspect-replay-contexts`, the budget covers strict artifacts
+plus their replay-context files.
+
+Inspect one replay-context file before changing capture/compression policy:
+
+```bash
+python tools/inspect_grpo_replay_context.py \
+  /path/to/strict_grpo_replay_context_0.pt \
+  --out-json /path/to/replay_context_inspection.json \
+  --out-markdown /path/to/replay_context_inspection.md
+```
+
 In the report, `apparent_bytes` is the bytes consumed by the listed files or
 symlinks themselves, while `resolved_bytes` follows symlinks to the target
 files. A symlink subset can have tiny `apparent_bytes` but large
