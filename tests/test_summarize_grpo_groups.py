@@ -62,6 +62,8 @@ def test_summarize_grpo_groups_counts_task_samples_and_transitions(tmp_path):
     assert summary.success_count == 3
     assert summary.failure_count == 1
     assert summary.transition_count == 4
+    assert summary.replay_context_count == 0
+    assert summary.replay_context_total_tensor_bytes == 0
     by_task = {item.task: item for item in summary.tasks}
     assert by_task["open_microwave"].sample_count == 2
     assert by_task["open_microwave"].transition_count == 3
@@ -89,7 +91,10 @@ def test_summarize_grpo_groups_formats_markdown(tmp_path):
     text = format_markdown(summarize_groups([path]))
 
     assert "# GRPO Group Summary" in text
-    assert "| open_microwave | 1 | 1 | 1 | 0 | 1.000 | 1 | 1.000 | 0.000 | 0.000 |" in text
+    assert (
+        "| open_microwave | 1 | 1 | 1 | 0 | 1.000 | 1 | 1.000 | "
+        "0.000 | 0.000 | 0 | 0.000 |"
+    ) in text
 
 
 def test_summarize_grpo_groups_can_inspect_trajectory_artifact_counts(tmp_path):
@@ -143,6 +148,97 @@ def test_summarize_grpo_groups_can_inspect_trajectory_artifact_counts(tmp_path):
 
     assert summary.transition_count == 3
     assert summary.tasks[0].mean_transitions_per_sample == 3.0
+
+
+def test_summarize_grpo_groups_reports_replay_context_metadata(tmp_path):
+    path = tmp_path / "grpo_groups.jsonl"
+    path.write_text(
+        json.dumps(
+            {
+                "group_id": "g0",
+                "task": "open_microwave",
+                "group_size": 1,
+                "reward_mean": 1.0,
+                "reward_std": 0.0,
+                "samples": [
+                    {
+                        "sample_idx": 0,
+                        "reward": 1.0,
+                        "strict_grpo_artifact_paths": ["a.pt"],
+                        "strict_grpo_replay_context_paths": ["ctx0.pt", "ctx1.pt"],
+                        "strict_grpo_replay_context_total_tensor_bytes": 4096,
+                    }
+                ],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    summary = summarize_groups([path])
+
+    assert summary.replay_context_count == 2
+    assert summary.replay_context_total_tensor_bytes == 4096
+    assert summary.replay_context_total_tensor_gib == 4096 / 1024**3
+    assert summary.tasks[0].replay_context_count == 2
+
+
+def test_summarize_grpo_groups_can_inspect_replay_context_file_bytes(tmp_path):
+    artifact_path = tmp_path / "strict_grpo_0.pt"
+    context_path = tmp_path / "strict_grpo_replay_context_0.pt"
+    context_path.write_bytes(b"context-bytes")
+    state = torch.zeros(1, 1, 1, 1, 1)
+    transition = {
+        "denoising_step_index": 0,
+        "timestep": torch.tensor(999.0),
+        "action_xt": state,
+        "action_xt_next": state,
+        "transition_mean": state,
+        "transition_std": torch.tensor(0.01),
+        "old_logprob_sum": torch.tensor([0.0]),
+        "old_logprob_mean": torch.tensor([0.0]),
+        "old_logprob_count": torch.tensor([1]),
+        "logprob_mask": torch.ones_like(state, dtype=torch.bool),
+    }
+    torch.save(
+        {
+            "schema_version": 2,
+            "scope": "action_denoising_trajectory",
+            "sampling_seed": 123,
+            "frame_st_id": 0,
+            "num_transitions": 1,
+            "transitions": [transition],
+            "replay_context_path": context_path.name,
+        },
+        artifact_path,
+    )
+    groups_path = tmp_path / "grpo_groups.jsonl"
+    groups_path.write_text(
+        json.dumps(
+            {
+                "group_id": "g0",
+                "task": "open_microwave",
+                "group_size": 1,
+                "reward_mean": 1.0,
+                "reward_std": 0.0,
+                "samples": [
+                    {
+                        "sample_idx": 0,
+                        "reward": 1.0,
+                        "strict_grpo_artifact_paths": [str(artifact_path)],
+                    }
+                ],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    summary = summarize_groups([groups_path], inspect_artifacts=True)
+
+    assert summary.replay_context_count == 1
+    assert summary.replay_context_total_file_bytes == context_path.stat().st_size
+    assert summary.tasks[0].replay_context_total_file_bytes == context_path.stat().st_size
 
 
 def test_summarize_grpo_groups_script_entrypoint(tmp_path):
