@@ -171,6 +171,20 @@ def test_plan_myriad_storage_cleanup_help_does_not_require_external_pythonpath()
     assert "--out-markdown" in result.stdout
 
 
+def test_plan_replay_context_collection_help_does_not_require_external_pythonpath():
+    result = subprocess.run(
+        [sys.executable, "tools/plan_replay_context_collection.py", "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "Plan bounded replay-context rollout collection storage" in result.stdout
+    assert "--storage-budget-mode" in result.stdout
+    assert "--format" in result.stdout
+
+
 def test_estimate_group_mixing_help_does_not_require_external_pythonpath():
     result = subprocess.run(
         [sys.executable, "tools/estimate_group_mixing.py", "--help"],

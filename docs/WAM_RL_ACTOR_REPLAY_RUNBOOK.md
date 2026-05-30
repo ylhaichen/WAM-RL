@@ -108,6 +108,24 @@ the configured seed-search attempt budget, not only the final accepted group.
 This is intentionally conservative because discarded failed attempts can still
 leave large `server_vis/` replay-context files behind. Use
 `STORAGE_BUDGET_MODE=accepted` only after explicit review.
+The same estimate can be run without the submit wrapper:
+
+```bash
+python tools/plan_replay_context_collection.py \
+  --task-names "move_stapler_pad" \
+  --group-size 4 \
+  --groups-per-task 1 \
+  --group-max-attempts 1 \
+  --capture-max-chunks 1 \
+  --save-replay-context true \
+  --replay-context-estimate-gb 4 \
+  --storage-budget-mode attempt \
+  --check-scratch-headroom true \
+  --scratch-path /home/zcably0/Scratch \
+  --min-scratch-headroom-gb 50 \
+  --dry-run true \
+  --format shell
+```
 
 The bounded wrapper also passes `STRICT_GRPO_REPLAY_CONTEXT_MAX_GB=5.0` by
 default. The server checks the tensor bytes of each replay context before

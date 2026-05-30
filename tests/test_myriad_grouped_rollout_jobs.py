@@ -314,13 +314,15 @@ def test_bounded_replayctx_submitter_uses_storage_safe_defaults():
     assert 'CHECK_SCRATCH_HEADROOM="${CHECK_SCRATCH_HEADROOM:-1}"' in text
     assert 'MIN_SCRATCH_HEADROOM_GB="${MIN_SCRATCH_HEADROOM_GB:-50}"' in text
     assert 'STORAGE_BUDGET_MODE="${STORAGE_BUDGET_MODE:-attempt}"' in text
-    assert "Replay-context storage estimate" in text
-    assert "accepted_estimate_gb" in text
-    assert "attempt_budget_estimate_gb" in text
+    assert "tools/plan_replay_context_collection.py" in text
+    assert '--task-names "${TASK_NAMES}"' in text
+    assert '--group-size "${GROUP_SIZE}"' in text
+    assert '--group-max-attempts "${GROUP_MAX_ATTEMPTS}"' in text
+    assert '--capture-max-chunks "${STRICT_GRPO_CAPTURE_MAX_CHUNKS}"' in text
+    assert '--save-replay-context "${STRICT_GRPO_SAVE_REPLAY_CONTEXT}"' in text
+    assert '--replay-context-estimate-gb "${REPLAY_CONTEXT_ESTIMATE_GB}"' in text
+    assert '--format shell' in text
     assert "STRICT_GRPO_REPLAY_CONTEXT_MAX_GB" in text
-    assert "storage_budget_mode" in text
-    assert "required_for_budget_plus_headroom_gb" in text
-    assert "headroom_ok" in text
     assert "ALLOW_UNBOUNDED_REPLAYCTX=1" in text
     assert 'DRY_RUN="${DRY_RUN:-0}"' in text
     assert "DRY_RUN=1, not submitting" in text

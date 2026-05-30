@@ -164,6 +164,8 @@ Implemented:
 - storage-bounded replay-context collection submission with
   `jobs/myriad/39_submit_grpo_replayctx_bounded_4gpu.sh`, including
   attempt-budget-based Scratch headroom checks;
+- standalone replay-context collection storage planning with
+  `tools/plan_replay_context_collection.py`;
 - operational runbook in `docs/WAM_RL_ACTOR_REPLAY_RUNBOOK.md`;
 - actor replay training output summaries with
   `tools/summarize_actor_replay_training.py`, including explicit
