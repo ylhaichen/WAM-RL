@@ -154,6 +154,9 @@ development:
   `tail`, `qstat`, and `git status`;
 - summarize GRPO job/result state with `tools/report_grpo_run_status.py`
   before hand-writing long `grep` pipelines;
+- for queued jobs without logs, use
+  `tools/report_grpo_run_status.py --qstat-job-id <job-id>` to inspect
+  scheduler metadata and exported job variables;
 - avoid unbounded `qacct` calls during interactive debugging. Prefer `qstat`,
   job logs, and the status reporter; if accounting is needed, query a specific
   finished job with a shell timeout;

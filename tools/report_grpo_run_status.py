@@ -8,6 +8,7 @@ import glob
 import json
 import os
 import re
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -98,11 +99,76 @@ def parse_job_log(path: Path) -> dict[str, Any]:
     }
 
 
+def parse_qstat_job_detail_text(text: str) -> dict[str, Any]:
+    fields: dict[str, str] = {}
+    for raw_line in text.splitlines():
+        if ":" not in raw_line:
+            continue
+        key, value = raw_line.split(":", 1)
+        key = key.strip()
+        value = value.strip()
+        if key:
+            fields[key] = value
+
+    env = _parse_key_value_list(fields.get("env_list", ""))
+    resources = _parse_key_value_list(fields.get("hard resource_list", ""))
+    values = {key: env[key] for key in LOG_VALUE_KEYS if key in env}
+    if "job_number" in fields and "JOB_ID" not in values:
+        values["JOB_ID"] = fields["job_number"]
+    return {
+        "exists": bool(fields),
+        "fields": fields,
+        "values": values,
+        "resources": resources,
+        "job_number": fields.get("job_number"),
+        "job_name": fields.get("job_name"),
+        "owner": fields.get("owner"),
+        "submission_time": fields.get("submission_time"),
+        "cwd": fields.get("cwd"),
+        "script_file": fields.get("script_file"),
+        "parallel_environment": fields.get("parallel environment"),
+        "project": fields.get("project"),
+    }
+
+
+def parse_qstat_job_detail_file(path: Path) -> dict[str, Any]:
+    expanded = path.expanduser()
+    try:
+        text = expanded.read_text(encoding="utf-8", errors="replace")
+    except FileNotFoundError:
+        return {"exists": False, "path": str(expanded), "fields": {}, "values": {}, "resources": {}}
+    report = parse_qstat_job_detail_text(text)
+    report["path"] = str(expanded)
+    return report
+
+
+def load_qstat_job_detail(job_id: str) -> dict[str, Any]:
+    result = subprocess.run(
+        ["qstat", "-j", str(job_id)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    report = parse_qstat_job_detail_text(result.stdout)
+    report.update(
+        {
+            "job_id": str(job_id),
+            "command": ["qstat", "-j", str(job_id)],
+            "returncode": result.returncode,
+            "stderr": result.stderr.strip(),
+        }
+    )
+    if result.returncode != 0:
+        report["exists"] = False
+    return report
+
+
 def report_grpo_run_status(
     *,
     job_log: Path | None = None,
     results_root: Path | None = None,
     training_output_dir: Path | None = None,
+    qstat_job: dict[str, Any] | None = None,
     inspect_files: bool = False,
 ) -> dict[str, Any]:
     log_report = parse_job_log(job_log) if job_log is not None else None
@@ -119,6 +185,7 @@ def report_grpo_run_status(
 
     report: dict[str, Any] = {
         "job_log": log_report,
+        "qstat_job": qstat_job,
         "results_root": _summarize_results_root(inferred_results_root, inspect_files=inspect_files)
         if inferred_results_root is not None
         else None,
@@ -167,6 +234,21 @@ def format_markdown(report: dict[str, Any]) -> str:
                 lines.append(f"| {_md(key)} | {_md(values[key])} |")
         lines.append("")
 
+    qstat_report = report.get("qstat_job")
+    if qstat_report:
+        lines.extend(["## Qstat Job", "", "| key | value |", "|---|---|"])
+        for key in ("job_number", "job_name", "owner", "submission_time", "cwd", "script_file", "project"):
+            if qstat_report.get(key):
+                lines.append(f"| {_md(key)} | {_md(qstat_report[key])} |")
+        for key in LOG_VALUE_KEYS:
+            value = (qstat_report.get("values") or {}).get(key)
+            if value is not None:
+                lines.append(f"| {_md(key)} | {_md(value)} |")
+        resources = qstat_report.get("resources") or {}
+        if resources:
+            lines.append(f"| hard_resources | {_md(_format_key_values(resources))} |")
+        lines.append("")
+
     results = report.get("results_root")
     if results:
         lines.extend(
@@ -208,6 +290,7 @@ def _derive_status(report: dict[str, Any]) -> dict[str, Any]:
     validation = results.get("validation") or {}
     summary = results.get("grpo_summary") or {}
     training = report.get("training_output_dir") or {}
+    qstat_job = report.get("qstat_job") or {}
 
     group_lines = int(results.get("grpo_group_line_count", 0) or 0)
     transition_count = int(validation.get("transition_count", 0) or summary.get("transition_count", 0) or 0)
@@ -223,6 +306,8 @@ def _derive_status(report: dict[str, Any]) -> dict[str, Any]:
         state = "completed_without_trainable_groups"
     elif traceback_count or disk_quota_count:
         state = "errors_seen"
+    elif qstat_job and qstat_job.get("exists"):
+        state = "scheduler_known_no_log"
     else:
         state = "unknown_or_queued"
 
@@ -235,6 +320,8 @@ def _derive_status(report: dict[str, Any]) -> dict[str, Any]:
         "disk_quota_count": disk_quota_count,
         "accepted_group_attempt_count": int(counters.get("accepted_group_attempt_count", 0) or 0),
         "discarded_group_attempt_count": int(counters.get("discarded_group_attempt_count", 0) or 0),
+        "qstat_job_number": qstat_job.get("job_number"),
+        "qstat_job_name": qstat_job.get("job_name"),
     }
 
 
@@ -330,6 +417,19 @@ def _inspect_result_files(root: Path) -> dict[str, Any]:
 def _extract_key_values(line: str, key: str) -> list[str]:
     pattern = re.compile(rf"(?:^|[,\s]){re.escape(key)}=([^,\s]+)")
     return [match.group(1) for match in pattern.finditer(line)]
+
+
+def _parse_key_value_list(value: str) -> dict[str, str]:
+    parsed: dict[str, str] = {}
+    for item in value.split(","):
+        if "=" not in item:
+            continue
+        key, item_value = item.split("=", 1)
+        key = key.strip()
+        item_value = item_value.strip()
+        if key:
+            parsed[key] = item_value
+    return parsed
 
 
 def _extract_failed_attempt_root(line: str) -> str | None:
@@ -449,6 +549,10 @@ def _md(value: object) -> str:
     return str(value).replace("|", "\\|").replace("\n", " ")
 
 
+def _format_key_values(values: dict[str, str]) -> str:
+    return ", ".join(f"{key}={value}" for key, value in sorted(values.items()))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Report WAM-RL GRPO job and result status.")
     parser.add_argument("--job-log", type=Path, help="Optional SGE job log to parse.")
@@ -458,6 +562,8 @@ def main() -> None:
         default=[],
         help="Glob for selecting the latest SGE job log by mtime. Can be passed more than once.",
     )
+    parser.add_argument("--qstat-job-id", help="Run `qstat -j JOB_ID` and include scheduler metadata.")
+    parser.add_argument("--qstat-job-file", type=Path, help="Parse a saved `qstat -j JOB_ID` output file.")
     parser.add_argument("--results-root", type=Path, help="Optional grouped rollout result root.")
     parser.add_argument("--training-output-dir", type=Path, help="Optional GRPO training output directory.")
     parser.add_argument(
@@ -472,6 +578,8 @@ def main() -> None:
 
     if args.job_log is not None and args.job_log_glob:
         parser.error("use either --job-log or --job-log-glob, not both")
+    if args.qstat_job_id and args.qstat_job_file:
+        parser.error("use either --qstat-job-id or --qstat-job-file, not both")
     job_log = args.job_log
     if job_log is None and args.job_log_glob:
         try:
@@ -479,13 +587,23 @@ def main() -> None:
         except FileNotFoundError as exc:
             parser.error(str(exc))
 
-    if job_log is None and args.results_root is None and args.training_output_dir is None:
-        parser.error("at least one of --job-log, --job-log-glob, --results-root, or --training-output-dir is required")
+    qstat_job = None
+    if args.qstat_job_id:
+        qstat_job = load_qstat_job_detail(args.qstat_job_id)
+    elif args.qstat_job_file:
+        qstat_job = parse_qstat_job_detail_file(args.qstat_job_file)
+
+    if job_log is None and args.results_root is None and args.training_output_dir is None and qstat_job is None:
+        parser.error(
+            "at least one of --job-log, --job-log-glob, --qstat-job-id, "
+            "--qstat-job-file, --results-root, or --training-output-dir is required"
+        )
 
     report = report_grpo_run_status(
         job_log=job_log,
         results_root=args.results_root,
         training_output_dir=args.training_output_dir,
+        qstat_job=qstat_job,
         inspect_files=args.inspect_files,
     )
 

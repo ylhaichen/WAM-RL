@@ -59,6 +59,15 @@ Add `--results-root /path/to/results_root` when no log exists yet or when the
 log did not record `RESULTS_ROOT`. Add `--inspect-files` only when you need
 artifact counts and disk-block usage, because it walks the result tree.
 
+For a queued job that has not started and therefore has no job log yet, report
+the scheduler metadata directly:
+
+```bash
+python tools/report_grpo_run_status.py \
+  --qstat-job-id <job-id> \
+  --print-markdown
+```
+
 Avoid unbounded `qacct` calls during interactive debugging. On Myriad, `qacct`
 can be slow and can print unrelated accounting records when queried loosely.
 Prefer job logs, `qstat`, and the status reporter above. If accounting is

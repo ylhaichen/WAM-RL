@@ -3,7 +3,12 @@ import subprocess
 import sys
 from pathlib import Path
 
-from tools.report_grpo_run_status import parse_job_log, report_grpo_run_status, select_latest_job_log
+from tools.report_grpo_run_status import (
+    parse_job_log,
+    parse_qstat_job_detail_text,
+    report_grpo_run_status,
+    select_latest_job_log,
+)
 
 
 def _write_json(path: Path, value: dict) -> None:
@@ -186,3 +191,86 @@ def test_report_grpo_run_status_cli_accepts_job_log_glob(tmp_path):
     payload = json.loads(result.stdout)
     assert payload["job_log"]["path"] == str(log)
     assert payload["status"]["state"] == "trainable_groups_available"
+
+
+def test_parse_qstat_job_detail_extracts_scheduler_env_and_resources():
+    text = """
+==============================================================
+job_number:                 458528
+submission_time:            Sat May 30 11:55:56 2026
+owner:                      zcably0
+cwd:                        /home/zcably0/Scratch/WAM-RL
+hard resource_list:         snx=1,gpu=4,tmpfs=200G,memory=4G,batch=true,h_rt=172800
+job_name:                   wam_grpo_replayctx_bounded
+env_list:                   TERM=NONE,REPO_ROOT=/home/zcably0/Scratch/WAM-RL,GROUP_SIZE=4,GROUPS_PER_TASK=1,RUN_ID=grpo_run,TASK_NAMES=move_stapler_pad,ACTION_NUM_INFERENCE_STEPS=10,STRICT_GRPO_CAPTURE_MAX_CHUNKS=1
+script_file:                jobs/myriad/30_collect_grouped_rollouts_4gpu.sh
+parallel environment:  smp-[L]* range: 32
+project:                    AllUsers
+"""
+
+    report = parse_qstat_job_detail_text(text)
+
+    assert report["exists"] is True
+    assert report["job_number"] == "458528"
+    assert report["job_name"] == "wam_grpo_replayctx_bounded"
+    assert report["script_file"] == "jobs/myriad/30_collect_grouped_rollouts_4gpu.sh"
+    assert report["values"]["JOB_ID"] == "458528"
+    assert report["values"]["RUN_ID"] == "grpo_run"
+    assert report["values"]["GROUP_SIZE"] == "4"
+    assert report["values"]["TASK_NAMES"] == "move_stapler_pad"
+    assert report["values"]["ACTION_NUM_INFERENCE_STEPS"] == "10"
+    assert report["resources"]["gpu"] == "4"
+    assert report["resources"]["tmpfs"] == "200G"
+
+
+def test_report_grpo_run_status_can_report_scheduler_only_jobs():
+    qstat_report = parse_qstat_job_detail_text(
+        "\n".join(
+            [
+                "job_number:                 458528",
+                "job_name:                   wam_grpo_replayctx_bounded",
+                "env_list:                   RUN_ID=queued_run,GROUP_SIZE=4",
+                "script_file:                jobs/myriad/30_collect_grouped_rollouts_4gpu.sh",
+            ]
+        )
+    )
+
+    report = report_grpo_run_status(qstat_job=qstat_report)
+
+    assert report["status"]["state"] == "scheduler_known_no_log"
+    assert report["status"]["qstat_job_number"] == "458528"
+    assert report["qstat_job"]["values"]["RUN_ID"] == "queued_run"
+
+
+def test_report_grpo_run_status_cli_accepts_qstat_job_file(tmp_path):
+    qstat_file = tmp_path / "qstat_458528.txt"
+    qstat_file.write_text(
+        "\n".join(
+            [
+                "job_number:                 458528",
+                "job_name:                   wam_grpo_replayctx_bounded",
+                "hard resource_list:         gpu=4,tmpfs=200G,h_rt=172800",
+                "env_list:                   RUN_ID=queued_run,GROUP_SIZE=4",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "tools/report_grpo_run_status.py",
+            "--qstat-job-file",
+            str(qstat_file),
+            "--print-markdown",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "scheduler_known_no_log" in result.stdout
+    assert "wam_grpo_replayctx_bounded" in result.stdout
+    assert "hard_resources" in result.stdout
