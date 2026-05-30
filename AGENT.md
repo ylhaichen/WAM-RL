@@ -145,7 +145,10 @@ consume tens or hundreds of GB because they include transformer KV-cache state.
   `jobs/myriad/34_train_actor_replay_grpo_robotwin.sh`.
 - Use `tools/audit_grpo_artifact_storage.py` before cleanup decisions when a
   `grpo_groups.jsonl` or materialized subset might still reference large
-  strict artifacts or replay-context symlink targets.
+  strict artifacts or replay-context symlink targets. Add
+  `--inspect-replay-contexts` when auditing real actor replay data, because
+  replay-context files are usually referenced from inside each strict artifact
+  rather than directly from the JSONL.
 
 For concrete commands and RDSS archival patterns, use
 `docs/WAM_RL_MYRIAD_STORAGE_POLICY.md`.

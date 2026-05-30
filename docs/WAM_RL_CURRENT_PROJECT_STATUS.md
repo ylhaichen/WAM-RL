@@ -115,9 +115,10 @@ Implemented:
   symlink mode by default and optional replay-context materialization;
 - collection-time strict artifact chunk filtering with
   `STRICT_GRPO_CAPTURE_CHUNK_STRIDE` and `STRICT_GRPO_CAPTURE_MAX_CHUNKS`;
+- storage auditing with replay-context inspection and optional resolved-size
+  budgets via `tools/audit_grpo_artifact_storage.py`;
 - low-resource subset smoke submission with
   `jobs/myriad/36_submit_actor_replay_subset_smoke.sh`;
-- storage footprint auditing with `tools/audit_grpo_artifact_storage.py`;
 - operational runbook in `docs/WAM_RL_ACTOR_REPLAY_RUNBOOK.md`;
 - actor replay training output summaries with
   `tools/summarize_actor_replay_training.py`;
@@ -149,6 +150,11 @@ failure: 3
 transition_count: 640
 validation with --require-replay-context: ok=true, error_count=0
 disk usage before cleanup/archive: about 432G
+storage audit with replay contexts:
+  /home/zcably0/Scratch/wam-rl/results_grouped_rollouts/grpo_replayctx_staplerpad_k8_g1_s10_20260521_161720/groups/storage_audit_with_replay_contexts.json
+  strict artifacts: 64 unique, 0.006 GiB resolved
+  replay contexts: 64 unique
+  artifacts + replay contexts: 430.996 GiB resolved
 ```
 
 Interpretation:

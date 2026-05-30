@@ -1,6 +1,10 @@
 import json
 import os
+import subprocess
+import sys
 from pathlib import Path
+
+import torch
 
 from tools.audit_grpo_artifact_storage import audit_grpo_artifact_storage
 
@@ -103,3 +107,58 @@ def test_audit_grpo_artifact_storage_reports_broken_symlink(tmp_path):
     assert report["artifacts"]["missing_count"] == 1
     assert report["artifacts"]["broken_symlink_count"] == 1
     assert report["artifacts"]["missing_paths"] == [str(broken)]
+
+
+def test_audit_grpo_artifact_storage_can_inspect_replay_contexts(tmp_path):
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    artifact = source_dir / "strict_grpo_0.pt"
+    context = source_dir / "strict_grpo_replay_context_0.pt"
+    torch.save({"replay_context_path": context.name}, artifact)
+    context.write_bytes(b"context-bytes")
+    groups_jsonl = tmp_path / "groups.jsonl"
+    _write_group(groups_jsonl, [artifact])
+
+    report = audit_grpo_artifact_storage(groups_jsonl, inspect_replay_contexts=True)
+
+    assert report["replay_context_ref_count"] == 1
+    assert report["unique_replay_context_count"] == 1
+    assert report["replay_contexts"]["resolved_bytes"] == len(b"context-bytes")
+    assert report["artifacts_plus_replay_contexts"]["existing_count"] == 2
+    assert report["replay_context_errors"] == []
+
+
+def test_audit_grpo_artifact_storage_reports_invalid_replay_context_artifact(tmp_path):
+    artifact = tmp_path / "strict_grpo_0.pt"
+    artifact.write_text("not a torch artifact", encoding="utf-8")
+    groups_jsonl = tmp_path / "groups.jsonl"
+    _write_group(groups_jsonl, [artifact])
+
+    report = audit_grpo_artifact_storage(groups_jsonl, inspect_replay_contexts=True)
+
+    assert report["replay_context_ref_count"] == 0
+    assert report["replay_context_error_count"] == 1
+    assert report["replay_context_errors"][0]["artifact_path"] == str(artifact)
+
+
+def test_audit_grpo_artifact_storage_cli_fails_over_budget(tmp_path):
+    artifact = tmp_path / "strict_grpo_0.pt"
+    artifact.write_bytes(b"artifact")
+    groups_jsonl = tmp_path / "groups.jsonl"
+    _write_group(groups_jsonl, [artifact])
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "tools/audit_grpo_artifact_storage.py",
+            str(groups_jsonl),
+            "--max-resolved-gb",
+            "0",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    assert '"ok": false' in result.stdout

@@ -310,8 +310,13 @@ qstat
 python tools/audit_grpo_artifact_storage.py \
   "$SUBSET/groups/grpo_groups.jsonl" \
   --materialize-manifest "$SUBSET/manifest.json" \
+  --inspect-replay-contexts \
   --fail-on-missing
 ```
+
+For a pre-run storage budget check, add `--max-resolved-gb <GB>`. With
+`--inspect-replay-contexts`, the budget covers both directly referenced strict
+artifacts and replay-context files referenced from inside those artifacts.
 
 Do not delete a source run's `server_vis/` while:
 

@@ -15,13 +15,14 @@ except ModuleNotFoundError:
 
 ensure_repo_root_on_path()
 
-from wan_va.rl.dataset import read_grpo_group_dicts
+from wan_va.rl.dataset import REPLAY_CONTEXT_PATH_KEY, read_grpo_group_dicts
 
 
 def audit_grpo_artifact_storage(
     groups_jsonl: Path,
     *,
     materialize_manifest: Path | None = None,
+    inspect_replay_contexts: bool = False,
 ) -> dict:
     groups = list(read_grpo_group_dicts(groups_jsonl.expanduser()))
     artifact_paths = _artifact_paths(groups)
@@ -34,6 +35,21 @@ def audit_grpo_artifact_storage(
         "tasks": _task_summary(groups),
         "artifacts": _path_summary(artifact_paths),
     }
+
+    if inspect_replay_contexts:
+        replay_context_mapping, replay_context_errors = _inspect_replay_contexts(artifact_paths)
+        replay_context_paths = list(replay_context_mapping.values())
+        report.update(
+            {
+                "replay_context_ref_count": len(replay_context_paths),
+                "unique_replay_context_count": len(set(replay_context_paths)),
+                "replay_context_mapping": replay_context_mapping,
+                "replay_context_error_count": len(replay_context_errors),
+                "replay_context_errors": replay_context_errors,
+                "replay_contexts": _path_summary(replay_context_paths),
+                "artifacts_plus_replay_contexts": _path_summary([*artifact_paths, *replay_context_paths]),
+            }
+        )
 
     if materialize_manifest is not None:
         manifest = json.loads(materialize_manifest.expanduser().read_text(encoding="utf-8"))
@@ -103,6 +119,33 @@ def _path_summary(paths: Iterable[str]) -> dict:
     }
 
 
+def _inspect_replay_contexts(artifact_paths: Iterable[str]) -> tuple[dict[str, str], list[dict]]:
+    import torch
+
+    mapping: dict[str, str] = {}
+    errors: list[dict] = []
+    for value in sorted(set(str(path) for path in artifact_paths)):
+        artifact_path = Path(value).expanduser()
+        if not artifact_path.exists():
+            continue
+        try:
+            artifact = torch.load(artifact_path, map_location="cpu")
+            if not isinstance(artifact, dict):
+                raise ValueError("strict artifact is not a dict")
+            replay_context_value = artifact.get(REPLAY_CONTEXT_PATH_KEY)
+            if replay_context_value is None:
+                continue
+            if not isinstance(replay_context_value, str) or not replay_context_value:
+                raise ValueError(f"invalid {REPLAY_CONTEXT_PATH_KEY!r}: {replay_context_value!r}")
+            replay_context_path = Path(replay_context_value).expanduser()
+            if not replay_context_path.is_absolute():
+                replay_context_path = artifact_path.parent / replay_context_path
+            mapping[str(artifact_path)] = str(replay_context_path)
+        except Exception as exc:  # noqa: BLE001 - audit report should collect all artifact issues.
+            errors.append({"artifact_path": str(artifact_path), "error": str(exc)})
+    return mapping, errors
+
+
 def _stat_path(path: Path) -> dict:
     item = {
         "path": str(path),
@@ -129,26 +172,60 @@ def _stat_path(path: Path) -> dict:
 
 def _has_missing(report: dict) -> bool:
     summaries = [report["artifacts"]]
+    if "replay_contexts" in report:
+        summaries.append(report["replay_contexts"])
     if "materialized_replay_contexts" in report:
         summaries.append(report["materialized_replay_contexts"])
     return any(int(summary["missing_count"]) > 0 for summary in summaries)
+
+
+def _budget_summary(report: dict) -> dict:
+    if "artifacts_plus_replay_contexts" in report:
+        return report["artifacts_plus_replay_contexts"]
+    return report["artifacts"]
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Audit filesystem footprint of GRPO artifact references.")
     parser.add_argument("groups_jsonl", type=Path, help="Input GRPO groups JSONL.")
     parser.add_argument("--materialize-manifest", type=Path, help="Optional materialization manifest JSON.")
+    parser.add_argument(
+        "--inspect-replay-contexts",
+        action="store_true",
+        help="Load strict artifacts and include replay_context_path file footprint in the report.",
+    )
     parser.add_argument("--out-json", type=Path, help="Optional output JSON report.")
     parser.add_argument("--fail-on-missing", action="store_true", help="Exit non-zero if referenced files are missing.")
+    parser.add_argument(
+        "--max-resolved-gb",
+        type=float,
+        help="Exit non-zero if resolved artifact footprint exceeds this many GB. "
+        "With --inspect-replay-contexts, this includes replay-context files.",
+    )
     args = parser.parse_args()
 
-    report = audit_grpo_artifact_storage(args.groups_jsonl, materialize_manifest=args.materialize_manifest)
+    report = audit_grpo_artifact_storage(
+        args.groups_jsonl,
+        materialize_manifest=args.materialize_manifest,
+        inspect_replay_contexts=args.inspect_replay_contexts,
+    )
+    if args.max_resolved_gb is not None:
+        max_resolved_bytes = int(args.max_resolved_gb * 1024**3)
+        budget_summary = _budget_summary(report)
+        report["storage_budget"] = {
+            "max_resolved_gb": args.max_resolved_gb,
+            "max_resolved_bytes": max_resolved_bytes,
+            "resolved_bytes": budget_summary["resolved_bytes"],
+            "ok": int(budget_summary["resolved_bytes"]) <= max_resolved_bytes,
+        }
     text = json.dumps(report, ensure_ascii=False, indent=2) + "\n"
     if args.out_json is not None:
         args.out_json.expanduser().parent.mkdir(parents=True, exist_ok=True)
         args.out_json.expanduser().write_text(text, encoding="utf-8")
     print(text, end="")
     if args.fail_on_missing and _has_missing(report):
+        raise SystemExit(1)
+    if "storage_budget" in report and not report["storage_budget"]["ok"]:
         raise SystemExit(1)
 
 
