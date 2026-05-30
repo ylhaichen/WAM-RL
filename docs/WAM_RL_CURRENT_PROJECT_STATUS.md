@@ -185,6 +185,9 @@ Implemented:
   replay ratios;
 - progress logging and failure diagnostics;
 - `tools/diagnose_actor_replay.py` for replay-vs-stored logprob diagnosis.
+- `tools/summarize_grpo_groups.py --inspect-artifacts` now reports
+  replay-context count and resolved file GiB without loading replay-context
+  tensor payloads.
 
 Latest validated real actor replay dataset:
 
@@ -206,9 +209,11 @@ disk usage before cleanup/archive: about 432G
 storage audit with replay contexts:
   /home/zcably0/Scratch/wam-rl/results_grouped_rollouts/grpo_replayctx_staplerpad_k8_g1_s10_20260521_161720/groups/storage_audit_with_replay_contexts.json
   /home/zcably0/Scratch/wam-rl/results_grouped_rollouts/grpo_replayctx_staplerpad_k8_g1_s10_20260521_161720/groups/storage_audit_summary_mode.json
+  /home/zcably0/Scratch/wam-rl/results_grouped_rollouts/grpo_replayctx_staplerpad_k8_g1_s10_20260521_161720/groups/grpo_group_summary_replay_context_audit.json
   strict artifacts: 64 unique, 0.006 GiB resolved
   replay contexts: 64 unique
   artifacts + replay contexts: 430.996 GiB resolved
+  summary replay-context file footprint: 430.990 GiB
 representative replay-context metadata-only inspection:
   file_bytes: 7,230,819,664
   tensor_bytes: 7,230,772,480
@@ -243,6 +248,10 @@ Interpretation:
   replay.
 - per-file storage is dominated by duplicated transformer KV-cache state, not
   strict transition tensors.
+- this run predates the current per-rollout capture metadata, so use it as a
+  legacy source dataset only; new bounded collection should show
+  `strict_grpo_capture_max_chunks`, capture chunk indices, and replay-context
+  tensor bytes directly in rollout/group metadata.
 
 ### Evaluation Protocol
 
