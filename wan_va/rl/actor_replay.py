@@ -192,7 +192,12 @@ def select_cache_kv_batch(cache_snapshot: Sequence[dict], batch_index: int = 0) 
     return selected
 
 
-def snapshot_transformer_cache(transformer, cache_name: str = DEFAULT_CACHE_NAME) -> list[dict]:
+def snapshot_transformer_cache(
+    transformer,
+    cache_name: str = DEFAULT_CACHE_NAME,
+    *,
+    kv_batch_index: int | None = None,
+) -> list[dict]:
     """Clone the transformer's self-attention KV cache for later replay.
 
     The replay trainer restores this snapshot before each denoising transition.
@@ -205,8 +210,26 @@ def snapshot_transformer_cache(transformer, cache_name: str = DEFAULT_CACHE_NAME
         cache = getattr(block.attn1, "attn_caches", None)
         if cache is None or cache_name not in cache or cache[cache_name] is None:
             raise MissingReplayContextError(f"missing transformer cache {cache_name!r} at block {block_idx}")
-        snapshots.append(tensor_tree_to_cpu(cache[cache_name]))
+        snapshots.append(cache_dict_to_cpu(cache[cache_name], kv_batch_index=kv_batch_index))
     return snapshots
+
+
+def cache_dict_to_cpu(cache: dict, *, kv_batch_index: int | None = None) -> dict:
+    """Clone a transformer attention cache, optionally keeping one k/v batch."""
+
+    snapshot = {}
+    for key, value in cache.items():
+        if (
+            kv_batch_index is not None
+            and key in {"k", "v"}
+            and torch.is_tensor(value)
+            and value.ndim > 0
+            and value.shape[0] > kv_batch_index
+        ):
+            snapshot[key] = value.detach().narrow(0, kv_batch_index, 1).cpu().clone()
+        else:
+            snapshot[key] = tensor_tree_to_cpu(value)
+    return snapshot
 
 
 def restore_transformer_cache(
@@ -243,11 +266,13 @@ def build_replay_context(
 ) -> dict:
     """Build a chunk-level replay context from live inference state."""
 
-    transformer_cache = snapshot_transformer_cache(transformer, cache_name=cache_name)
     action_uses_cfg = bool(use_cfg and action_guidance_scale > 1.0)
     pruned_to_conditional = bool(use_cfg and not action_uses_cfg)
-    if pruned_to_conditional:
-        transformer_cache = select_cache_kv_batch(transformer_cache, batch_index=0)
+    transformer_cache = snapshot_transformer_cache(
+        transformer,
+        cache_name=cache_name,
+        kv_batch_index=0 if pruned_to_conditional else None,
+    )
 
     return {
         "schema_version": REPLAY_CONTEXT_SCHEMA_VERSION,

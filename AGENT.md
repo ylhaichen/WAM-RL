@@ -269,10 +269,10 @@ current system:
   conditioning and KV cache state. Old artifacts without replay context are not
   sufficient for real actor updates.
 - When global video CFG is enabled but `action_guidance_scale <= 1`, new replay
-  contexts store only the conditional action k/v cache branch. This preserves
-  the action replay mean because the negative action branch is not used, and it
-  avoids roughly half of the replay-context k/v storage for common smoke
-  collections.
+  contexts store only the conditional action k/v cache branch and clone only
+  that branch during cache snapshot. This preserves the action replay mean
+  because the negative action branch is not used, and it avoids roughly half of
+  the replay-context k/v storage for common smoke collections.
 - For real actor replay, use `GRPO_ACTION_NUM_INFERENCE_STEPS` matching the
   collection run, `GRPO_LOGPROB_REDUCTION=mean`, and a conservative
   `GRPO_LOGPROB_STD_FLOOR` such as `0.1`. The collected diffusion transition

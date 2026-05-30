@@ -12,6 +12,7 @@ from wan_va.rl.actor_replay import (
     count_actor_replay_transition_items,
     iter_actor_replay_examples,
     load_actor_replay_checkpoint_into_transformer,
+    snapshot_transformer_cache,
     tensor_tree_nbytes,
 )
 
@@ -166,6 +167,25 @@ def test_build_replay_context_prunes_unused_cfg_branch_for_action_scale_one():
     assert cache["k"].untyped_storage().nbytes() == (
         cache["k"].numel() * cache["k"].element_size()
     )
+
+
+def test_snapshot_transformer_cache_can_prune_kv_branch_during_clone():
+    transformer = ToyTransformer()
+    transformer.blocks[0].attn1.attn_caches["pos"] = {
+        "k": torch.arange(8.0).reshape(2, 4, 1, 1),
+        "v": torch.arange(8.0, 16.0).reshape(2, 4, 1, 1),
+        "id": torch.arange(2, dtype=torch.long),
+        "mask": torch.tensor([True, False]),
+    }
+
+    cache = snapshot_transformer_cache(transformer, kv_batch_index=1)[0]
+
+    assert cache["k"].shape[0] == 1
+    assert cache["v"].shape[0] == 1
+    assert cache["id"].shape[0] == 2
+    assert cache["mask"].shape[0] == 2
+    assert torch.equal(cache["k"], torch.arange(4.0, 8.0).reshape(1, 4, 1, 1))
+    assert cache["k"].untyped_storage().nbytes() == cache["k"].numel() * cache["k"].element_size()
 
 
 def test_replay_context_tensor_budget_fails_before_oversized_save():

@@ -112,7 +112,8 @@ Implemented:
 - replay context capture and external per-chunk replay-context files;
 - conditional-branch-only replay-context k/v storage when global video CFG is
   enabled but `action_guidance_scale <= 1`, which preserves action replay while
-  avoiding an otherwise unused negative action branch;
+  avoiding an otherwise unused negative action branch and clones only the kept
+  branch during cache snapshot;
 - safe JSON-only GRPO group subsetting with `tools/subset_grpo_groups.py`;
 - replay-context-footprint-aware subsetting with
   `--max-replay-context-gb`, so actor replay smoke subsets are bounded by
