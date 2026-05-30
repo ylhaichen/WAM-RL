@@ -230,6 +230,7 @@ def test_actor_eval_pair_smoke_submitter_uses_matched_eval_controls():
     assert 'SAMPLING_SEED_PER_ENV="${SAMPLING_SEED_PER_ENV:-true}"' in text
     assert 'SAVE_SERVER_DEBUG_TENSORS="${SAVE_SERVER_DEBUG_TENSORS:-false}"' in text
     assert 'SEED="${SEED:-0}"' in text
+    assert 'BASELINE_REPEATABILITY_JSON="${BASELINE_REPEATABILITY_JSON:-}"' in text
     assert '"SEED=${SEED}"' in text
     assert 'BASELINE_PORT="${BASELINE_PORT:-29656}"' in text
     assert 'ACTOR_PORT="${ACTOR_PORT:-29756}"' in text
@@ -237,6 +238,7 @@ def test_actor_eval_pair_smoke_submitter_uses_matched_eval_controls():
     assert "Set ACTOR_REPLAY_CHECKPOINT_PATH" in text
     assert '"ACTOR_REPLAY_CHECKPOINT_PATH=${checkpoint}"' in text
     assert "tools/summarize_actor_eval_pair.py" in text
+    assert "tools/gate_actor_eval_promotion.py" in text
     assert 'DRY_RUN="${DRY_RUN:-0}"' in text
     assert '"${cmd[@]}"' in text
 

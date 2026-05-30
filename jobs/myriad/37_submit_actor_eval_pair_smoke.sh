@@ -35,6 +35,7 @@ ACTOR_JOB_NAME="${ACTOR_JOB_NAME:-wam_eval_actor_pair}"
 BASELINE_RESULTS_ROOT="${BASELINE_RESULTS_ROOT:-${WAM_ROOT}/results_actor_eval/baseline_${TASK_NAME}_${RUN_ID}}"
 ACTOR_RESULTS_ROOT="${ACTOR_RESULTS_ROOT:-${WAM_ROOT}/results_actor_eval/actor_${TASK_NAME}_${RUN_ID}}"
 COMPARE_ROOT="${COMPARE_ROOT:-${WAM_ROOT}/results_actor_eval/${RUN_ID}_comparison}"
+BASELINE_REPEATABILITY_JSON="${BASELINE_REPEATABILITY_JSON:-}"
 
 BASELINE_PORT="${BASELINE_PORT:-29656}"
 BASELINE_MASTER_PORT="${BASELINE_MASTER_PORT:-29661}"
@@ -133,6 +134,7 @@ echo "  SEED=${SEED}"
 echo "  BASELINE_RESULTS_ROOT=${BASELINE_RESULTS_ROOT}"
 echo "  ACTOR_RESULTS_ROOT=${ACTOR_RESULTS_ROOT}"
 echo "  COMPARE_ROOT=${COMPARE_ROOT}"
+echo "  BASELINE_REPEATABILITY_JSON=${BASELINE_REPEATABILITY_JSON}"
 echo "  ACTOR_REPLAY_CHECKPOINT_PATH=${ACTOR_REPLAY_CHECKPOINT_PATH}"
 
 qsub_eval "${BASELINE_JOB_NAME}" "${BASELINE_RESULTS_ROOT}" "${BASELINE_PORT}" "${BASELINE_MASTER_PORT}" ""
@@ -147,3 +149,16 @@ python tools/summarize_actor_eval_pair.py \\
   --actor "${ACTOR_RESULTS_ROOT}" \\
   --out-root "${COMPARE_ROOT}"
 EOF
+
+if [ -n "${BASELINE_REPEATABILITY_JSON}" ]; then
+    cat <<EOF
+
+Then gate candidate promotion with:
+
+python tools/gate_actor_eval_promotion.py \\
+  --comparison "${COMPARE_ROOT}/comparison.json" \\
+  --baseline-repeatability "${BASELINE_REPEATABILITY_JSON}" \\
+  --out-json "${COMPARE_ROOT}/promotion_gate.json" \\
+  --out-markdown "${COMPARE_ROOT}/promotion_gate.md"
+EOF
+fi
