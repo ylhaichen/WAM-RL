@@ -4,6 +4,12 @@
 **Purpose:** local record for paper writing, experiment accounting, and future data collection
 **Scope:** early-stage WAM-RL paper around Denoising-step GRPO for LingBot-VA on RoboTwin
 
+> Current status note (2026-05-30): this is a paper-data planning record, not
+> the active project execution plan. The project is currently prioritizing real
+> actor replay engineering, storage control, and evaluation repeatability over
+> paper writing. Use `docs/WAM_RL_CURRENT_PROJECT_STATUS.md` for current
+> completion, blockers, and safe claims.
+
 This file records what data the paper needs, what has already been collected, what still needs to be exported, and which code paths should be used to avoid manual statistics errors.
 
 ---

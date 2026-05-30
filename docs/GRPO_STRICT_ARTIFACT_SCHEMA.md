@@ -134,7 +134,12 @@ therefore store only the conditional `transformer_cache` k/v branch, set
 `use_cfg=false`, omit `negative_text_emb`, and set
 `cfg_pruned_to_conditional=true`. This preserves the action replay mean while
 roughly halving replay-context k/v storage for the common action-scale-one
-collection setting.
+collection setting. The cache snapshot path should clone only the kept k/v
+branch instead of first copying the full CFG cache to CPU.
+
+For bounded collection jobs, `STRICT_GRPO_REPLAY_CONTEXT_MAX_GB` is a
+server-side per-context tensor budget. It is checked before `torch.save`; an
+oversized context fails early instead of filling Scratch.
 
 Replay context and per-transition `replay_input` are not required for dataset
 validation or scalar smoke training. They are required for the real actor replay
@@ -202,6 +207,7 @@ STRICT_GRPO_TRANSITION_STD=0.01
 STRICT_GRPO_CAPTURE_SCOPE=action_denoising_trajectory
 ACTION_NUM_INFERENCE_STEPS=50
 STRICT_GRPO_SAVE_REPLAY_CONTEXT=false
+STRICT_GRPO_REPLAY_CONTEXT_MAX_GB=0
 ```
 
 To reproduce old first-step capture:
@@ -216,6 +222,7 @@ To collect data for real actor replay training:
 ```bash
 STRICT_GRPO_CAPTURE_SCOPE=action_denoising_trajectory \
 STRICT_GRPO_SAVE_REPLAY_CONTEXT=true \
+STRICT_GRPO_REPLAY_CONTEXT_MAX_GB=5.0 \
 bash jobs/myriad/30_collect_grouped_rollouts_4gpu.sh
 ```
 
