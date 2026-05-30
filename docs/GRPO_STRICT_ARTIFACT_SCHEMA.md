@@ -255,15 +255,19 @@ state, and updates trainable actor parameters such as `action_embedder`,
 
 For high-dimensional action chunks, use mean-reduced transition log-probabilities
 for real actor replay (`--logprob-reduction mean` or
-`GRPO_LOGPROB_REDUCTION=mean`). Sum-reduced chunk log-probabilities are still
-available for compatibility, but can saturate the clipped GRPO ratio and produce
-zero gradients when replayed means differ slightly from the behavior artifact.
-For real actor replay training, also use a conservative training-time std floor
-(`--logprob-std-floor` or `GRPO_LOGPROB_STD_FLOOR`, default `0.1` in the Myriad
-trainer job). Strict artifacts can store diffusion transition std values around
-`0.01`; with such a narrow Gaussian, harmless replay/numerical mean drift can
-make the PPO/GRPO ratio unusably saturated even when stored behavior logprobs
-validate correctly.
+`GRPO_LOGPROB_REDUCTION=mean`). The real actor replay trainer defaults to
+`mean` for both the Python CLI and Myriad job path. Sum-reduced chunk
+log-probabilities are still available for compatibility, but can saturate the
+clipped GRPO ratio and produce zero gradients when replayed means differ
+slightly from the behavior artifact. For real actor replay training, also use a
+conservative training-time std floor (`--logprob-std-floor` or
+`GRPO_LOGPROB_STD_FLOOR`). The direct Python trainer and Myriad trainer job both
+default this floor to `0.1`; pass `--logprob-std-floor 0` to the Python tool, or
+`GRPO_LOGPROB_STD_FLOOR=0` through the job wrapper, only for a reviewed
+diagnostic run that intentionally disables the floor. Strict artifacts can store
+diffusion transition std values around `0.01`; with such a narrow Gaussian,
+harmless replay/numerical mean drift can make the PPO/GRPO ratio unusably
+saturated even when stored behavior logprobs validate correctly.
 
 Trainer metrics include pre-step replay statistics (`ratio_mean`,
 `clip_fraction`, `logratio_*`) and post-step update statistics

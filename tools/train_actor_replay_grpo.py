@@ -58,8 +58,8 @@ def run_actor_replay_training(
     frozen_param_patterns: tuple[str, ...] = (),
     action_num_inference_steps: int | None = None,
     action_snr_shift: float | None = None,
-    logprob_reduction: str = "sum",
-    logprob_std_floor: float | None = None,
+    logprob_reduction: str = "mean",
+    logprob_std_floor: float | None = 0.1,
     progress_every: int = 0,
     opts: list[str] | None = None,
 ) -> dict:
@@ -111,11 +111,19 @@ def run_actor_replay_training(
         action_num_inference_steps=int(action_num_inference_steps or getattr(config, "action_num_inference_steps", 50)),
         action_snr_shift=float(action_snr_shift if action_snr_shift is not None else getattr(config, "action_snr_shift", 1.0)),
         logprob_reduction=logprob_reduction,
-        logprob_std_floor=logprob_std_floor,
+        logprob_std_floor=_normalize_logprob_std_floor(logprob_std_floor),
         progress_every=progress_every,
     )
     result = ActorReplayGrpoTrainer(trainer_config, transformer=transformer).train()
     return result.to_dict()
+
+
+def _normalize_logprob_std_floor(value: float | None) -> float | None:
+    if value is None:
+        return None
+    if value <= 0.0:
+        return None
+    return float(value)
 
 
 def main() -> None:
@@ -141,8 +149,13 @@ def main() -> None:
     parser.add_argument("--frozen-param-pattern", action="append", default=[])
     parser.add_argument("--action-num-inference-steps", type=int, default=None)
     parser.add_argument("--action-snr-shift", type=float, default=None)
-    parser.add_argument("--logprob-reduction", choices=("sum", "mean"), default="sum")
-    parser.add_argument("--logprob-std-floor", type=float, default=None)
+    parser.add_argument("--logprob-reduction", choices=("sum", "mean"), default="mean")
+    parser.add_argument(
+        "--logprob-std-floor",
+        type=float,
+        default=0.1,
+        help="Training-time std floor for replay logprob stability; set <=0 to disable.",
+    )
     parser.add_argument("--progress-every", type=int, default=0)
     parser.add_argument("--opts", nargs="*", default=[], help="Config overrides as key=value.")
     args = parser.parse_args()

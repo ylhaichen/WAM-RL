@@ -260,6 +260,16 @@ def test_actor_replay_requires_replay_context(tmp_path):
         raise AssertionError("expected MissingReplayContextError")
 
 
+def test_actor_replay_trainer_defaults_use_stable_logprob_settings(tmp_path):
+    config = ActorReplayTrainerConfig(
+        groups_jsonl=tmp_path / "groups.jsonl",
+        output_dir=tmp_path / "train",
+    )
+
+    assert config.logprob_reduction == "mean"
+    assert config.logprob_std_floor == 0.1
+
+
 def test_actor_replay_trainer_updates_trainable_action_modules(tmp_path):
     artifact_path = tmp_path / "strict.pt"
     torch.save(
@@ -306,6 +316,8 @@ def test_actor_replay_trainer_updates_trainable_action_modules(tmp_path):
     assert metrics["config"]["git_commit"] == "abc123"
     assert metrics["config"]["learning_rate"] == 1e-3
     assert metrics["config"]["action_num_inference_steps"] == 2
+    assert metrics["config"]["logprob_reduction"] == "mean"
+    assert metrics["config"]["logprob_std_floor"] == 0.1
     step_metrics = metrics["history"][0]
     assert step_metrics["param_update_norm"] > 0.0
     assert step_metrics["param_update_max"] > 0.0

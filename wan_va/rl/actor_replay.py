@@ -32,6 +32,8 @@ from .grpo_loss import compute_clipped_grpo_loss
 
 REPLAY_CONTEXT_SCHEMA_VERSION = 1
 DEFAULT_CACHE_NAME = "pos"
+DEFAULT_LOGPROB_REDUCTION = "mean"
+DEFAULT_LOGPROB_STD_FLOOR = 0.1
 
 
 class MissingReplayContextError(ValueError):
@@ -97,8 +99,8 @@ class ActorReplayTrainerConfig:
     frozen_param_patterns: tuple[str, ...] = ()
     action_num_inference_steps: int = 50
     action_snr_shift: float = 1.0
-    logprob_reduction: str = "sum"
-    logprob_std_floor: float | None = None
+    logprob_reduction: str = DEFAULT_LOGPROB_REDUCTION
+    logprob_std_floor: float | None = DEFAULT_LOGPROB_STD_FLOOR
     progress_every: int = 0
     cache_name: str = DEFAULT_CACHE_NAME
 
