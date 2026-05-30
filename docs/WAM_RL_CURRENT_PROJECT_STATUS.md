@@ -110,6 +110,9 @@ Implemented:
 
 - v2 strict artifacts with full action denoising trajectory capture;
 - replay context capture and external per-chunk replay-context files;
+- conditional-branch-only replay-context k/v storage when global video CFG is
+  enabled but `action_guidance_scale <= 1`, which preserves action replay while
+  avoiding an otherwise unused negative action branch;
 - safe JSON-only GRPO group subsetting with `tools/subset_grpo_groups.py`;
 - replay-context-footprint-aware subsetting with
   `--max-replay-context-gb`, so actor replay smoke subsets are bounded by

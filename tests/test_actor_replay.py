@@ -7,6 +7,7 @@ from wan_va.rl.actor_replay import (
     ActorReplayGrpoTrainer,
     ActorReplayTrainerConfig,
     MissingReplayContextError,
+    build_replay_context,
     count_actor_replay_transition_items,
     iter_actor_replay_examples,
     load_actor_replay_checkpoint_into_transformer,
@@ -125,6 +126,71 @@ def _write_group(tmp_path: Path, artifact_path: Path):
         encoding="utf-8",
     )
     return group_path
+
+
+def test_build_replay_context_prunes_unused_cfg_branch_for_action_scale_one():
+    transformer = ToyTransformer()
+    transformer.blocks[0].attn1.attn_caches["pos"] = {
+        "k": torch.arange(2.0).reshape(2, 1, 1, 1),
+        "v": torch.arange(2.0, 4.0).reshape(2, 1, 1, 1),
+        "id": torch.arange(2, dtype=torch.long),
+        "mask": torch.tensor([True, False]),
+    }
+
+    context = build_replay_context(
+        transformer=transformer,
+        cache_name="pos",
+        action_input_template={
+            "grid_id": torch.zeros(1, 3, dtype=torch.long),
+            "text_emb": torch.zeros(1, 1, 1),
+        },
+        negative_prompt_embeds=torch.ones(1, 1, 1),
+        use_cfg=True,
+        action_guidance_scale=1.0,
+        action_num_inference_steps=10,
+        frame_chunk_size=1,
+    )
+
+    cache = context["transformer_cache"][0]
+    assert context["use_cfg"] is False
+    assert context["negative_text_emb"] is None
+    assert context["cfg_pruned_to_conditional"] is True
+    assert cache["k"].shape[0] == 1
+    assert cache["v"].shape[0] == 1
+    assert cache["id"].shape[0] == 2
+    assert cache["mask"].shape[0] == 2
+    assert cache["k"].item() == 0.0
+    assert cache["v"].item() == 2.0
+    assert cache["k"].untyped_storage().nbytes() == (
+        cache["k"].numel() * cache["k"].element_size()
+    )
+
+
+def test_build_replay_context_keeps_cfg_branch_for_action_guidance():
+    transformer = ToyTransformer()
+    transformer.blocks[0].attn1.attn_caches["pos"] = {
+        "k": torch.zeros(2, 1, 1, 1),
+        "v": torch.zeros(2, 1, 1, 1),
+    }
+
+    context = build_replay_context(
+        transformer=transformer,
+        cache_name="pos",
+        action_input_template={
+            "grid_id": torch.zeros(1, 3, dtype=torch.long),
+            "text_emb": torch.zeros(1, 1, 1),
+        },
+        negative_prompt_embeds=torch.ones(1, 1, 1),
+        use_cfg=True,
+        action_guidance_scale=5.0,
+        action_num_inference_steps=10,
+        frame_chunk_size=1,
+    )
+
+    assert context["use_cfg"] is True
+    assert context["negative_text_emb"] is not None
+    assert context["cfg_pruned_to_conditional"] is False
+    assert context["transformer_cache"][0]["k"].shape[0] == 2
 
 
 def test_actor_replay_requires_replay_context(tmp_path):

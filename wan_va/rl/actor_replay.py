@@ -140,6 +140,26 @@ def tensor_tree_to_cpu(value):
     return value
 
 
+def select_cache_kv_batch(cache_snapshot: Sequence[dict], batch_index: int = 0) -> list[dict]:
+    """Clone one CFG branch from attention k/v tensors without slicing masks."""
+
+    selected = []
+    for cache in cache_snapshot:
+        selected_cache = {}
+        for key, value in cache.items():
+            if (
+                key in {"k", "v"}
+                and torch.is_tensor(value)
+                and value.ndim > 0
+                and value.shape[0] > batch_index
+            ):
+                selected_cache[key] = value.narrow(0, batch_index, 1).clone()
+            else:
+                selected_cache[key] = value
+        selected.append(selected_cache)
+    return selected
+
+
 def snapshot_transformer_cache(transformer, cache_name: str = DEFAULT_CACHE_NAME) -> list[dict]:
     """Clone the transformer's self-attention KV cache for later replay.
 
@@ -191,14 +211,25 @@ def build_replay_context(
 ) -> dict:
     """Build a chunk-level replay context from live inference state."""
 
+    transformer_cache = snapshot_transformer_cache(transformer, cache_name=cache_name)
+    action_uses_cfg = bool(use_cfg and action_guidance_scale > 1.0)
+    pruned_to_conditional = bool(use_cfg and not action_uses_cfg)
+    if pruned_to_conditional:
+        transformer_cache = select_cache_kv_batch(transformer_cache, batch_index=0)
+
     return {
         "schema_version": REPLAY_CONTEXT_SCHEMA_VERSION,
         "cache_name": cache_name,
-        "transformer_cache": snapshot_transformer_cache(transformer, cache_name=cache_name),
+        "transformer_cache": transformer_cache,
         "grid_id": tensor_tree_to_cpu(action_input_template["grid_id"]),
         "text_emb": tensor_tree_to_cpu(action_input_template["text_emb"]),
-        "negative_text_emb": None if negative_prompt_embeds is None else tensor_tree_to_cpu(negative_prompt_embeds),
-        "use_cfg": bool(use_cfg),
+        "negative_text_emb": (
+            None
+            if negative_prompt_embeds is None or not action_uses_cfg
+            else tensor_tree_to_cpu(negative_prompt_embeds)
+        ),
+        "use_cfg": action_uses_cfg,
+        "cfg_pruned_to_conditional": pruned_to_conditional,
         "action_guidance_scale": float(action_guidance_scale),
         "action_num_inference_steps": int(action_num_inference_steps),
         "frame_chunk_size": int(frame_chunk_size),

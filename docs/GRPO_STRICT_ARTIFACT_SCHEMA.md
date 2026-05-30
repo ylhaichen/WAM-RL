@@ -116,6 +116,7 @@ The referenced replay-context file is a `torch.save` dict:
     "text_emb": Tensor,
     "negative_text_emb": Tensor | None,
     "use_cfg": bool,
+    "cfg_pruned_to_conditional": bool,  # optional; true when action CFG is unused
     "action_guidance_scale": float,
     "action_num_inference_steps": int,
     "frame_chunk_size": int,
@@ -126,6 +127,14 @@ The referenced replay-context file is a `torch.save` dict:
 This is a lossless storage optimization: the replay trainer resolves the path
 and receives the same replay-context dict that older inline artifacts stored
 under `replay_context`.
+
+When global video CFG is enabled but `action_guidance_scale <= 1`, the action
+denoising replay only uses the conditional branch. New replay contexts may
+therefore store only the conditional `transformer_cache` k/v branch, set
+`use_cfg=false`, omit `negative_text_emb`, and set
+`cfg_pruned_to_conditional=true`. This preserves the action replay mean while
+roughly halving replay-context k/v storage for the common action-scale-one
+collection setting.
 
 Replay context and per-transition `replay_input` are not required for dataset
 validation or scalar smoke training. They are required for the real actor replay

@@ -300,7 +300,7 @@ def test_bounded_replayctx_submitter_uses_storage_safe_defaults():
     assert 'STRICT_GRPO_SAVE_REPLAY_CONTEXT="${STRICT_GRPO_SAVE_REPLAY_CONTEXT:-true}"' in text
     assert 'STRICT_GRPO_CAPTURE_MAX_CHUNKS="${STRICT_GRPO_CAPTURE_MAX_CHUNKS:-1}"' in text
     assert 'SAVE_SERVER_DEBUG_TENSORS="${SAVE_SERVER_DEBUG_TENSORS:-false}"' in text
-    assert 'REPLAY_CONTEXT_ESTIMATE_GB="${REPLAY_CONTEXT_ESTIMATE_GB:-7.25}"' in text
+    assert 'REPLAY_CONTEXT_ESTIMATE_GB="${REPLAY_CONTEXT_ESTIMATE_GB:-4.0}"' in text
     assert 'CHECK_SCRATCH_HEADROOM="${CHECK_SCRATCH_HEADROOM:-1}"' in text
     assert 'MIN_SCRATCH_HEADROOM_GB="${MIN_SCRATCH_HEADROOM_GB:-50}"' in text
     assert "Replay-context storage estimate" in text
