@@ -3,7 +3,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from tools.plan_myriad_storage_cleanup import plan_myriad_storage_cleanup, write_markdown_report
+from tools.plan_myriad_storage_cleanup import compact_cleanup_summary, plan_myriad_storage_cleanup, write_markdown_report
 
 
 def _write_run(root: Path, name: str, *, groups: list[dict] | None, summary: dict | None = None) -> Path:
@@ -130,3 +130,19 @@ def test_plan_myriad_storage_cleanup_cli_prints_summary(tmp_path):
     assert summary["run_count"] == 1
     assert summary["cleanup_candidate_count"] == 2
     assert summary["top_candidates"][0]["run_name"] == "grpo_replayctx_smoke"
+
+
+def test_plan_myriad_storage_cleanup_summary_reports_large_protected_runs(tmp_path):
+    run = _write_run(tmp_path, "grpo_replayctx_trainable", groups=[_group()])
+    (run / "server_vis").mkdir()
+    (run / "server_vis" / "artifact.pt").write_bytes(b"x" * 4096)
+
+    report = plan_myriad_storage_cleanup([tmp_path], min_candidate_gb=0, large_run_gb=0)
+    summary = compact_cleanup_summary(report)
+
+    assert summary["cleanup_candidate_count"] == 0
+    assert summary["protected_disk_gb"] > 0
+    assert summary["top_protected_runs"][0]["run_name"] == "grpo_replayctx_trainable"
+    assert summary["top_protected_runs"][0]["group_line_count"] == 1
+    assert summary["top_protected_runs"][0]["protection_reasons"]
+    assert summary["top_protected_runs"][0]["notes"]

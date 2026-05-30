@@ -113,11 +113,13 @@ def write_markdown_report(report: dict) -> str:
 
 
 def compact_cleanup_summary(report: dict) -> dict:
+    protected_runs = [run for run in report["runs"] if run["protection_reasons"]]
     return {
         "run_count": report["run_count"],
         "cleanup_candidate_count": report["cleanup_candidate_count"],
         "protected_run_count": report["protected_run_count"],
         "candidate_reclaimable_gb": report["candidate_reclaimable_gb"],
+        "protected_disk_gb": sum(run["disk_bytes"] for run in protected_runs) / GiB,
         "top_candidates": [
             {
                 "run_name": candidate["run_name"],
@@ -130,6 +132,17 @@ def compact_cleanup_summary(report: dict) -> dict:
                 key=lambda item: int(item["target_disk_bytes"]),
                 reverse=True,
             )[:10]
+        ],
+        "top_protected_runs": [
+            {
+                "run_name": run["name"],
+                "disk_gb": run["disk_bytes"] / GiB,
+                "server_vis_gb": run["server_vis_bytes"] / GiB,
+                "group_line_count": run["grpo_group_total_line_count"],
+                "protection_reasons": run["protection_reasons"],
+                "notes": run["notes"],
+            }
+            for run in sorted(protected_runs, key=lambda item: int(item["disk_bytes"]), reverse=True)[:10]
         ],
     }
 
