@@ -110,6 +110,7 @@ Implemented:
 
 - v2 strict artifacts with full action denoising trajectory capture;
 - replay context capture and external per-chunk replay-context files;
+- safe JSON-only GRPO group subsetting with `tools/subset_grpo_groups.py`;
 - real actor replay trainer over LingBot-VA transformer parameters;
 - checkpoint loading into the inference server via
   `actor_replay_checkpoint_path`;
@@ -202,8 +203,9 @@ Next engineering target:
 - selective replay artifact construction;
 - per-chunk replay-context deduplication beyond the current external-context
   split;
-- optional training subset builder that keeps only selected success/failure
-  samples and referenced artifacts.
+- `tools/subset_grpo_groups.py` for building small train/debug subsets that
+  keep only selected success/failure samples and artifact references without
+  copying or deleting large `.pt` files.
 
 ### 2. Closed-Loop Evaluation Nondeterminism
 
@@ -277,8 +279,8 @@ GRPO_PROGRESS_EVERY=50
 
 ### Next Technical Milestones
 
-1. Build a replay dataset slimming or subset tool that can produce a small
-   trainable dataset plus only the referenced artifacts.
+1. Use `tools/subset_grpo_groups.py` to create small actor replay train/debug
+   subsets before running expensive jobs.
 2. Add an explicit actor replay eval manifest format so baseline and actor evals
    are compared on the same task, prompt, env seeds, and sampling seeds.
 3. Run a controlled actor replay training/eval loop on `move_stapler_pad` with

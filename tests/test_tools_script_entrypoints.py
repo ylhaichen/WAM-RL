@@ -63,6 +63,19 @@ def test_summarize_robotwin_results_help_does_not_require_external_pythonpath():
     assert "--episodes-csv" in result.stdout
 
 
+def test_subset_grpo_groups_help_does_not_require_external_pythonpath():
+    result = subprocess.run(
+        [sys.executable, "tools/subset_grpo_groups.py", "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "Create small GRPO group JSONL subsets" in result.stdout
+    assert "--samples-per-reward" in result.stdout
+
+
 def test_train_actor_replay_grpo_help_does_not_require_external_pythonpath():
     result = subprocess.run(
         [sys.executable, "tools/train_actor_replay_grpo.py", "--help"],
