@@ -7,6 +7,14 @@
 **Primary policy formulation:** Denoising-step policy for FlowMatch action generation  
 **Primary implementation stance:** primary native LingBot-VA/WAM-RL stack; veRL is reserved for later scale-up; offline grouped rollout training is the debug fallback.
 
+> Current status note (2026-05-30): this is the original implementation plan,
+> not the current execution record. Real LingBot-VA actor replay, external
+> replay-context artifacts, bounded subset preparation, checkpoint loading, and
+> eval plumbing now exist. Use `docs/WAM_RL_CURRENT_PROJECT_STATUS.md` for the
+> current project state and `docs/WAM_RL_ACTOR_REPLAY_RUNBOOK.md` for active
+> Myriad operations. `jobs/myriad/40_rl_iteration_robotwin.sh` is currently a
+> legacy offline fallback, not the real actor replay loop.
+
 ---
 
 ## 1. Updated Core Direction

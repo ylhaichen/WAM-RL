@@ -13,7 +13,9 @@
 > `docs/WAM_RL_CURRENT_PROJECT_STATUS.md` as the current source of truth for
 > project stage, completion, blockers, and claims boundaries.
 
-This document summarizes the real current state of the WAM-RL project for writing an early-stage work paper. It separates implemented and validated components from planned work, known limitations, and claims that should not yet be made.
+This document is a historical snapshot for writing an early-stage work paper.
+It separates the then-implemented and validated components from planned work,
+known limitations, and claims that should not yet be made.
 
 ---
 
