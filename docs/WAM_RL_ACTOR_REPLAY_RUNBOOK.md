@@ -256,6 +256,11 @@ python tools/summarize_actor_eval_pair.py \
   --out-root /path/to/comparison_dir
 ```
 
+The summary command fails by default if zero matched episodes are found. Treat
+that as a control mismatch, usually `SEED`, `PROMPT_INDEX`, or
+`SAMPLING_SEED`. Use `--min-matched-episodes 0` only when intentionally doing
+aggregate-only inspection.
+
 Treat `n <= 5` as smoke only. Because RoboTwin closed-loop execution can diverge
 even after identical first actions, use matched per-episode comparisons before
 interpreting aggregate success rates.

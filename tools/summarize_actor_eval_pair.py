@@ -33,6 +33,7 @@ def summarize_eval_pair(
     baseline_label: str = "baseline",
     actor_label: str = "actor",
     match_fields: tuple[str, ...] | None = None,
+    min_matched_episodes: int = 1,
 ) -> dict:
     baseline_root = baseline_root.expanduser()
     actor_root = actor_root.expanduser()
@@ -63,6 +64,13 @@ def summarize_eval_pair(
         [(baseline_label, baseline_root), (actor_label, actor_root)],
         **compare_kwargs,
     )
+    if comparison["matched_episode_count"] < min_matched_episodes:
+        raise ValueError(
+            f"only matched {comparison['matched_episode_count']} episodes; "
+            f"expected at least {min_matched_episodes}. Check SEED, PROMPT_INDEX, "
+            "SAMPLING_SEED, and match fields, or pass --min-matched-episodes 0 "
+            "for aggregate-only inspection."
+        )
     (out_root / "comparison.json").write_text(json.dumps(comparison, indent=2) + "\n", encoding="utf-8")
     write_comparison_csv(out_root / "comparison.csv", comparison)
     write_pair_markdown(
@@ -172,6 +180,12 @@ def main() -> None:
     parser.add_argument("--baseline-label", default="baseline", help="Label for the baseline run.")
     parser.add_argument("--actor-label", default="actor", help="Label for the actor run.")
     parser.add_argument(
+        "--min-matched-episodes",
+        type=int,
+        default=1,
+        help="Fail if fewer matched episodes are found. Use 0 for aggregate-only inspection.",
+    )
+    parser.add_argument(
         "--match-fields",
         nargs="*",
         help="Episode fields used for matching. Default comes from compare_robotwin_eval_episodes.py.",
@@ -185,6 +199,7 @@ def main() -> None:
         baseline_label=args.baseline_label,
         actor_label=args.actor_label,
         match_fields=_parse_match_fields(args.match_fields),
+        min_matched_episodes=args.min_matched_episodes,
     )
     print(json.dumps(summary, indent=2))
 

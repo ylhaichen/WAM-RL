@@ -87,6 +87,7 @@ def test_summarize_actor_eval_pair_help_does_not_require_external_pythonpath():
     assert result.returncode == 0, result.stderr
     assert "Summarize a matched baseline-vs-actor RoboTwin eval pair" in result.stdout
     assert "--baseline" in result.stdout
+    assert "--min-matched-episodes" in result.stdout
 
 
 def test_subset_grpo_groups_help_does_not_require_external_pythonpath():

@@ -53,3 +53,36 @@ def test_summarize_eval_pair_writes_summaries_and_comparison(tmp_path):
     assert (out / "actor_summary.csv").exists()
     assert json.loads((out / "comparison.json").read_text())["matched_episode_count"] == 2
     assert "Tiny evals are smoke checks only" in (out / "summary.md").read_text()
+
+
+def test_summarize_eval_pair_rejects_zero_matched_episodes_by_default(tmp_path):
+    baseline = tmp_path / "baseline"
+    actor = tmp_path / "actor"
+    out = tmp_path / "pair"
+    _res(baseline, "move_stapler_pad", 1, 1)
+    _res(actor, "move_stapler_pad", 1, 1)
+    _episode(baseline, "move_stapler_pad", 0, 10000, True, sampling_seed=12345)
+    _episode(actor, "move_stapler_pad", 0, 20000, True, sampling_seed=22345)
+
+    try:
+        summarize_eval_pair(baseline, actor, out)
+    except ValueError as exc:
+        assert "only matched 0 episodes" in str(exc)
+        assert "Check SEED" in str(exc)
+    else:
+        raise AssertionError("expected zero-match ValueError")
+
+
+def test_summarize_eval_pair_can_allow_aggregate_only_inspection(tmp_path):
+    baseline = tmp_path / "baseline"
+    actor = tmp_path / "actor"
+    out = tmp_path / "pair"
+    _res(baseline, "move_stapler_pad", 1, 1)
+    _res(actor, "move_stapler_pad", 1, 1)
+    _episode(baseline, "move_stapler_pad", 0, 10000, True, sampling_seed=12345)
+    _episode(actor, "move_stapler_pad", 0, 20000, True, sampling_seed=22345)
+
+    summary = summarize_eval_pair(baseline, actor, out, min_matched_episodes=0)
+
+    assert summary["matched_episode_count"] == 0
+    assert (out / "comparison.json").exists()
