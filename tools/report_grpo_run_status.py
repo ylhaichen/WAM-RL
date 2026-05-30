@@ -45,6 +45,8 @@ def parse_job_log(path: Path) -> dict[str, Any]:
     }
     failed_attempt_roots: list[str] = []
     completion_paths: list[str] = []
+    grouped_rollout_completion_paths: list[str] = []
+    training_completion_paths: list[str] = []
 
     with expanded.open("r", encoding="utf-8", errors="replace") as handle:
         for line in handle:
@@ -69,13 +71,19 @@ def parse_job_log(path: Path) -> dict[str, Any]:
                 counters["pytorch_stream_writer_count"] += 1
             if "Grouped rollout collection complete:" in line:
                 counters["completion_marker_count"] += 1
-                completion_paths.append(line.split("Grouped rollout collection complete:", 1)[1].strip())
+                path = line.split("Grouped rollout collection complete:", 1)[1].strip()
+                completion_paths.append(path)
+                grouped_rollout_completion_paths.append(path)
             elif "Actor replay GRPO training complete:" in line:
                 counters["completion_marker_count"] += 1
-                completion_paths.append(line.split("Actor replay GRPO training complete:", 1)[1].strip())
+                path = line.split("Actor replay GRPO training complete:", 1)[1].strip()
+                completion_paths.append(path)
+                training_completion_paths.append(path)
             elif "Offline GRPO smoke training complete:" in line:
                 counters["completion_marker_count"] += 1
-                completion_paths.append(line.split("Offline GRPO smoke training complete:", 1)[1].strip())
+                path = line.split("Offline GRPO smoke training complete:", 1)[1].strip()
+                completion_paths.append(path)
+                training_completion_paths.append(path)
 
     return {
         "path": str(expanded),
@@ -84,6 +92,8 @@ def parse_job_log(path: Path) -> dict[str, Any]:
         "counters": counters,
         "failed_attempt_roots": failed_attempt_roots,
         "completion_paths": completion_paths,
+        "grouped_rollout_completion_paths": grouped_rollout_completion_paths,
+        "training_completion_paths": training_completion_paths,
     }
 
 
@@ -98,10 +108,12 @@ def report_grpo_run_status(
     inferred_results_root = _first_present_path(
         results_root,
         _value_path(log_report, "RESULTS_ROOT"),
+        _last_path(log_report, "grouped_rollout_completion_paths"),
     )
     inferred_training_output_dir = _first_present_path(
         training_output_dir,
         _value_path(log_report, "GRPO_OUTPUT_DIR"),
+        _last_path(log_report, "training_completion_paths"),
     )
 
     report: dict[str, Any] = {
@@ -323,6 +335,15 @@ def _value_path(log_report: dict[str, Any] | None, key: str) -> Path | None:
     if not value:
         return None
     return Path(value)
+
+
+def _last_path(log_report: dict[str, Any] | None, key: str) -> Path | None:
+    if not log_report:
+        return None
+    values = log_report.get(key) or []
+    if not values:
+        return None
+    return Path(str(values[-1]))
 
 
 def _first_present_path(*paths: Path | None) -> Path | None:

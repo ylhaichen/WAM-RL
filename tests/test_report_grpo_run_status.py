@@ -46,6 +46,8 @@ def test_parse_job_log_extracts_direct_and_env_values(tmp_path):
     assert report["counters"]["disk_quota_count"] == 1
     assert report["failed_attempt_roots"] == ["/tmp/attempt"]
     assert report["completion_paths"] == [str(root)]
+    assert report["grouped_rollout_completion_paths"] == [str(root)]
+    assert report["training_completion_paths"] == []
 
 
 def test_report_grpo_run_status_summarizes_results_and_training(tmp_path):
@@ -90,6 +92,35 @@ def test_report_grpo_run_status_summarizes_results_and_training(tmp_path):
     assert report["results_root"]["successful_attempt_count"] == 1
     assert report["training_output_dir"]["checkpoint_exists"] is True
     assert report["training_output_dir"]["final_metrics"]["loss"] == 0.5
+
+
+def test_report_grpo_run_status_infers_paths_from_completion_markers(tmp_path):
+    root = tmp_path / "results"
+    output = tmp_path / "train"
+    groups = root / "groups"
+    groups.mkdir(parents=True)
+    output.mkdir()
+    (groups / "grpo_groups.jsonl").write_text("{}\n", encoding="utf-8")
+    _write_json(groups / "grpo_dataset_validation.json", {"ok": True, "transition_count": 3})
+    _write_json(output / "metrics.json", {"history": [{"step": 1, "loss": 0.25}]})
+    (output / "checkpoint.pt").write_bytes(b"checkpoint")
+    log = tmp_path / "job.o1"
+    log.write_text(
+        "\n".join(
+            [
+                "Grouped rollout collection complete: " + str(root),
+                "Actor replay GRPO training complete: " + str(output),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    report = report_grpo_run_status(job_log=log, results_root=None, training_output_dir=None)
+
+    assert report["results_root"]["path"] == str(root)
+    assert report["training_output_dir"]["path"] == str(output)
+    assert report["status"]["state"] == "training_checkpoint_written"
 
 
 def test_report_grpo_run_status_cli_markdown(tmp_path):
