@@ -314,6 +314,12 @@ In the summary, `cleanup_candidate_count=0` does not mean Scratch is healthy.
 Check `top_protected_runs` as well; those are the large directories that are
 protected by non-empty group files or curated-source naming.
 
+For future replay-context collection, the bounded submitter uses
+`STORAGE_BUDGET_MODE=attempt` by default. This budgets for seed-search attempts,
+not only accepted groups, because failed/discarded attempts can still leave
+large `server_vis/` files. Switching to `STORAGE_BUDGET_MODE=accepted` is a
+manual risk decision, not a default.
+
 List largest files without breaking paths containing spaces:
 
 ```bash

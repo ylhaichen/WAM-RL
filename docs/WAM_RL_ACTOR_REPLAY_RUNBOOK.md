@@ -103,6 +103,12 @@ context capture prunes the unused CFG negative action branch. Override
 `REPLAY_CONTEXT_ESTIMATE_GB` upward for action-guided (`action_guidance_scale >
 1`) or unpruned legacy collections.
 
+The storage gate defaults to `STORAGE_BUDGET_MODE=attempt`, so it budgets for
+the configured seed-search attempt budget, not only the final accepted group.
+This is intentionally conservative because discarded failed attempts can still
+leave large `server_vis/` replay-context files behind. Use
+`STORAGE_BUDGET_MODE=accepted` only after explicit review.
+
 Promotion criteria for a source dataset:
 
 - validation `ok=true`;

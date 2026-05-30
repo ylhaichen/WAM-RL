@@ -194,6 +194,8 @@ consume tens or hundreds of GB because they include transformer KV-cache state.
   use conditional-branch-only replay-context k/v storage, so the wrapper's
   default estimate is 4GB/context. Override `REPLAY_CONTEXT_ESTIMATE_GB` upward
   for action-guided (`action_guidance_scale > 1`) or legacy unpruned data.
+  Keep `STORAGE_BUDGET_MODE=attempt` unless the user explicitly accepts the
+  risk of failed attempts leaving large replay-context files behind.
 - For one-step actor replay trainer smoke on a materialized subset, prefer
   `jobs/myriad/36_submit_actor_replay_subset_smoke.sh`. It wraps the real
   trainer job with lower default queue resources and keeps the training logic in
