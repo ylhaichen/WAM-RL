@@ -159,7 +159,8 @@ development:
   scheduler metadata and exported job variables; qstat reporting handles
   wrapped SGE `env_list` output and can infer `RESULTS_ROOT`,
   `GRPO_GROUPS_PATH`, and `GRPO_OUTPUT_DIR` when those variables were exported
-  at submission time;
+  at submission time; for older grouped-rollout jobs it can infer the expected
+  result directory from `RUN_ID` plus the Myriad `WAM-RL`/`wam-rl` layout;
 - avoid unbounded `qacct` calls during interactive debugging. Prefer `qstat`,
   job logs, and the status reporter; if accounting is needed, query a specific
   finished job with a shell timeout;

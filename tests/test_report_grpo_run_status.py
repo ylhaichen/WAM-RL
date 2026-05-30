@@ -285,6 +285,33 @@ def test_report_grpo_run_status_uses_qstat_paths_when_log_is_missing(tmp_path):
     assert report["status"]["transition_count"] == 7
 
 
+def test_report_grpo_run_status_infers_grouped_results_root_from_qstat_run_id(tmp_path):
+    repo = tmp_path / "WAM-RL"
+    repo.mkdir()
+    root = tmp_path / "wam-rl" / "results_grouped_rollouts" / "queued_run"
+    groups = root / "groups"
+    groups.mkdir(parents=True)
+    (groups / "grpo_groups.jsonl").write_text("{}\n", encoding="utf-8")
+    _write_json(groups / "grpo_dataset_validation.json", {"ok": True, "transition_count": 5})
+    qstat_report = parse_qstat_job_detail_text(
+        "\n".join(
+            [
+                "job_number:                 458528",
+                "job_name:                   wam_grpo_replayctx_bounded",
+                f"cwd:                        {repo}",
+                "script_file:                jobs/myriad/30_collect_grouped_rollouts_4gpu.sh",
+                "env_list:                   RUN_ID=queued_run,GROUP_SIZE=4,GROUPS_PER_TASK=1",
+            ]
+        )
+    )
+
+    report = report_grpo_run_status(qstat_job=qstat_report)
+
+    assert report["results_root"]["path"] == str(root)
+    assert report["status"]["state"] == "trainable_groups_available"
+    assert report["status"]["transition_count"] == 5
+
+
 def test_report_grpo_run_status_cli_accepts_qstat_job_file(tmp_path):
     qstat_file = tmp_path / "qstat_458528.txt"
     qstat_file.write_text(

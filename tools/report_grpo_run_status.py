@@ -183,6 +183,7 @@ def report_grpo_run_status(
         _last_path(log_report, "grouped_rollout_completion_paths"),
         _dict_value_path(qstat_values, "RESULTS_ROOT"),
         _groups_file_results_root(_dict_value_path(qstat_values, "GRPO_GROUPS_PATH")),
+        _qstat_grouped_rollout_results_root(qstat_job),
     )
     inferred_training_output_dir = _first_present_path(
         training_output_dir,
@@ -480,6 +481,35 @@ def _groups_file_results_root(path: Path | None) -> Path | None:
     if path.parent.name != "groups":
         return None
     return path.parent.parent
+
+
+def _qstat_grouped_rollout_results_root(qstat_job: dict[str, Any] | None) -> Path | None:
+    if not qstat_job:
+        return None
+    values = qstat_job.get("values") or {}
+    run_id = values.get("RUN_ID")
+    if not run_id:
+        return None
+    if not _looks_like_grouped_rollout_qstat(qstat_job):
+        return None
+
+    wam_root = values.get("WAM_ROOT")
+    if wam_root:
+        data_root = Path(str(wam_root))
+    else:
+        cwd = qstat_job.get("cwd")
+        if not cwd:
+            return None
+        data_root = Path(str(cwd)).expanduser().parent / "wam-rl"
+    return data_root / "results_grouped_rollouts" / str(run_id)
+
+
+def _looks_like_grouped_rollout_qstat(qstat_job: dict[str, Any]) -> bool:
+    values = qstat_job.get("values") or {}
+    if "GROUP_SIZE" in values and "GROUPS_PER_TASK" in values:
+        return True
+    script_file = str(qstat_job.get("script_file") or "")
+    return "collect_grouped_rollouts" in script_file
 
 
 def _first_present_path(*paths: Path | None) -> Path | None:

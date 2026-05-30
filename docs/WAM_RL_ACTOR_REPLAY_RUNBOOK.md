@@ -71,7 +71,10 @@ python tools/report_grpo_run_status.py \
 The qstat mode handles wrapped SGE `env_list` output and will also summarize
 `RESULTS_ROOT`, `GRPO_GROUPS_PATH`, or `GRPO_OUTPUT_DIR` when those paths are
 already present in the job environment. This makes it useful for early running
-jobs before the SGE stdout log has flushed enough lines to parse by hand.
+jobs before the SGE stdout log has flushed enough lines to parse by hand. For
+older grouped-rollout jobs submitted before explicit `RESULTS_ROOT` export, it
+can still infer the canonical result directory from `RUN_ID` and the Myriad
+`WAM-RL`/`wam-rl` directory convention.
 
 Avoid unbounded `qacct` calls during interactive debugging. On Myriad, `qacct`
 can be slow and can print unrelated accounting records when queried loosely.
