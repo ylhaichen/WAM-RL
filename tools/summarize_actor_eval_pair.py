@@ -35,6 +35,14 @@ PROVENANCE_FIELDS = (
     "video_guidance_scale",
     "action_guidance_scale",
 )
+REQUIRED_PROVENANCE_FIELDS = (
+    "run_id",
+    "policy_checkpoint",
+    "reference_checkpoint",
+    "action_num_inference_steps",
+    "sampling_seed",
+    "prompt_index",
+)
 
 
 def summarize_eval_pair(
@@ -65,6 +73,13 @@ def summarize_eval_pair(
         baseline_label: summarize_episode_provenance(baseline_episodes),
         actor_label: summarize_episode_provenance(actor_episodes),
     }
+    provenance_warnings = build_provenance_warnings(
+        {
+            baseline_label: baseline_episodes,
+            actor_label: actor_episodes,
+        },
+        run_provenance,
+    )
 
     write_csv(out_root / f"{baseline_label}_summary.csv", baseline_results)
     write_csv(out_root / f"{actor_label}_summary.csv", actor_results)
@@ -99,6 +114,7 @@ def summarize_eval_pair(
         actor_results=actor_results,
         comparison=comparison,
         run_provenance=run_provenance,
+        provenance_warnings=provenance_warnings,
     )
 
     summary = {
@@ -109,6 +125,7 @@ def summarize_eval_pair(
         "actor_episode_count": len(actor_episodes),
         "matched_episode_count": comparison["matched_episode_count"],
         "run_provenance": run_provenance,
+        "provenance_warnings": provenance_warnings,
         "run_summaries": comparison["run_summaries"],
         "pairwise_vs_first": comparison["pairwise_vs_first"],
         "outputs": {
@@ -137,6 +154,7 @@ def write_pair_markdown(
     actor_results: list,
     comparison: dict,
     run_provenance: dict,
+    provenance_warnings: list[dict],
 ) -> None:
     lines = [
         "# Actor Replay Eval Pair Summary",
@@ -156,24 +174,41 @@ def write_pair_markdown(
         "",
         *_format_provenance_lines(run_provenance.get(actor_label, {})),
         "",
-        "## Aggregate Results",
-        "",
-        f"### {baseline_label}",
-        "",
-        "```text",
-        format_table(baseline_results),
-        "```",
-        "",
-        f"### {actor_label}",
-        "",
-        "```text",
-        format_table(actor_results),
-        "```",
-        "",
-        "## Matched Episode Comparison",
-        "",
-        f"- matched episodes: {comparison['matched_episode_count']}",
     ]
+    if provenance_warnings:
+        lines.extend(
+            [
+                "## Provenance Warnings",
+                "",
+                *[
+                    f"- {warning['label']}: missing {', '.join(warning['missing_fields'])} "
+                    f"across {warning['episode_count']} exported episodes"
+                    for warning in provenance_warnings
+                ],
+                "",
+            ]
+        )
+    lines.extend(
+        [
+            "## Aggregate Results",
+            "",
+            f"### {baseline_label}",
+            "",
+            "```text",
+            format_table(baseline_results),
+            "```",
+            "",
+            f"### {actor_label}",
+            "",
+            "```text",
+            format_table(actor_results),
+            "```",
+            "",
+            "## Matched Episode Comparison",
+            "",
+            f"- matched episodes: {comparison['matched_episode_count']}",
+        ]
+    )
     for item in comparison["pairwise_vs_first"]:
         lines.extend(
             [
@@ -197,6 +232,45 @@ def write_pair_markdown(
 
 def summarize_episode_provenance(episodes: list[EpisodeResult]) -> dict[str, list]:
     return {field: _unique_episode_values(episodes, field) for field in PROVENANCE_FIELDS}
+
+
+def build_provenance_warnings(
+    episode_sets: dict[str, list[EpisodeResult]],
+    provenance_by_label: dict[str, dict[str, list]],
+) -> list[dict]:
+    warnings = []
+    for label, episodes in episode_sets.items():
+        if not episodes:
+            warnings.append(
+                {
+                    "label": label,
+                    "episode_count": 0,
+                    "missing_fields": list(REQUIRED_PROVENANCE_FIELDS),
+                    "message": f"{label} has no exported episode provenance.",
+                }
+            )
+            continue
+
+        provenance = provenance_by_label.get(label, {})
+        missing_fields = [
+            field
+            for field in REQUIRED_PROVENANCE_FIELDS
+            if not provenance.get(field)
+        ]
+        if not missing_fields:
+            continue
+        warnings.append(
+            {
+                "label": label,
+                "episode_count": len(episodes),
+                "missing_fields": missing_fields,
+                "message": (
+                    f"{label} is missing provenance fields: "
+                    + ", ".join(missing_fields)
+                ),
+            }
+        )
+    return warnings
 
 
 def _unique_episode_values(episodes: list[EpisodeResult], field: str) -> list:

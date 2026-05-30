@@ -78,6 +78,7 @@ def test_summarize_eval_pair_writes_summaries_and_comparison(tmp_path):
     assert "## Run Provenance" in summary_md
     assert "policy_checkpoint: `/tmp/policy.pt`" in summary_md
     assert "Tiny evals are smoke checks only" in summary_md
+    assert summary["provenance_warnings"] == []
 
 
 def test_summarize_eval_pair_rejects_zero_matched_episodes_by_default(tmp_path):
@@ -111,3 +112,37 @@ def test_summarize_eval_pair_can_allow_aggregate_only_inspection(tmp_path):
 
     assert summary["matched_episode_count"] == 0
     assert (out / "comparison.json").exists()
+
+
+def test_summarize_eval_pair_warns_when_required_provenance_is_missing(tmp_path):
+    baseline = tmp_path / "baseline"
+    actor = tmp_path / "actor"
+    out = tmp_path / "pair"
+    _res(baseline, "move_stapler_pad", 1, 1)
+    _res(actor, "move_stapler_pad", 1, 1)
+    _episode(
+        baseline,
+        "move_stapler_pad",
+        0,
+        10000,
+        True,
+        run_id="",
+        policy_checkpoint="",
+    )
+    _episode(actor, "move_stapler_pad", 0, 10000, True)
+
+    summary = summarize_eval_pair(baseline, actor, out)
+
+    assert summary["provenance_warnings"] == [
+        {
+            "label": "baseline",
+            "episode_count": 1,
+            "missing_fields": ["run_id", "policy_checkpoint"],
+            "message": "baseline is missing provenance fields: run_id, policy_checkpoint",
+        }
+    ]
+    summary_json = json.loads((out / "summary.json").read_text())
+    assert summary_json["provenance_warnings"] == summary["provenance_warnings"]
+    summary_md = (out / "summary.md").read_text()
+    assert "## Provenance Warnings" in summary_md
+    assert "baseline: missing run_id, policy_checkpoint across 1 exported episodes" in summary_md
