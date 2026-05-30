@@ -17,17 +17,19 @@ import torch
 class TensorRecord:
     path: str
     dtype: str
+    device: str
     shape: list[int]
     numel: int
     bytes: int
 
 
-def inspect_replay_context(path: Path, *, top_k: int = 20) -> dict[str, Any]:
+def inspect_replay_context(path: Path, *, top_k: int = 20, metadata_only: bool = False) -> dict[str, Any]:
     expanded = path.expanduser()
     if not expanded.exists():
         raise FileNotFoundError(f"missing replay context artifact: {expanded}")
 
-    payload = torch.load(expanded, map_location="cpu")
+    map_location = "meta" if metadata_only else "cpu"
+    payload = torch.load(expanded, map_location=map_location)
     records = list(_iter_tensors(payload))
     dtype_counts: Counter[str] = Counter()
     dtype_bytes: Counter[str] = Counter()
@@ -44,6 +46,7 @@ def inspect_replay_context(path: Path, *, top_k: int = 20) -> dict[str, Any]:
     return {
         "path": str(expanded),
         "file_bytes": expanded.stat().st_size,
+        "metadata_only": metadata_only,
         "schema_version": payload.get("schema_version") if isinstance(payload, dict) else None,
         "top_level_keys": sorted(str(key) for key in payload.keys()) if isinstance(payload, dict) else [],
         "tensor_count": len(records),
@@ -63,6 +66,7 @@ def write_markdown_report(path: Path, report: dict[str, Any]) -> None:
         f"- file bytes: `{report['file_bytes']}`",
         f"- tensor bytes: `{report['tensor_bytes']}`",
         f"- tensor count: `{report['tensor_count']}`",
+        f"- metadata only: `{report['metadata_only']}`",
         "",
         "## Top-Level Tensor Bytes",
         "",
@@ -76,15 +80,16 @@ def write_markdown_report(path: Path, report: dict[str, Any]) -> None:
             "",
             "## Top Tensors",
             "",
-            "| path | dtype | shape | bytes | GiB |",
-            "|---|---|---|---:|---:|",
+            "| path | dtype | device | shape | bytes | GiB |",
+            "|---|---|---|---|---:|---:|",
         ]
     )
     for item in report["top_tensors"]:
         lines.append(
-            "| {path} | {dtype} | {shape} | {bytes} | {gib:.6g} |".format(
+            "| {path} | {dtype} | {device} | {shape} | {bytes} | {gib:.6g} |".format(
                 path=item["path"],
                 dtype=item["dtype"],
+                device=item["device"],
                 shape=item["shape"],
                 bytes=item["bytes"],
                 gib=item["bytes"] / 1024**3,
@@ -100,6 +105,7 @@ def _iter_tensors(value: Any, prefix: str = "") -> Iterable[TensorRecord]:
         yield TensorRecord(
             path=prefix or "<root>",
             dtype=str(value.dtype).replace("torch.", ""),
+            device=str(value.device),
             shape=list(value.shape),
             numel=int(value.numel()),
             bytes=int(value.numel() * value.element_size()),
@@ -127,6 +133,7 @@ def _record_to_dict(record: TensorRecord) -> dict[str, Any]:
     return {
         "path": record.path,
         "dtype": record.dtype,
+        "device": record.device,
         "shape": record.shape,
         "numel": record.numel,
         "bytes": record.bytes,
@@ -137,11 +144,16 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Inspect tensor storage inside a strict GRPO replay-context artifact.")
     parser.add_argument("path", type=Path, help="strict_grpo_replay_context_*.pt path.")
     parser.add_argument("--top-k", type=int, default=20, help="Number of largest tensors to include.")
+    parser.add_argument(
+        "--metadata-only",
+        action="store_true",
+        help="Load tensors on the meta device to inspect shapes/dtypes without allocating tensor storage.",
+    )
     parser.add_argument("--out-json", type=Path, help="Optional JSON output path.")
     parser.add_argument("--out-markdown", type=Path, help="Optional Markdown output path.")
     args = parser.parse_args()
 
-    report = inspect_replay_context(args.path, top_k=args.top_k)
+    report = inspect_replay_context(args.path, top_k=args.top_k, metadata_only=args.metadata_only)
     text = json.dumps(report, indent=2) + "\n"
     print(text, end="")
     if args.out_json:

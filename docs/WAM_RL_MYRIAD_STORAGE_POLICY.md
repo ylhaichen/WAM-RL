@@ -333,9 +333,16 @@ Inspect one replay-context file before changing capture/compression policy:
 ```bash
 python tools/inspect_grpo_replay_context.py \
   /path/to/strict_grpo_replay_context_0.pt \
+  --metadata-only \
   --out-json /path/to/replay_context_inspection.json \
   --out-markdown /path/to/replay_context_inspection.md
 ```
+
+Use `--metadata-only` on large replay-context files. It loads tensors on the
+`meta` device and reports shapes, dtypes, and byte counts without allocating the
+full tensor storage on CPU. On the staplerpad k=8 replay-context run, a
+representative context file was about 7.23GB, with about 7.22GB in
+`transformer_cache` tensors.
 
 In the report, `apparent_bytes` is the bytes consumed by the listed files or
 symlinks themselves, while `resolved_bytes` follows symlinks to the target

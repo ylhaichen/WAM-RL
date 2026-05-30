@@ -326,12 +326,14 @@ To inspect why a replay context is large, run:
 ```bash
 python tools/inspect_grpo_replay_context.py \
   /path/to/strict_grpo_replay_context_0.pt \
+  --metadata-only \
   --out-json /path/to/replay_context_inspection.json \
   --out-markdown /path/to/replay_context_inspection.md
 ```
 
 Use the top-level tensor-byte breakdown before changing capture format or
-compression policy.
+compression policy. For large context files, keep `--metadata-only` enabled so
+the inspection does not allocate the full KV-cache tensors on CPU.
 
 Do not delete a source run's `server_vis/` while:
 

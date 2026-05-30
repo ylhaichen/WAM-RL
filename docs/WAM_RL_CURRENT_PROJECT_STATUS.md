@@ -161,6 +161,12 @@ storage audit with replay contexts:
   strict artifacts: 64 unique, 0.006 GiB resolved
   replay contexts: 64 unique
   artifacts + replay contexts: 430.996 GiB resolved
+representative replay-context metadata-only inspection:
+  file_bytes: 7,230,819,664
+  tensor_bytes: 7,230,772,480
+  transformer_cache tensor bytes: 7,222,383,360
+  text_emb tensor bytes: 4,194,304
+  negative_text_emb tensor bytes: 4,194,304
 ```
 
 Interpretation:
@@ -169,6 +175,8 @@ Interpretation:
 - too small to support any benchmark-improvement claim;
 - too storage-heavy to scale without further artifact slimming or selective
   replay.
+- per-file storage is dominated by duplicated transformer KV-cache state, not
+  strict transition tensors.
 
 ### Evaluation Protocol
 
