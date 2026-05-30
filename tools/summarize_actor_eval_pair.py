@@ -16,12 +16,24 @@ ensure_repo_root_on_path()
 
 from tools.compare_robotwin_eval_episodes import compare_eval_runs, write_comparison_csv
 from tools.summarize_robotwin_results import (
+    EpisodeResult,
     format_table,
     load_episode_results,
     load_results,
     write_csv,
     write_episode_csv,
     write_episode_json,
+)
+
+PROVENANCE_FIELDS = (
+    "run_id",
+    "policy_checkpoint",
+    "reference_checkpoint",
+    "action_num_inference_steps",
+    "sampling_seed",
+    "prompt_index",
+    "video_guidance_scale",
+    "action_guidance_scale",
 )
 
 
@@ -49,6 +61,10 @@ def summarize_eval_pair(
 
     baseline_episodes = load_episode_results(baseline_root)
     actor_episodes = load_episode_results(actor_root)
+    run_provenance = {
+        baseline_label: summarize_episode_provenance(baseline_episodes),
+        actor_label: summarize_episode_provenance(actor_episodes),
+    }
 
     write_csv(out_root / f"{baseline_label}_summary.csv", baseline_results)
     write_csv(out_root / f"{actor_label}_summary.csv", actor_results)
@@ -82,6 +98,7 @@ def summarize_eval_pair(
         baseline_results=baseline_results,
         actor_results=actor_results,
         comparison=comparison,
+        run_provenance=run_provenance,
     )
 
     return {
@@ -91,6 +108,7 @@ def summarize_eval_pair(
         "baseline_episode_count": len(baseline_episodes),
         "actor_episode_count": len(actor_episodes),
         "matched_episode_count": comparison["matched_episode_count"],
+        "run_provenance": run_provenance,
         "run_summaries": comparison["run_summaries"],
         "pairwise_vs_first": comparison["pairwise_vs_first"],
         "outputs": {
@@ -115,6 +133,7 @@ def write_pair_markdown(
     baseline_results: list,
     actor_results: list,
     comparison: dict,
+    run_provenance: dict,
 ) -> None:
     lines = [
         "# Actor Replay Eval Pair Summary",
@@ -123,6 +142,16 @@ def write_pair_markdown(
         "",
         f"- `{baseline_label}`: `{baseline_root}`",
         f"- `{actor_label}`: `{actor_root}`",
+        "",
+        "## Run Provenance",
+        "",
+        f"### {baseline_label}",
+        "",
+        *_format_provenance_lines(run_provenance.get(baseline_label, {})),
+        "",
+        f"### {actor_label}",
+        "",
+        *_format_provenance_lines(run_provenance.get(actor_label, {})),
         "",
         "## Aggregate Results",
         "",
@@ -161,6 +190,39 @@ def write_pair_markdown(
         ]
     )
     path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def summarize_episode_provenance(episodes: list[EpisodeResult]) -> dict[str, list]:
+    return {field: _unique_episode_values(episodes, field) for field in PROVENANCE_FIELDS}
+
+
+def _unique_episode_values(episodes: list[EpisodeResult], field: str) -> list:
+    values = []
+    seen = set()
+    for episode in episodes:
+        value = getattr(episode, field)
+        if value in (None, ""):
+            continue
+        key = json.dumps(value, sort_keys=True)
+        if key in seen:
+            continue
+        seen.add(key)
+        values.append(value)
+    return sorted(values, key=lambda item: str(item))
+
+
+def _format_provenance_lines(provenance: dict[str, list]) -> list[str]:
+    return [f"- {field}: {_format_values(provenance.get(field, []))}" for field in PROVENANCE_FIELDS]
+
+
+def _format_values(values: list) -> str:
+    if not values:
+        return "`<missing>`"
+    shown = values[:5]
+    text = ", ".join(f"`{value}`" for value in shown)
+    if len(values) > len(shown):
+        text += f", ... (+{len(values) - len(shown)} more)"
+    return text
 
 
 def _parse_match_fields(values: list[str] | None) -> tuple[str, ...] | None:

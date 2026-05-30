@@ -28,8 +28,10 @@ SAMPLING_SEED=${SAMPLING_SEED:-}
 SAMPLING_SEED_PER_ENV=${SAMPLING_SEED_PER_ENV:-}
 POLICY_CHECKPOINT=${POLICY_CHECKPOINT:-}
 REFERENCE_CHECKPOINT=${REFERENCE_CHECKPOINT:-}
+RUN_ID=${RUN_ID:-}
 
 extra_args=()
+[ -n "${RUN_ID}" ] && extra_args+=(--run_id "${RUN_ID}")
 [ -n "${ACTION_NUM_INFERENCE_STEPS:-}" ] && extra_args+=(--action_num_inference_steps "${ACTION_NUM_INFERENCE_STEPS}")
 [ -n "${PROMPT_INDEX}" ] && extra_args+=(--prompt_index "${PROMPT_INDEX}")
 [ -n "${SAMPLING_SEED}" ] && extra_args+=(--sampling_seed "${SAMPLING_SEED}")

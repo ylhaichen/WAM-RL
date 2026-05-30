@@ -9,7 +9,19 @@ def _res(root, task, succ, total):
     path.write_text(json.dumps({"succ_num": succ, "total_num": total}) + "\n", encoding="utf-8")
 
 
-def _episode(root, task, index, seed, success, sampling_seed=12345, prompt_index=0):
+def _episode(
+    root,
+    task,
+    index,
+    seed,
+    success,
+    sampling_seed=12345,
+    prompt_index=0,
+    run_id="eval_pair_test",
+    policy_checkpoint="/tmp/policy.pt",
+    reference_checkpoint="/tmp/reference",
+    action_num_inference_steps=10,
+):
     path = root / "rollouts" / task / f"episode_{index}.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
@@ -26,6 +38,10 @@ def _episode(root, task, index, seed, success, sampling_seed=12345, prompt_index
                 "sampling_seed": sampling_seed,
                 "prompt_index": prompt_index,
                 "prompt": "move the stapler pad",
+                "run_id": run_id,
+                "policy_checkpoint": policy_checkpoint,
+                "reference_checkpoint": reference_checkpoint,
+                "action_num_inference_steps": action_num_inference_steps,
             }
         )
         + "\n",
@@ -47,12 +63,18 @@ def test_summarize_eval_pair_writes_summaries_and_comparison(tmp_path):
     summary = summarize_eval_pair(baseline, actor, out)
 
     assert summary["matched_episode_count"] == 2
+    assert summary["run_provenance"]["baseline"]["policy_checkpoint"] == ["/tmp/policy.pt"]
+    assert summary["run_provenance"]["actor"]["reference_checkpoint"] == ["/tmp/reference"]
+    assert summary["run_provenance"]["actor"]["action_num_inference_steps"] == [10]
     assert summary["pairwise_vs_first"][0]["improved_count"] == 1
     assert summary["pairwise_vs_first"][0]["regressed_count"] == 0
     assert (out / "baseline_summary.csv").exists()
     assert (out / "actor_summary.csv").exists()
     assert json.loads((out / "comparison.json").read_text())["matched_episode_count"] == 2
-    assert "Tiny evals are smoke checks only" in (out / "summary.md").read_text()
+    summary_md = (out / "summary.md").read_text()
+    assert "## Run Provenance" in summary_md
+    assert "policy_checkpoint: `/tmp/policy.pt`" in summary_md
+    assert "Tiny evals are smoke checks only" in summary_md
 
 
 def test_summarize_eval_pair_rejects_zero_matched_episodes_by_default(tmp_path):

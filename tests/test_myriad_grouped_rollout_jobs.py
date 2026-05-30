@@ -76,8 +76,10 @@ def test_selected_eval_job_can_load_actor_replay_checkpoint():
     assert 'action_num_inference_steps="${ACTION_NUM_INFERENCE_STEPS}"' in text
     assert 'POLICY_CHECKPOINT="${POLICY_CHECKPOINT:-${ACTOR_REPLAY_CHECKPOINT_PATH:-${WAN_VA_MODEL_PATH}}}"' in text
     assert 'REFERENCE_CHECKPOINT="${REFERENCE_CHECKPOINT:-${WAN_VA_MODEL_PATH}}"' in text
+    assert 'RUN_ID="${RUN_ID:-}"' in text
     assert "echo \"POLICY_CHECKPOINT=${POLICY_CHECKPOINT}\"" in text
     assert "echo \"REFERENCE_CHECKPOINT=${REFERENCE_CHECKPOINT}\"" in text
+    assert "echo \"RUN_ID=${RUN_ID}\"" in text
     assert 'SERVER_HOST="${SERVER_HOST:-127.0.0.1}"' in text
     assert 'SAVE_SERVER_DEBUG_TENSORS="${SAVE_SERVER_DEBUG_TENSORS:-false}"' in text
     assert 'save_server_debug_tensors="${SAVE_SERVER_DEBUG_TENSORS}"' in text
@@ -104,6 +106,8 @@ def test_one_gpu_eval_smoke_job_can_load_actor_replay_checkpoint():
     assert "SAMPLING_SEED_PER_ENV=${SAMPLING_SEED_PER_ENV:-}" in launch_text
     assert "POLICY_CHECKPOINT=${POLICY_CHECKPOINT:-}" in launch_text
     assert "REFERENCE_CHECKPOINT=${REFERENCE_CHECKPOINT:-}" in launch_text
+    assert "RUN_ID=${RUN_ID:-}" in launch_text
+    assert "--run_id" in launch_text
     assert "--prompt_index" in launch_text
     assert "--sampling_seed" in launch_text
     assert "--sampling_seed_per_env" in launch_text
@@ -441,6 +445,7 @@ def test_actor_eval_pair_smoke_submitter_uses_matched_eval_controls():
     assert 'ACTOR_POLICY_CHECKPOINT="${ACTOR_POLICY_CHECKPOINT:-${ACTOR_REPLAY_CHECKPOINT_PATH}}"' in text
     assert 'QSUB_EXPORT_CURRENT_ENV="${QSUB_EXPORT_CURRENT_ENV:-0}"' in text
     assert 'if [ "${QSUB_EXPORT_CURRENT_ENV}" = "1" ]; then' in text
+    assert '"RUN_ID=${RUN_ID}"' in text
     assert '"SEED=${SEED}"' in text
     assert 'BASELINE_PORT="${BASELINE_PORT:-29656}"' in text
     assert 'ACTOR_PORT="${ACTOR_PORT:-29756}"' in text
@@ -490,6 +495,7 @@ def test_actor_eval_pair_dry_run_flag_does_not_call_qsub(tmp_path):
     assert result.returncode == 0, result.stderr
     assert sum(line.startswith("qsub ") for line in result.stdout.splitlines()) == 2
     assert "qsub -V" not in result.stdout
+    assert "RUN_ID=actor_eval_pair_" in result.stdout
     assert not qsub_called.exists()
 
 
@@ -512,6 +518,7 @@ def test_eval_repeatability_pair_submitter_uses_matched_baseline_controls():
     assert '"REFERENCE_CHECKPOINT=${REFERENCE_CHECKPOINT}"' in text
     assert 'QSUB_EXPORT_CURRENT_ENV="${QSUB_EXPORT_CURRENT_ENV:-0}"' in text
     assert 'if [ "${QSUB_EXPORT_CURRENT_ENV}" = "1" ]; then' in text
+    assert '"RUN_ID=${RUN_ID}"' in text
     assert 'RUN_A_PORT="${RUN_A_PORT:-29856}"' in text
     assert 'RUN_B_PORT="${RUN_B_PORT:-29956}"' in text
     assert "RUN_A_PORT and RUN_B_PORT must differ" in text
@@ -553,6 +560,7 @@ def test_eval_repeatability_pair_dry_run_flag_does_not_call_qsub(tmp_path):
     assert result.returncode == 0, result.stderr
     assert sum(line.startswith("qsub ") for line in result.stdout.splitlines()) == 2
     assert "qsub -V" not in result.stdout
+    assert "RUN_ID=eval_repeatability_pair_" in result.stdout
     assert not qsub_called.exists()
 
 
