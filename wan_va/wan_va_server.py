@@ -134,7 +134,7 @@ class VA_Server:
             )
             self.streaming_vae_half = WanVAEStreamingWrapper(vae_half)
 
-    def _should_capture_strict_grpo_chunk(self, frame_st_id, frame_chunk_size):
+    def _strict_grpo_capture_chunk_info(self, frame_st_id, frame_chunk_size):
         stride = int(getattr(self.job_config, "strict_grpo_capture_chunk_stride", 1) or 1)
         max_chunks = int(getattr(self.job_config, "strict_grpo_capture_max_chunks", 0) or 0)
         if stride < 1:
@@ -143,9 +143,21 @@ class VA_Server:
             raise ValueError("strict_grpo_capture_max_chunks must be >= 0")
         chunk_size = max(int(frame_chunk_size), 1)
         chunk_index = int(frame_st_id) // chunk_size
-        if max_chunks and chunk_index >= max_chunks:
-            return False
-        return chunk_index % stride == 0
+        capture_for_chunk = (not max_chunks or chunk_index < max_chunks) and chunk_index % stride == 0
+        return {
+            "chunk_index": chunk_index,
+            "chunk_stride": stride,
+            "max_chunks": max_chunks,
+            "capture_for_chunk": capture_for_chunk,
+        }
+
+    def _should_capture_strict_grpo_chunk(self, frame_st_id, frame_chunk_size):
+        return bool(
+            self._strict_grpo_capture_chunk_info(
+                frame_st_id=frame_st_id,
+                frame_chunk_size=frame_chunk_size,
+            )["capture_for_chunk"]
+        )
 
     def _get_t5_prompt_embeds(
         self,
@@ -598,9 +610,12 @@ class VA_Server:
                 strict_grpo_capture_scope = STRICT_ARTIFACT_SCOPE_TRAJECTORY
             elif strict_grpo_capture:
                 raise ValueError(f"Unsupported strict_grpo_capture_scope: {strict_grpo_capture_scope}")
-            strict_grpo_capture_for_chunk = strict_grpo_capture and self._should_capture_strict_grpo_chunk(
+            strict_grpo_capture_chunk_info = self._strict_grpo_capture_chunk_info(
                 frame_st_id=frame_st_id,
                 frame_chunk_size=frame_chunk_size,
+            )
+            strict_grpo_capture_for_chunk = strict_grpo_capture and bool(
+                strict_grpo_capture_chunk_info["capture_for_chunk"]
             )
 
             strict_grpo_transitions = []
@@ -766,6 +781,10 @@ class VA_Server:
             "strict_grpo_replay_context_path": strict_grpo_replay_context_path,
             "strict_grpo_replay_context_tensor_bytes": strict_grpo_replay_context_tensor_bytes,
             "strict_grpo_replay_context_max_gb": strict_grpo_replay_context_max_gb,
+            "strict_grpo_capture_chunk_index": strict_grpo_capture_chunk_info["chunk_index"],
+            "strict_grpo_capture_chunk_stride": strict_grpo_capture_chunk_info["chunk_stride"],
+            "strict_grpo_capture_max_chunks": strict_grpo_capture_chunk_info["max_chunks"],
+            "strict_grpo_capture_for_chunk": strict_grpo_capture_for_chunk,
             "strict_grpo_scope": strict_grpo_scope or "",
             "server_exp_save_root": self.exp_save_root,
         }

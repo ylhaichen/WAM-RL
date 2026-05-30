@@ -30,12 +30,27 @@ Each rollout JSON record stores:
     ".../strict_grpo_0.pt",
     ".../strict_grpo_8.pt",
     ".../strict_grpo_16.pt"
-  ]
+  ],
+  "strict_grpo_replay_context_count": 3,
+  "strict_grpo_replay_context_paths": [
+    ".../strict_grpo_replay_context_0.pt",
+    ".../strict_grpo_replay_context_8.pt",
+    ".../strict_grpo_replay_context_16.pt"
+  ],
+  "strict_grpo_replay_context_tensor_bytes": [3618508800, 3618508800, 3618508800],
+  "strict_grpo_replay_context_total_tensor_bytes": 10855526400,
+  "strict_grpo_replay_context_max_gb": 5.0,
+  "strict_grpo_capture_chunk_indices": [0, 1, 2],
+  "strict_grpo_capture_chunk_stride": 1,
+  "strict_grpo_capture_max_chunks": 3
 }
 ```
 
 `strict_grpo_artifact_paths` remains the trainer-facing reference list. A path
 can point to either a v1 single-transition artifact or a v2 trajectory artifact.
+The replay-context fields are optional but should be present for new actor-replay
+collection. They make it possible to audit whether bounded capture settings
+actually took effect without loading every multi-GiB context file.
 
 ## v1 Artifact
 

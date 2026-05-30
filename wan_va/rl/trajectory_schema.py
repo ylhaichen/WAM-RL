@@ -19,10 +19,19 @@ class GrpoSample:
     strict_grpo_scope: str = ""
     strict_grpo_artifact_count: int = 0
     strict_grpo_artifact_paths: tuple[str, ...] = ()
+    strict_grpo_replay_context_count: int = 0
+    strict_grpo_replay_context_paths: tuple[str, ...] = ()
+    strict_grpo_replay_context_total_tensor_bytes: int = 0
+    strict_grpo_replay_context_max_gb: float | None = None
+    strict_grpo_capture_chunk_indices: tuple[int, ...] = ()
+    strict_grpo_capture_chunk_stride: int | None = None
+    strict_grpo_capture_max_chunks: int | None = None
 
     def to_dict(self) -> dict:
         data = asdict(self)
         data["strict_grpo_artifact_paths"] = list(self.strict_grpo_artifact_paths)
+        data["strict_grpo_replay_context_paths"] = list(self.strict_grpo_replay_context_paths)
+        data["strict_grpo_capture_chunk_indices"] = list(self.strict_grpo_capture_chunk_indices)
         return data
 
 

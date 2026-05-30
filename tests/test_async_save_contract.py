@@ -26,5 +26,7 @@ def test_server_can_gate_strict_grpo_capture_by_chunk():
     assert "def _should_capture_strict_grpo_chunk" in server_source
     assert "strict_grpo_capture_chunk_stride" in server_source
     assert "strict_grpo_capture_max_chunks" in server_source
+    assert "strict_grpo_capture_chunk_index" in server_source
+    assert "strict_grpo_replay_context_tensor_bytes" in server_source
     assert "strict_grpo_capture_for_chunk" in server_source
     assert "capture_this_step = strict_grpo_capture_for_chunk" in server_source

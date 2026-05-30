@@ -18,6 +18,12 @@ def _as_path_strings(paths: Iterable[str | Path] | None) -> list[str]:
     return [str(Path(path)) for path in paths if str(path)]
 
 
+def _as_ints(values: Iterable[int | str] | None) -> list[int]:
+    if not values:
+        return []
+    return [int(value) for value in values]
+
+
 def build_group_id(
     *,
     task_name: str,
@@ -63,11 +69,21 @@ def build_rollout_metadata(
     server_latent_paths: Iterable[str | Path] | None = None,
     strict_grpo_artifact_paths: Iterable[str | Path] | None = None,
     strict_grpo_scope: str | None = None,
+    strict_grpo_replay_context_paths: Iterable[str | Path] | None = None,
+    strict_grpo_replay_context_tensor_bytes: Iterable[int | str] | None = None,
+    strict_grpo_replay_context_max_gb: float | None = None,
+    strict_grpo_capture_chunk_indices: Iterable[int | str] | None = None,
+    strict_grpo_capture_chunk_stride: int | None = None,
+    strict_grpo_capture_max_chunks: int | None = None,
 ) -> dict:
     """Build one JSON-serializable rollout record."""
     server_action_path_list = _as_path_strings(server_action_paths)
     server_latent_path_list = _as_path_strings(server_latent_paths)
     strict_path_list = _as_path_strings(strict_grpo_artifact_paths)
+    replay_context_path_list = _as_path_strings(strict_grpo_replay_context_paths)
+    replay_context_tensor_bytes = _as_ints(strict_grpo_replay_context_tensor_bytes)
+    replay_context_total_tensor_bytes = sum(replay_context_tensor_bytes)
+    capture_chunk_indices = _as_ints(strict_grpo_capture_chunk_indices)
 
     return {
         "schema_version": 2,
@@ -102,6 +118,18 @@ def build_rollout_metadata(
         "strict_grpo_scope": strict_grpo_scope or ("first_action_denoising_step" if strict_path_list else ""),
         "strict_grpo_artifact_count": len(strict_path_list),
         "strict_grpo_artifact_paths": strict_path_list,
+        "strict_grpo_replay_context_count": len(replay_context_path_list),
+        "strict_grpo_replay_context_paths": replay_context_path_list,
+        "strict_grpo_replay_context_tensor_bytes": replay_context_tensor_bytes,
+        "strict_grpo_replay_context_total_tensor_bytes": replay_context_total_tensor_bytes,
+        "strict_grpo_replay_context_max_gb": strict_grpo_replay_context_max_gb,
+        "strict_grpo_capture_chunk_indices": capture_chunk_indices,
+        "strict_grpo_capture_chunk_stride": (
+            None if strict_grpo_capture_chunk_stride is None else int(strict_grpo_capture_chunk_stride)
+        ),
+        "strict_grpo_capture_max_chunks": (
+            None if strict_grpo_capture_max_chunks is None else int(strict_grpo_capture_max_chunks)
+        ),
         "video_guidance_scale": video_guidance_scale,
         "action_guidance_scale": action_guidance_scale,
         "action_num_inference_steps": action_num_inference_steps,

@@ -41,6 +41,14 @@ class RolloutRecord:
     strict_grpo_scope: str
     strict_grpo_artifact_count: int
     strict_grpo_artifact_paths: list[str]
+    strict_grpo_replay_context_count: int = 0
+    strict_grpo_replay_context_paths: list[str] | None = None
+    strict_grpo_replay_context_tensor_bytes: list[int] | None = None
+    strict_grpo_replay_context_total_tensor_bytes: int = 0
+    strict_grpo_replay_context_max_gb: float | None = None
+    strict_grpo_capture_chunk_indices: list[int] | None = None
+    strict_grpo_capture_chunk_stride: int | None = None
+    strict_grpo_capture_max_chunks: int | None = None
     video_guidance_scale: float | None = None
     action_guidance_scale: float | None = None
     action_num_inference_steps: int | None = None
@@ -105,6 +113,24 @@ def iter_rollout_records(root: Path, tasks: set[str] | None = None) -> Iterable[
                 data.get("strict_grpo_artifact_count", len(_string_list(data.get("strict_grpo_artifact_paths"))))
             ),
             strict_grpo_artifact_paths=_string_list(data.get("strict_grpo_artifact_paths")),
+            strict_grpo_replay_context_count=int(
+                data.get(
+                    "strict_grpo_replay_context_count",
+                    len(_string_list(data.get("strict_grpo_replay_context_paths"))),
+                )
+            ),
+            strict_grpo_replay_context_paths=_string_list(data.get("strict_grpo_replay_context_paths")),
+            strict_grpo_replay_context_tensor_bytes=_int_list(data.get("strict_grpo_replay_context_tensor_bytes")),
+            strict_grpo_replay_context_total_tensor_bytes=int(
+                data.get(
+                    "strict_grpo_replay_context_total_tensor_bytes",
+                    sum(_int_list(data.get("strict_grpo_replay_context_tensor_bytes"))),
+                )
+            ),
+            strict_grpo_replay_context_max_gb=_optional_float(data.get("strict_grpo_replay_context_max_gb")),
+            strict_grpo_capture_chunk_indices=_int_list(data.get("strict_grpo_capture_chunk_indices")),
+            strict_grpo_capture_chunk_stride=_optional_int(data.get("strict_grpo_capture_chunk_stride")),
+            strict_grpo_capture_max_chunks=_optional_int(data.get("strict_grpo_capture_max_chunks")),
             video_guidance_scale=_optional_float(data.get("video_guidance_scale")),
             action_guidance_scale=_optional_float(data.get("action_guidance_scale")),
             action_num_inference_steps=_optional_int(data.get("action_num_inference_steps")),
@@ -133,6 +159,14 @@ def _string_list(value) -> list[str]:
     if isinstance(value, list):
         return [str(item) for item in value]
     return [str(value)]
+
+
+def _int_list(value) -> list[int]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [int(item) for item in value]
+    return [int(value)]
 
 
 def summarize(records: list[RolloutRecord]) -> str:

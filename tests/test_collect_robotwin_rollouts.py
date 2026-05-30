@@ -29,6 +29,14 @@ def test_collect_rollouts_preserves_group_and_strict_fields(tmp_path):
                 "strict_grpo_scope": "action_denoising_trajectory",
                 "strict_grpo_artifact_count": 1,
                 "strict_grpo_artifact_paths": ["/tmp/server/strict_grpo_0.pt"],
+                "strict_grpo_replay_context_count": 1,
+                "strict_grpo_replay_context_paths": ["/tmp/server/strict_grpo_replay_context_0.pt"],
+                "strict_grpo_replay_context_tensor_bytes": [1234],
+                "strict_grpo_replay_context_total_tensor_bytes": 1234,
+                "strict_grpo_replay_context_max_gb": 5.0,
+                "strict_grpo_capture_chunk_indices": [0],
+                "strict_grpo_capture_chunk_stride": 2,
+                "strict_grpo_capture_max_chunks": 4,
                 "action_count": 12,
                 "obs_count": 4,
                 "take_action_cnt": 48,
@@ -51,3 +59,11 @@ def test_collect_rollouts_preserves_group_and_strict_fields(tmp_path):
     assert record.strict_grpo_scope == "action_denoising_trajectory"
     assert record.strict_grpo_artifact_count == 1
     assert record.strict_grpo_artifact_paths == ["/tmp/server/strict_grpo_0.pt"]
+    assert record.strict_grpo_replay_context_count == 1
+    assert record.strict_grpo_replay_context_paths == ["/tmp/server/strict_grpo_replay_context_0.pt"]
+    assert record.strict_grpo_replay_context_tensor_bytes == [1234]
+    assert record.strict_grpo_replay_context_total_tensor_bytes == 1234
+    assert record.strict_grpo_replay_context_max_gb == 5.0
+    assert record.strict_grpo_capture_chunk_indices == [0]
+    assert record.strict_grpo_capture_chunk_stride == 2
+    assert record.strict_grpo_capture_max_chunks == 4

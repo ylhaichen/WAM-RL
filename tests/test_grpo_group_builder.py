@@ -16,6 +16,12 @@ class DummyRollout:
     record_path: str
     strict_grpo_ready: bool = True
     strict_grpo_artifact_paths: list[str] | None = None
+    strict_grpo_replay_context_paths: list[str] | None = None
+    strict_grpo_replay_context_total_tensor_bytes: int = 0
+    strict_grpo_replay_context_max_gb: float | None = None
+    strict_grpo_capture_chunk_indices: list[int] | None = None
+    strict_grpo_capture_chunk_stride: int | None = None
+    strict_grpo_capture_max_chunks: int | None = None
     env_seed: int = 10000
     sampling_seed: int = 730000
 
@@ -31,6 +37,12 @@ def _record(group_id: str, sample_idx: int, reward: float, *, ready: bool = True
         record_path=f"/tmp/{group_id}_{sample_idx}.json",
         strict_grpo_ready=ready,
         strict_grpo_artifact_paths=[f"/tmp/strict_{sample_idx}.pt"] if ready else [],
+        strict_grpo_replay_context_paths=[f"/tmp/context_{sample_idx}.pt"] if ready else [],
+        strict_grpo_replay_context_total_tensor_bytes=1234 if ready else 0,
+        strict_grpo_replay_context_max_gb=5.0 if ready else None,
+        strict_grpo_capture_chunk_indices=[0] if ready else [],
+        strict_grpo_capture_chunk_stride=2 if ready else None,
+        strict_grpo_capture_max_chunks=4 if ready else None,
     )
 
 
@@ -64,6 +76,14 @@ def test_build_grpo_groups_keeps_mixed_groups_and_computes_advantages():
     assert [sample.sample_idx for sample in group.samples] == [0, 1, 2, 3]
     assert [sample.reward for sample in group.samples] == [0.0, 1.0, 1.0, 0.0]
     assert [sample.advantage for sample in group.samples] == [-1.0, 1.0, 1.0, -1.0]
+    first_sample = group.samples[0]
+    assert first_sample.strict_grpo_replay_context_count == 1
+    assert first_sample.strict_grpo_replay_context_paths == ("/tmp/context_0.pt",)
+    assert first_sample.strict_grpo_replay_context_total_tensor_bytes == 1234
+    assert first_sample.strict_grpo_replay_context_max_gb == 5.0
+    assert first_sample.strict_grpo_capture_chunk_indices == (0,)
+    assert first_sample.strict_grpo_capture_chunk_stride == 2
+    assert first_sample.strict_grpo_capture_max_chunks == 4
 
 
 def test_canonicalize_legacy_group_id_strips_prompt_hash_suffix():

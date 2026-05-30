@@ -52,6 +52,8 @@ def test_build_rollout_metadata_includes_pseudo_and_strict_artifacts(tmp_path):
     server_latent.write_bytes(b"pt")
     strict_path = tmp_path / "server" / "strict_grpo_0.pt"
     strict_path.write_bytes(b"pt")
+    replay_context_path = tmp_path / "server" / "strict_grpo_replay_context_0.pt"
+    replay_context_path.write_bytes(b"context")
 
     data = build_rollout_metadata(
         task_name="open_microwave",
@@ -80,6 +82,12 @@ def test_build_rollout_metadata_includes_pseudo_and_strict_artifacts(tmp_path):
         server_latent_paths=[server_latent],
         strict_grpo_artifact_paths=[strict_path],
         strict_grpo_scope="action_denoising_trajectory",
+        strict_grpo_replay_context_paths=[replay_context_path],
+        strict_grpo_replay_context_tensor_bytes=[1234],
+        strict_grpo_replay_context_max_gb=5.0,
+        strict_grpo_capture_chunk_indices=[0],
+        strict_grpo_capture_chunk_stride=2,
+        strict_grpo_capture_max_chunks=4,
     )
 
     assert data["reward"] == 1.0
@@ -91,6 +99,14 @@ def test_build_rollout_metadata_includes_pseudo_and_strict_artifacts(tmp_path):
     assert data["initial_obs_path"] == str(initial_obs_path)
     assert data["strict_grpo_scope"] == "action_denoising_trajectory"
     assert data["strict_grpo_artifact_count"] == 1
+    assert data["strict_grpo_replay_context_count"] == 1
+    assert data["strict_grpo_replay_context_paths"] == [str(replay_context_path)]
+    assert data["strict_grpo_replay_context_tensor_bytes"] == [1234]
+    assert data["strict_grpo_replay_context_total_tensor_bytes"] == 1234
+    assert data["strict_grpo_replay_context_max_gb"] == 5.0
+    assert data["strict_grpo_capture_chunk_indices"] == [0]
+    assert data["strict_grpo_capture_chunk_stride"] == 2
+    assert data["strict_grpo_capture_max_chunks"] == 4
     assert data["server_action_paths"] == [str(server_action)]
     assert data["server_latent_paths"] == [str(server_latent)]
     assert data["strict_grpo_artifact_paths"] == [str(strict_path)]

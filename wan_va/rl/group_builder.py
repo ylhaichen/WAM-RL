@@ -76,6 +76,27 @@ def build_grpo_groups(
                 strict_grpo_scope=str(getattr(item, "strict_grpo_scope", "")),
                 strict_grpo_artifact_count=len(getattr(item, "strict_grpo_artifact_paths", None) or []),
                 strict_grpo_artifact_paths=tuple(str(path) for path in (getattr(item, "strict_grpo_artifact_paths", None) or [])),
+                strict_grpo_replay_context_count=len(
+                    getattr(item, "strict_grpo_replay_context_paths", None) or []
+                ),
+                strict_grpo_replay_context_paths=tuple(
+                    str(path) for path in (getattr(item, "strict_grpo_replay_context_paths", None) or [])
+                ),
+                strict_grpo_replay_context_total_tensor_bytes=int(
+                    getattr(item, "strict_grpo_replay_context_total_tensor_bytes", 0) or 0
+                ),
+                strict_grpo_replay_context_max_gb=_optional_float(
+                    getattr(item, "strict_grpo_replay_context_max_gb", None)
+                ),
+                strict_grpo_capture_chunk_indices=tuple(
+                    int(index) for index in (getattr(item, "strict_grpo_capture_chunk_indices", None) or [])
+                ),
+                strict_grpo_capture_chunk_stride=_optional_int(
+                    getattr(item, "strict_grpo_capture_chunk_stride", None)
+                ),
+                strict_grpo_capture_max_chunks=_optional_int(
+                    getattr(item, "strict_grpo_capture_max_chunks", None)
+                ),
             )
             for item in items
         )
@@ -133,6 +154,12 @@ def _optional_int(value: object) -> int | None:
     if value is None:
         return None
     return int(value)
+
+
+def _optional_float(value: object) -> float | None:
+    if value is None:
+        return None
+    return float(value)
 
 
 def _clip(value: float, limit: float) -> float:
