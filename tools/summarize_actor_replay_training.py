@@ -8,6 +8,14 @@ import csv
 import json
 from pathlib import Path
 
+CONFIG_FIELDS = (
+    "learning_rate",
+    "action_num_inference_steps",
+    "logprob_reduction",
+    "logprob_std_floor",
+    "trainable_mode",
+)
+
 
 def summarize_actor_replay_output(output_dir: Path) -> dict:
     root = output_dir.expanduser()
@@ -18,11 +26,11 @@ def summarize_actor_replay_output(output_dir: Path) -> dict:
     metrics = _read_json(metrics_path)
     validation = _read_json(validation_path)
     result = metrics.get("result", {}) if isinstance(metrics, dict) else {}
-    config = metrics.get("config", {}) if isinstance(metrics, dict) else {}
     history = metrics.get("history", []) if isinstance(metrics, dict) else []
     last_step = history[-1] if history else {}
     last_step_summary = _last_step_summary(last_step)
     checkpoint_path = Path(result.get("checkpoint_path") or root / "checkpoint.pt").expanduser()
+    config, config_source = _training_config(metrics, checkpoint_path)
 
     summary = {
         "output_dir": str(root),
@@ -43,6 +51,7 @@ def summarize_actor_replay_output(output_dir: Path) -> dict:
         "final_ratio_mean": _number(result.get("final_ratio_mean")),
         "trainable_param_count": _number(result.get("trainable_param_count")),
         "total_param_count": _number(result.get("total_param_count")),
+        "config_source": config_source,
         "learning_rate": _number(config.get("learning_rate")),
         "action_num_inference_steps": _number(config.get("action_num_inference_steps")),
         "logprob_reduction": config.get("logprob_reduction"),
@@ -75,12 +84,12 @@ def write_markdown_report(summaries: list[dict], out_markdown: Path) -> None:
     lines = [
         "# Actor Replay Training Summary",
         "",
-        "| output_dir | ok | validation | transitions | steps | lr | action_steps | logprob | final_loss | ratio | grad_norm | update_norm | update_max | update | checkpoint | failure_diag | warnings |",
-        "|---|---:|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---|",
+        "| output_dir | ok | validation | transitions | steps | config | lr | action_steps | logprob | final_loss | ratio | grad_norm | update_norm | update_max | update | checkpoint | failure_diag | warnings |",
+        "|---|---:|---:|---:|---:|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---|",
     ]
     for item in summaries:
         lines.append(
-            "| {output_dir} | {ok} | {validation_ok} | {transition_count} | {steps} | "
+            "| {output_dir} | {ok} | {validation_ok} | {transition_count} | {steps} | {config_source} | "
             "{learning_rate} | {action_num_inference_steps} | {logprob_reduction} | "
             "{final_loss} | {final_ratio_mean} | {final_grad_norm} | "
             "{final_param_update_norm} | {final_param_update_max} | {parameter_update_detected} | {checkpoint_exists} | "
@@ -90,6 +99,7 @@ def write_markdown_report(summaries: list[dict], out_markdown: Path) -> None:
                 validation_ok=_bool_cell(item["validation_ok"]),
                 transition_count=_cell(item["transition_count"]),
                 steps=_cell(item["steps"]),
+                config_source=_cell(item["config_source"]),
                 learning_rate=_cell(item["learning_rate"]),
                 action_num_inference_steps=_cell(item["action_num_inference_steps"]),
                 logprob_reduction=_cell(item["logprob_reduction"]),
@@ -115,6 +125,7 @@ def write_csv_report(summaries: list[dict], out_csv: Path) -> None:
         "validation_ok",
         "transition_count",
         "steps",
+        "config_source",
         "learning_rate",
         "action_num_inference_steps",
         "logprob_reduction",
@@ -144,6 +155,39 @@ def _read_json(path: Path) -> dict:
     if not path.exists():
         return {}
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _training_config(metrics: dict, checkpoint_path: Path) -> tuple[dict, str]:
+    if isinstance(metrics, dict) and isinstance(metrics.get("config"), dict) and metrics["config"]:
+        return _scalar_config(metrics["config"]), "metrics"
+
+    checkpoint_config = _read_checkpoint_config(checkpoint_path)
+    if checkpoint_config:
+        return checkpoint_config, "checkpoint"
+
+    return {}, "missing"
+
+
+def _read_checkpoint_config(checkpoint_path: Path) -> dict:
+    if not checkpoint_path.exists():
+        return {}
+    try:
+        import torch
+
+        checkpoint = torch.load(checkpoint_path, map_location="cpu")
+    except Exception:
+        return {}
+    if not isinstance(checkpoint, dict) or not isinstance(checkpoint.get("config"), dict):
+        return {}
+    return _scalar_config(checkpoint["config"])
+
+
+def _scalar_config(config: dict) -> dict:
+    return {key: config[key] for key in CONFIG_FIELDS if key in config and _is_json_scalar(config[key])}
+
+
+def _is_json_scalar(value) -> bool:
+    return value is None or isinstance(value, (str, int, float, bool))
 
 
 def _number(value):
@@ -207,6 +251,8 @@ def _warnings(summary: dict) -> list[str]:
         warnings.append("missing_parameter_update_metric")
     if should_have_update_metric and summary["parameter_update_measured"] and not summary["parameter_update_detected"]:
         warnings.append("no_parameter_update_detected")
+    if summary["metrics_exists"] and summary["checkpoint_exists"] and summary.get("config_source") == "missing":
+        warnings.append("missing_training_config")
     return warnings
 
 

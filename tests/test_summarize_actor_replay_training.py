@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+import torch
+
 from tools.summarize_actor_replay_training import (
     summarize_actor_replay_output,
     write_csv_report,
@@ -66,6 +68,7 @@ def test_summarize_actor_replay_output_reports_complete_run(tmp_path):
     assert summary["transition_count"] == 2
     assert summary["steps"] == 1
     assert summary["final_loss"] == 0.25
+    assert summary["config_source"] == "metrics"
     assert summary["learning_rate"] == 1e-7
     assert summary["action_num_inference_steps"] == 10
     assert summary["logprob_reduction"] == "mean"
@@ -102,6 +105,7 @@ def test_write_markdown_report(tmp_path):
     text = out.read_text(encoding="utf-8")
     assert "Actor Replay Training Summary" in text
     assert "| output_dir | ok | validation |" in text
+    assert "metrics" in text
     assert "action_steps" in text
     assert "mean" in text
     assert "update_norm" in text
@@ -118,9 +122,44 @@ def test_write_csv_report(tmp_path):
 
     text = out.read_text(encoding="utf-8")
     assert "output_dir,ok,validation_ok" in text
+    assert "config_source" in text
     assert "learning_rate" in text
     assert "1e-07" in text
     assert "mean" in text
+
+
+def test_summarize_actor_replay_output_falls_back_to_checkpoint_config(tmp_path):
+    root = tmp_path / "run"
+    _write_output(root)
+
+    metrics_path = root / "metrics.json"
+    metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+    del metrics["config"]
+    metrics_path.write_text(json.dumps(metrics) + "\n", encoding="utf-8")
+    torch.save(
+        {
+            "trainable_state_dict": {"action_head.weight": torch.tensor([1.0])},
+            "config": {
+                "learning_rate": 2e-7,
+                "action_num_inference_steps": 8,
+                "logprob_reduction": "sum",
+                "logprob_std_floor": 0.2,
+                "trainable_mode": "last_block",
+                "ignored_list": [1, 2],
+            },
+        },
+        root / "checkpoint.pt",
+    )
+
+    summary = summarize_actor_replay_output(root)
+
+    assert summary["config_source"] == "checkpoint"
+    assert summary["learning_rate"] == 2e-7
+    assert summary["action_num_inference_steps"] == 8
+    assert summary["logprob_reduction"] == "sum"
+    assert summary["logprob_std_floor"] == 0.2
+    assert summary["trainable_mode"] == "last_block"
+    assert "missing_training_config" not in summary["warnings"]
 
 
 def test_summarize_actor_replay_output_warns_when_update_is_zero(tmp_path):
