@@ -102,6 +102,19 @@ def test_materialize_grpo_artifacts_help_does_not_require_external_pythonpath():
     assert "--include-replay-context" in result.stdout
 
 
+def test_audit_grpo_artifact_storage_help_does_not_require_external_pythonpath():
+    result = subprocess.run(
+        [sys.executable, "tools/audit_grpo_artifact_storage.py", "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "Audit filesystem footprint of GRPO artifact references" in result.stdout
+    assert "--materialize-manifest" in result.stdout
+
+
 def test_train_actor_replay_grpo_help_does_not_require_external_pythonpath():
     result = subprocess.run(
         [sys.executable, "tools/train_actor_replay_grpo.py", "--help"],

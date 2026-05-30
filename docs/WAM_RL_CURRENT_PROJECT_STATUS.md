@@ -115,6 +115,7 @@ Implemented:
   symlink mode by default and optional replay-context materialization;
 - low-resource subset smoke submission with
   `jobs/myriad/36_submit_actor_replay_subset_smoke.sh`;
+- storage footprint auditing with `tools/audit_grpo_artifact_storage.py`;
 - real actor replay trainer over LingBot-VA transformer parameters;
 - checkpoint loading into the inference server via
   `actor_replay_checkpoint_path`;

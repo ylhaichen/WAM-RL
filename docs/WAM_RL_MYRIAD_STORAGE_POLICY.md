@@ -238,6 +238,31 @@ for path in sorted(root.rglob("*.pt"), key=lambda p: p.stat().st_size, reverse=T
 PY
 ```
 
+Audit a GRPO groups file or materialized subset without loading `.pt` files:
+
+```bash
+python tools/audit_grpo_artifact_storage.py \
+  /path/to/groups/grpo_groups.jsonl \
+  --out-json /path/to/storage_audit.json \
+  --fail-on-missing
+```
+
+For materialized actor replay subsets, include the manifest to report both
+strict artifacts and replay-context dependencies:
+
+```bash
+python tools/audit_grpo_artifact_storage.py \
+  "$SUBSET/groups/grpo_groups.jsonl" \
+  --materialize-manifest "$SUBSET/manifest.json" \
+  --out-json "$SUBSET/storage_audit.json" \
+  --fail-on-missing
+```
+
+In the report, `apparent_bytes` is the bytes consumed by the listed files or
+symlinks themselves, while `resolved_bytes` follows symlinks to the target
+files. A symlink subset can have tiny `apparent_bytes` but large
+`resolved_bytes`, meaning the original source `server_vis/` is still required.
+
 ## Current Practical Guidance
 
 Until KV-cache storage is further reduced, replay-context collection should be
