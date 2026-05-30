@@ -161,8 +161,52 @@ def test_scale_submit_wrapper_does_not_inherit_stale_output_roots_by_default():
     assert "export STRICT_GRPO_CAPTURE_MAX_CHUNKS" in text
     assert "export STRICT_GRPO_REPLAY_CONTEXT_MAX_GB" in text
     assert "export SAVE_SERVER_DEBUG_TENSORS" in text
+    assert 'ACTOR_REPLAY_CHECKPOINT_PATH="${ACTOR_REPLAY_CHECKPOINT_PATH:-}"' in text
+    assert "export ACTOR_REPLAY_CHECKPOINT_PATH" in text
+    assert 'QSUB_EXPORT_CURRENT_ENV="${QSUB_EXPORT_CURRENT_ENV:-0}"' in text
+    assert 'DRY_RUN="${DRY_RUN:-0}"' in text
+    assert 'if [ "${QSUB_EXPORT_CURRENT_ENV}" = "1" ]; then' in text
+    assert '"ACTOR_REPLAY_CHECKPOINT_PATH=${ACTOR_REPLAY_CHECKPOINT_PATH}"' in text
+    assert 'cmd=(qsub "${QSUB_ARGS[@]}")' in text
     assert 'unset RESULTS_ROOT' in text
     assert 'unset STABLE_SEED_CACHE_DIR' in text
+
+
+def test_scale_submit_wrapper_dry_run_uses_explicit_qsub_vars(tmp_path):
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    qsub_called = tmp_path / "qsub_called"
+    qsub = fake_bin / "qsub"
+    qsub.write_text(
+        f"#!/usr/bin/env bash\ntouch {qsub_called}\nexit 0\n",
+        encoding="utf-8",
+    )
+    qsub.chmod(0o755)
+
+    env = os.environ.copy()
+    env.update(
+        {
+            "PATH": f"{fake_bin}:{env['PATH']}",
+            "REPO_ROOT": str(Path.cwd()),
+            "TASK_NAMES": "move_stapler_pad",
+            "DRY_RUN": "1",
+            "ACTOR_REPLAY_CHECKPOINT_PATH": str(tmp_path / "actor.pt"),
+        }
+    )
+
+    result = subprocess.run(
+        ["bash", "jobs/myriad/32_submit_grpo_scale_8tasks_4gpu.sh"],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "qsub -V" not in result.stdout
+    assert f"ACTOR_REPLAY_CHECKPOINT_PATH={tmp_path / 'actor.pt'}" in result.stdout
+    assert "TASK_NAMES=move_stapler_pad" in result.stdout
+    assert not qsub_called.exists()
 
 
 def test_next_round_submit_wrapper_targets_hard_medium_tasks():
