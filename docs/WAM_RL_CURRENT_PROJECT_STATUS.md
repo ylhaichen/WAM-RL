@@ -154,6 +154,8 @@ Implemented:
 - `SAMPLING_SEED` support for deterministic LingBot-VA action sampling;
 - `SAMPLING_SEED_PER_ENV=true` for deterministic but distinct per-env sampling;
 - per-episode export in `tools/summarize_robotwin_results.py`;
+- matched per-episode eval comparison with
+  `tools/compare_robotwin_eval_episodes.py`;
 - one-GPU eval job support for actor replay checkpoint loading.
 
 Observed behavior:
@@ -217,7 +219,8 @@ Next engineering target:
 
 - always export per-episode seed, prompt, sampling seed, action count, and
   success;
-- compare policies by paired seed sets where possible;
+- compare policies by paired seed sets with
+  `tools/compare_robotwin_eval_episodes.py`;
 - treat `n <= 5` as smoke only;
 - use larger `n` only after storage and actor training are stable enough.
 
@@ -281,8 +284,8 @@ GRPO_PROGRESS_EVERY=50
 
 1. Use `tools/subset_grpo_groups.py` to create small actor replay train/debug
    subsets before running expensive jobs.
-2. Add an explicit actor replay eval manifest format so baseline and actor evals
-   are compared on the same task, prompt, env seeds, and sampling seeds.
+2. Use `tools/compare_robotwin_eval_episodes.py` for baseline-vs-actor eval
+   comparisons before interpreting aggregate success rates.
 3. Run a controlled actor replay training/eval loop on `move_stapler_pad` with
    more than one mixed group.
 4. Only after a reliable signal appears, broaden to `turn_switch` and

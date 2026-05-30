@@ -63,6 +63,19 @@ def test_summarize_robotwin_results_help_does_not_require_external_pythonpath():
     assert "--episodes-csv" in result.stdout
 
 
+def test_compare_robotwin_eval_episodes_help_does_not_require_external_pythonpath():
+    result = subprocess.run(
+        [sys.executable, "tools/compare_robotwin_eval_episodes.py", "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "Compare RoboTwin eval runs on matched episode keys" in result.stdout
+    assert "--run" in result.stdout
+
+
 def test_subset_grpo_groups_help_does_not_require_external_pythonpath():
     result = subprocess.run(
         [sys.executable, "tools/subset_grpo_groups.py", "--help"],
