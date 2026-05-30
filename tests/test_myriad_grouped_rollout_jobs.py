@@ -28,6 +28,10 @@ def test_four_gpu_grouped_rollout_job_builds_grpo_groups():
     assert 'strict_grpo_capture_scope="${STRICT_GRPO_CAPTURE_SCOPE}"' in text
     assert 'STRICT_GRPO_SAVE_REPLAY_CONTEXT="${STRICT_GRPO_SAVE_REPLAY_CONTEXT:-false}"' in text
     assert 'strict_grpo_save_replay_context="${STRICT_GRPO_SAVE_REPLAY_CONTEXT}"' in text
+    assert 'STRICT_GRPO_CAPTURE_CHUNK_STRIDE="${STRICT_GRPO_CAPTURE_CHUNK_STRIDE:-1}"' in text
+    assert 'STRICT_GRPO_CAPTURE_MAX_CHUNKS="${STRICT_GRPO_CAPTURE_MAX_CHUNKS:-0}"' in text
+    assert 'strict_grpo_capture_chunk_stride="${STRICT_GRPO_CAPTURE_CHUNK_STRIDE}"' in text
+    assert 'strict_grpo_capture_max_chunks="${STRICT_GRPO_CAPTURE_MAX_CHUNKS}"' in text
     assert 'ACTOR_REPLAY_CHECKPOINT_PATH="${ACTOR_REPLAY_CHECKPOINT_PATH:-}"' in text
     assert 'actor_replay_checkpoint_path="${ACTOR_REPLAY_CHECKPOINT_PATH}"' in text
 
@@ -45,6 +49,10 @@ def test_one_gpu_grouped_rollout_job_uses_successful_attempt_roots():
     assert 'strict_grpo_capture_scope="${STRICT_GRPO_CAPTURE_SCOPE}"' in text
     assert 'STRICT_GRPO_SAVE_REPLAY_CONTEXT="${STRICT_GRPO_SAVE_REPLAY_CONTEXT:-false}"' in text
     assert 'strict_grpo_save_replay_context="${STRICT_GRPO_SAVE_REPLAY_CONTEXT}"' in text
+    assert 'STRICT_GRPO_CAPTURE_CHUNK_STRIDE="${STRICT_GRPO_CAPTURE_CHUNK_STRIDE:-1}"' in text
+    assert 'STRICT_GRPO_CAPTURE_MAX_CHUNKS="${STRICT_GRPO_CAPTURE_MAX_CHUNKS:-0}"' in text
+    assert 'strict_grpo_capture_chunk_stride="${STRICT_GRPO_CAPTURE_CHUNK_STRIDE}"' in text
+    assert 'strict_grpo_capture_max_chunks="${STRICT_GRPO_CAPTURE_MAX_CHUNKS}"' in text
     assert 'ACTOR_REPLAY_CHECKPOINT_PATH="${ACTOR_REPLAY_CHECKPOINT_PATH:-}"' in text
     assert 'actor_replay_checkpoint_path="${ACTOR_REPLAY_CHECKPOINT_PATH}"' in text
 
@@ -123,6 +131,8 @@ def test_scale_submit_wrapper_does_not_inherit_stale_output_roots_by_default():
     assert "export GROUP_MAX_ATTEMPTS" in text
     assert "export STRICT_GRPO_CAPTURE_SCOPE" in text
     assert "export STRICT_GRPO_SAVE_REPLAY_CONTEXT" in text
+    assert "export STRICT_GRPO_CAPTURE_CHUNK_STRIDE" in text
+    assert "export STRICT_GRPO_CAPTURE_MAX_CHUNKS" in text
     assert 'unset RESULTS_ROOT' in text
     assert 'unset STABLE_SEED_CACHE_DIR' in text
 
@@ -139,6 +149,10 @@ def test_next_round_submit_wrapper_targets_hard_medium_tasks():
     assert 'DRY_RUN="${DRY_RUN:-0}"' in text
     assert 'STRICT_GRPO_CAPTURE_SCOPE="${STRICT_GRPO_CAPTURE_SCOPE:-action_denoising_trajectory}"' in text
     assert 'STRICT_GRPO_SAVE_REPLAY_CONTEXT="${STRICT_GRPO_SAVE_REPLAY_CONTEXT:-false}"' in text
+    assert 'STRICT_GRPO_CAPTURE_CHUNK_STRIDE="${STRICT_GRPO_CAPTURE_CHUNK_STRIDE:-1}"' in text
+    assert 'STRICT_GRPO_CAPTURE_MAX_CHUNKS="${STRICT_GRPO_CAPTURE_MAX_CHUNKS:-0}"' in text
+    assert 'STRICT_GRPO_CAPTURE_CHUNK_STRIDE="${STRICT_GRPO_CAPTURE_CHUNK_STRIDE}"' in text
+    assert 'STRICT_GRPO_CAPTURE_MAX_CHUNKS="${STRICT_GRPO_CAPTURE_MAX_CHUNKS}"' in text
     assert 'bash "${SUBMIT_SCRIPT}"' in text
 
 

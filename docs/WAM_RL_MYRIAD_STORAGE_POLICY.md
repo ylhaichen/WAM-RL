@@ -204,6 +204,21 @@ portable package, because copy mode can duplicate many GB.
 `replay_context_path` metadata. Run it in the WAM-RL container or another Python
 environment with `torch`.
 
+For future replay-context collection, reduce storage at the source when the goal
+is smoke/debug or a bounded-size actor replay dataset:
+
+```bash
+STRICT_GRPO_SAVE_REPLAY_CONTEXT=true \
+STRICT_GRPO_CAPTURE_CHUNK_STRIDE=2 \
+STRICT_GRPO_CAPTURE_MAX_CHUNKS=4 \
+bash jobs/myriad/32_submit_grpo_scale_8tasks_4gpu.sh
+```
+
+`STRICT_GRPO_CAPTURE_CHUNK_STRIDE=1` and `STRICT_GRPO_CAPTURE_MAX_CHUNKS=0`
+preserve previous behavior. Increasing the stride or setting a max chunk count
+reduces replay-context files and trainable transitions; it should be treated as
+a storage/compute tradeoff, not as an algorithmic improvement.
+
 Do not delete the source run's `server_vis/` while a symlink materialized subset
 is still active. The symlink package depends on the original artifact files.
 

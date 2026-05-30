@@ -113,6 +113,8 @@ Implemented:
 - safe JSON-only GRPO group subsetting with `tools/subset_grpo_groups.py`;
 - artifact materialization with `tools/materialize_grpo_artifacts.py`, using
   symlink mode by default and optional replay-context materialization;
+- collection-time strict artifact chunk filtering with
+  `STRICT_GRPO_CAPTURE_CHUNK_STRIDE` and `STRICT_GRPO_CAPTURE_MAX_CHUNKS`;
 - low-resource subset smoke submission with
   `jobs/myriad/36_submit_actor_replay_subset_smoke.sh`;
 - storage footprint auditing with `tools/audit_grpo_artifact_storage.py`;
@@ -214,6 +216,7 @@ Current policy:
 Next engineering target:
 
 - selective replay artifact construction;
+- bounded replay-context capture by chunk stride or max chunk count;
 - per-chunk replay-context deduplication beyond the current external-context
   split;
 - `tools/subset_grpo_groups.py` for building small train/debug subsets that

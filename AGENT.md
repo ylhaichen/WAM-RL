@@ -135,6 +135,10 @@ consume tens or hundreds of GB because they include transformer KV-cache state.
   --include-replay-context` to create a rewritten groups file plus symlinked
   strict artifacts/replay contexts. Do not delete the source `server_vis/` while
   such a symlink materialized subset is active.
+- For storage-limited replay-context collection, set
+  `STRICT_GRPO_CAPTURE_CHUNK_STRIDE` or `STRICT_GRPO_CAPTURE_MAX_CHUNKS` at
+  collection time to save fewer action chunks. Defaults are stride `1` and max
+  chunks `0`, preserving full capture.
 - For one-step actor replay trainer smoke on a materialized subset, prefer
   `jobs/myriad/36_submit_actor_replay_subset_smoke.sh`. It wraps the real
   trainer job with lower default queue resources and keeps the training logic in

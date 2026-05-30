@@ -68,6 +68,20 @@ python tools/summarize_grpo_groups.py \
 CONTAINER
 ```
 
+For storage-limited replay-context collection, limit capture at collection
+time instead of collecting every action chunk:
+
+```bash
+STRICT_GRPO_SAVE_REPLAY_CONTEXT=true
+STRICT_GRPO_CAPTURE_CHUNK_STRIDE=2   # keep every second action chunk
+STRICT_GRPO_CAPTURE_MAX_CHUNKS=4     # or keep only the first four chunks
+```
+
+Defaults preserve previous behavior: stride `1` and max chunks `0` means no
+chunk-level filtering. Filtering reduces the number of trainable replay
+transitions, so use it first for smoke/debug or when Scratch pressure would
+otherwise make the run fail.
+
 Promotion criteria for a source dataset:
 
 - validation `ok=true`;

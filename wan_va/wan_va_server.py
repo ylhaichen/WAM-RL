@@ -133,6 +133,19 @@ class VA_Server:
             )
             self.streaming_vae_half = WanVAEStreamingWrapper(vae_half)
 
+    def _should_capture_strict_grpo_chunk(self, frame_st_id, frame_chunk_size):
+        stride = int(getattr(self.job_config, "strict_grpo_capture_chunk_stride", 1) or 1)
+        max_chunks = int(getattr(self.job_config, "strict_grpo_capture_max_chunks", 0) or 0)
+        if stride < 1:
+            raise ValueError("strict_grpo_capture_chunk_stride must be >= 1")
+        if max_chunks < 0:
+            raise ValueError("strict_grpo_capture_max_chunks must be >= 0")
+        chunk_size = max(int(frame_chunk_size), 1)
+        chunk_index = int(frame_st_id) // chunk_size
+        if max_chunks and chunk_index >= max_chunks:
+            return False
+        return chunk_index % stride == 0
+
     def _get_t5_prompt_embeds(
         self,
         prompt=None,
@@ -581,6 +594,10 @@ class VA_Server:
                 strict_grpo_capture_scope = STRICT_ARTIFACT_SCOPE_TRAJECTORY
             elif strict_grpo_capture:
                 raise ValueError(f"Unsupported strict_grpo_capture_scope: {strict_grpo_capture_scope}")
+            strict_grpo_capture_for_chunk = strict_grpo_capture and self._should_capture_strict_grpo_chunk(
+                frame_st_id=frame_st_id,
+                frame_chunk_size=frame_chunk_size,
+            )
 
             strict_grpo_transitions = []
             strict_grpo_replay_context = None
@@ -602,7 +619,7 @@ class VA_Server:
                     None,
                     action_cond,
                     frame_st_id=frame_st_id)
-                capture_this_step = strict_grpo_capture and (not last_step) and (
+                capture_this_step = strict_grpo_capture_for_chunk and (not last_step) and (
                     strict_grpo_capture_scope == STRICT_ARTIFACT_SCOPE_TRAJECTORY
                     or (strict_grpo_capture_scope == STRICT_ARTIFACT_SCOPE_SINGLE and i == 0)
                 )

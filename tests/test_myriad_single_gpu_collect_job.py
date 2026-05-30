@@ -23,6 +23,10 @@ def test_single_gpu_collect_job_has_safe_defaults():
     assert 'CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"' in text
     assert 'STRICT_GRPO_CAPTURE_SCOPE="${STRICT_GRPO_CAPTURE_SCOPE:-action_denoising_trajectory}"' in text
     assert 'strict_grpo_capture_scope="${STRICT_GRPO_CAPTURE_SCOPE}"' in text
+    assert 'STRICT_GRPO_CAPTURE_CHUNK_STRIDE="${STRICT_GRPO_CAPTURE_CHUNK_STRIDE:-1}"' in text
+    assert 'STRICT_GRPO_CAPTURE_MAX_CHUNKS="${STRICT_GRPO_CAPTURE_MAX_CHUNKS:-0}"' in text
+    assert 'strict_grpo_capture_chunk_stride="${STRICT_GRPO_CAPTURE_CHUNK_STRIDE}"' in text
+    assert 'strict_grpo_capture_max_chunks="${STRICT_GRPO_CAPTURE_MAX_CHUNKS}"' in text
     assert 'bash evaluation/robotwin/launch_client_multigpus.sh "${RESULTS_ROOT}" 0 "${seed}" 1' in text
     assert "tools/collect_robotwin_rollouts.py" in text
     assert "tools/build_grpo_groups.py" in text
