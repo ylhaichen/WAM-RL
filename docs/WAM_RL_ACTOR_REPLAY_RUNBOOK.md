@@ -183,8 +183,14 @@ SUBSET_MAX_REPLAY_CONTEXT_GB=30 \
 SUBSET_STORAGE_MAX_RESOLVED_GB=40 \
 MATERIALIZE_LINK_MODE=symlink \
 MATERIALIZE_INCLUDE_REPLAY_CONTEXT=true \
-qsub -V -N wam_grpo_subset jobs/myriad/35_prepare_actor_replay_subset.sh
+jobs/myriad/35_submit_prepare_actor_replay_subset.sh --dry-run
 ```
+
+Review the printed `qsub` command and rerun without `--dry-run` when the
+source groups, subset output root, storage budgets, and queue request are
+correct. The submit wrapper passes an explicit `-v` environment by default; keep
+`QSUB_EXPORT_CURRENT_ENV=0` unless intentionally debugging inherited shell
+state.
 
 For quick direct execution on a login node or already allocated node, run the
 same script with the same environment variables through `bash` instead of

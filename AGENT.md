@@ -196,6 +196,10 @@ consume tens or hundreds of GB because they include transformer KV-cache state.
   --include-replay-context` to create a rewritten groups file plus symlinked
   strict artifacts/replay contexts. Do not delete the source `server_vis/` while
   such a symlink materialized subset is active.
+- For queued actor replay subset preparation, prefer
+  `jobs/myriad/35_submit_prepare_actor_replay_subset.sh` and review its
+  `--dry-run` output. It submits the existing preparation job with explicit
+  `qsub -v` variables rather than inheriting the whole interactive shell.
 - When building actor replay subsets, set `--max-replay-context-gb` (or
   `SUBSET_MAX_REPLAY_CONTEXT_GB` in the Myriad subset job) so selected artifact
   refs are bounded by actual resolved replay-context footprint, not only by raw

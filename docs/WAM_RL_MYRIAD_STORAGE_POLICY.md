@@ -169,8 +169,12 @@ SUBSET_SAMPLES_PER_REWARD=1 \
 SUBSET_MAX_ARTIFACTS_PER_SAMPLE=2 \
 SUBSET_MAX_REPLAY_CONTEXT_GB=30 \
 SUBSET_STORAGE_MAX_RESOLVED_GB=40 \
-qsub -V -N wam_grpo_subset jobs/myriad/35_prepare_actor_replay_subset.sh
+jobs/myriad/35_submit_prepare_actor_replay_subset.sh --dry-run
 ```
+
+Review the printed `qsub` command and rerun without `--dry-run` after checking
+the explicit `-v` variable list. Keep `QSUB_EXPORT_CURRENT_ENV=0` unless you
+deliberately need `qsub -V` for manual debugging.
 
 This job writes the rewritten groups file, materialization manifest,
 actor-replay validation summary, and `storage_audit.json` under `SUBSET_ROOT`.

@@ -278,6 +278,70 @@ def test_actor_replay_subset_job_materializes_lightweight_dataset():
     assert "Actor replay subset preparation complete" in text
 
 
+def test_actor_replay_subset_prepare_submitter_uses_explicit_qsub_vars():
+    text = Path("jobs/myriad/35_submit_prepare_actor_replay_subset.sh").read_text()
+
+    assert "35_prepare_actor_replay_subset.sh" in text
+    assert "Set SOURCE_GROUPS_PATH or RESULTS_ROOT" in text
+    assert 'SUBSET_ROOT="${SUBSET_ROOT:-${WAM_ROOT}/results_grpo_actor_replay_subsets/${RUN_ID}}"' in text
+    assert 'SUBSET_MAX_REPLAY_CONTEXT_GB="${SUBSET_MAX_REPLAY_CONTEXT_GB:-30}"' in text
+    assert 'SUBSET_STORAGE_MAX_RESOLVED_GB="${SUBSET_STORAGE_MAX_RESOLVED_GB:-40}"' in text
+    assert 'MATERIALIZE_LINK_MODE="${MATERIALIZE_LINK_MODE:-symlink}"' in text
+    assert 'MATERIALIZE_INCLUDE_REPLAY_CONTEXT="${MATERIALIZE_INCLUDE_REPLAY_CONTEXT:-true}"' in text
+    assert 'QSUB_EXPORT_CURRENT_ENV="${QSUB_EXPORT_CURRENT_ENV:-0}"' in text
+    assert 'if [ "${QSUB_EXPORT_CURRENT_ENV}" = "1" ]; then' in text
+    assert '"SOURCE_GROUPS_PATH=${SOURCE_GROUPS_PATH}"' in text
+    assert '"SUBSET_ROOT=${SUBSET_ROOT}"' in text
+    assert '"SUBSET_MAX_ARTIFACTS_PER_SAMPLE=${SUBSET_MAX_ARTIFACTS_PER_SAMPLE}"' in text
+    assert '"MATERIALIZE_LINK_MODE=${MATERIALIZE_LINK_MODE}"' in text
+    assert 'DRY_RUN="${DRY_RUN:-0}"' in text
+    assert "--dry-run" in text
+    assert '"${cmd[@]}"' in text
+
+
+def test_actor_replay_subset_prepare_submitter_dry_run_does_not_call_qsub(tmp_path):
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    qsub_called = tmp_path / "qsub_called"
+    qsub = fake_bin / "qsub"
+    qsub.write_text(
+        f"#!/usr/bin/env bash\ntouch {qsub_called}\nexit 0\n",
+        encoding="utf-8",
+    )
+    qsub.chmod(0o755)
+
+    source_groups = tmp_path / "source" / "groups" / "grpo_groups.jsonl"
+    source_groups.parent.mkdir(parents=True)
+    source_groups.write_text("", encoding="utf-8")
+
+    env = os.environ.copy()
+    env.update(
+        {
+            "PATH": f"{fake_bin}:{env['PATH']}",
+            "REPO_ROOT": str(Path.cwd()),
+            "SOURCE_GROUPS_PATH": str(source_groups),
+            "WAM_ROOT": str(tmp_path),
+            "ACTOR_REPLAY_CHECKPOINT_PATH": "/tmp/should-not-leak.pt",
+        }
+    )
+
+    result = subprocess.run(
+        ["bash", "jobs/myriad/35_submit_prepare_actor_replay_subset.sh", "--dry-run"],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "qsub" in result.stdout
+    assert "qsub -V" not in result.stdout
+    assert "SOURCE_GROUPS_PATH=" in result.stdout
+    assert "SUBSET_MAX_REPLAY_CONTEXT_GB=30" in result.stdout
+    assert "ACTOR_REPLAY_CHECKPOINT_PATH=/tmp/should-not-leak.pt" not in result.stdout
+    assert not qsub_called.exists()
+
+
 def test_actor_replay_subset_smoke_submitter_uses_low_resource_defaults():
     text = Path("jobs/myriad/36_submit_actor_replay_subset_smoke.sh").read_text()
 

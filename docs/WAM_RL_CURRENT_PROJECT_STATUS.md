@@ -579,7 +579,9 @@ GRPO_PROGRESS_EVERY=50
 ### Next Technical Milestones
 
 1. Use `tools/subset_grpo_groups.py` to create small actor replay train/debug
-   subsets before running expensive jobs.
+   subsets before running expensive jobs. For queued Myriad subset preparation,
+   use `jobs/myriad/35_submit_prepare_actor_replay_subset.sh --dry-run` and
+   review the explicit `qsub -v` variables before submission.
 2. Use `jobs/myriad/39_submit_grpo_replayctx_bounded_4gpu.sh` for any new
    replay-context collection smoke, with dry-run review before submission.
 3. Use `jobs/myriad/37_submit_actor_eval_pair_smoke.sh` and
