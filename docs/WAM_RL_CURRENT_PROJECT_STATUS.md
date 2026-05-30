@@ -116,6 +116,11 @@ Implemented:
   actual resolved KV-cache storage rather than artifact count alone;
 - artifact materialization with `tools/materialize_grpo_artifacts.py`, using
   symlink mode by default and optional replay-context materialization;
+- metadata-only external replay-context validation for actor replay dataset
+  checks, so `--require-replay-context` no longer allocates full KV-cache
+  tensors just to inspect keys;
+- materialized subset storage-budget enforcement through
+  `SUBSET_STORAGE_MAX_RESOLVED_GB`;
 - collection-time strict artifact chunk filtering with
   `STRICT_GRPO_CAPTURE_CHUNK_STRIDE` and `STRICT_GRPO_CAPTURE_MAX_CHUNKS`;
 - storage auditing with replay-context inspection and optional resolved-size
@@ -126,7 +131,8 @@ Implemented:
   `tools/plan_myriad_storage_cleanup.py`, including protection for any
   non-empty `grpo_groups*.jsonl` source file;
 - low-resource subset smoke submission with
-  `jobs/myriad/36_submit_actor_replay_subset_smoke.sh`;
+  `jobs/myriad/36_submit_actor_replay_subset_smoke.sh`, including submit-time
+  groups-file and storage-audit prechecks;
 - storage-bounded replay-context collection submission with
   `jobs/myriad/39_submit_grpo_replayctx_bounded_4gpu.sh`;
 - operational runbook in `docs/WAM_RL_ACTOR_REPLAY_RUNBOOK.md`;
@@ -174,6 +180,19 @@ representative replay-context metadata-only inspection:
   transformer_cache tensor bytes: 7,222,383,360
   text_emb tensor bytes: 4,194,304
   negative_text_emb tensor bytes: 4,194,304
+```
+
+Latest temporary subset-prep smoke on the same source, using one success and
+one failure sample with `SUBSET_MAX_REPLAY_CONTEXT_GB=30` and
+`SUBSET_STORAGE_MAX_RESOLVED_GB=40`, produced:
+
+```text
+samples: 2
+artifact_refs: 4
+expanded transitions: 40
+validation_actor_replay: ok=true, error_count=0
+combined materialized dependency bytes: 28,923,655,328
+storage_budget.ok: true
 ```
 
 Interpretation:
