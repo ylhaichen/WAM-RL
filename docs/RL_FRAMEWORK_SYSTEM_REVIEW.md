@@ -168,8 +168,13 @@ Scratch or relying on full 400GB+ replay-context directories.
    SUBSET_ROOT="/home/zcably0/Scratch/wam-rl/results_grpo_actor_replay_subsets/<run>" \
    SUBSET_MAX_REPLAY_CONTEXT_GB=30 \
    SUBSET_STORAGE_MAX_RESOLVED_GB=40 \
-   bash jobs/myriad/35_prepare_actor_replay_subset.sh
+   jobs/myriad/35_submit_prepare_actor_replay_subset.sh --dry-run
    ```
+
+   Review the explicit `qsub -v` variables and rerun without `--dry-run` only
+   when the source path, subset root, and storage budgets are correct. The
+   prepare job writes `materialize_plan.json` and checks the dry-run resolved
+   footprint before it creates symlinks or copies.
 
 5. Submit the actor replay subset smoke only after the storage audit passes and
    after reviewing the dry-run command:

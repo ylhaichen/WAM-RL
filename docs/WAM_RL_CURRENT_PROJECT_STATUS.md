@@ -139,6 +139,12 @@ Implemented:
   actual resolved KV-cache storage rather than artifact count alone;
 - artifact materialization with `tools/materialize_grpo_artifacts.py`, using
   symlink mode by default and optional replay-context materialization;
+- materialization `--dry-run` planning, including source artifact/replay-context
+  size summaries and `planned_copy_gb`, so copy-mode subsets can be checked
+  before writing large replay-context files;
+- actor subset preparation now writes `materialize_plan.json` and checks the
+  dry-run resolved footprint against `SUBSET_STORAGE_MAX_RESOLVED_GB` before
+  creating symlinks or copies;
 - metadata-only external replay-context validation for actor replay dataset
   checks, so `--require-replay-context` no longer allocates full KV-cache
   tensors just to inspect keys;
@@ -270,6 +276,28 @@ Interpretation:
   legacy source dataset only; new bounded collection should show
   `strict_grpo_capture_max_chunks`, capture chunk indices, and replay-context
   tensor bytes directly in rollout/group metadata.
+
+Latest materialization planning check on the same two-sample subset:
+
+```text
+dry-run copy plan:
+  unique strict artifacts: 4
+  unique replay contexts: 4
+  planned_copy_gb: 26.937
+  source_replay_contexts_gb: 26.937
+  missing_contexts: 0
+  output root was not created
+budget fail-fast smoke:
+  /home/zcably0/Scratch/wam-rl/debug_logs/preflight_copy_budget_fail_smoke_20260530
+  SUBSET_STORAGE_MAX_RESOLVED_GB=1
+  prepare_exit: 3
+  materialized groups created: false
+  artifacts dir created: false
+```
+
+Interpretation: copy-mode self-contained subsets are now quantifiable before
+copying, and the prepare job fails before writing large files when the selected
+subset exceeds the resolved storage budget.
 
 Latest one-step actor replay smoke on the two-sample/two-artifact staplerpad
 subset:
@@ -469,7 +497,8 @@ Available mitigations:
 - `tools/materialize_grpo_artifacts.py` for turning such subsets into a small
   rewritten groups file plus symlinked or copied artifact tree. Use symlink mode
   for Scratch debug runs; use copy mode only when intentionally creating an
-  archive/package.
+  archive/package. Use `--dry-run` or the prepare job's `materialize_plan.json`
+  to inspect `planned_copy_gb` before running copy mode.
 
 Next engineering target:
 
