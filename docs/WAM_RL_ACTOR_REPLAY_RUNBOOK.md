@@ -390,7 +390,8 @@ python tools/report_grpo_run_status.py \
 python tools/summarize_actor_replay_training.py \
   --discover-root /home/zcably0/Scratch/wam-rl/results_grpo_actor_replay \
   --latest 1 \
-  --job-log-glob 'logs/jobs/wam_grpo_actor_subset.o*'
+  --job-log-glob 'logs/jobs/wam_grpo_actor_subset.o*' \
+  --print-format table
 ```
 
 After identifying the output directory from the status report or summary table,
