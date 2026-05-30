@@ -137,7 +137,7 @@ The subset preparation job writes:
 ```text
 groups/grpo_groups.jsonl
 manifest.json
-validation_path_only.json
+validation_actor_replay.json
 storage_audit.json
 ```
 
@@ -147,6 +147,10 @@ selected success/failure samples, which keeps a tiny actor replay smoke useful
 without accidentally depending on hundreds of GB of KV-cache files.
 `SUBSET_STORAGE_MAX_RESOLVED_GB` is a second guard on the final materialized
 artifact plus replay-context dependency footprint.
+By default the subset job validates strict artifacts with
+`--require-replay-context`; external replay contexts are checked with
+metadata-only loading so the validation count reflects expanded transitions
+without allocating the full KV-cache tensors.
 
 ## 3. Audit Subset Storage Dependencies
 

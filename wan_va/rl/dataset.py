@@ -179,6 +179,20 @@ def load_replay_context(path: Path, *, loader: Callable[[Path], dict] | None = N
     return data
 
 
+def _load_replay_context_metadata(path: Path, *, loader: Callable[[Path], dict] | None = None) -> dict:
+    expanded = path.expanduser()
+    if loader is None:
+        import torch
+
+        data = torch.load(expanded, map_location="meta")
+    else:
+        data = loader(expanded)
+
+    if not isinstance(data, dict):
+        raise ValueError(f"replay context must be a dict: {expanded}")
+    return data
+
+
 def resolve_replay_context(
     data: dict,
     artifact_path: Path | str,
@@ -203,6 +217,30 @@ def resolve_replay_context(
     if not context_path.is_absolute():
         context_path = Path(artifact_path).expanduser().parent / context_path
     return load_replay_context(context_path, loader=loader)
+
+
+def _resolve_replay_context_metadata(
+    data: dict,
+    artifact_path: Path | str,
+    *,
+    loader: Callable[[Path], dict] | None = None,
+) -> dict | None:
+    replay_context = data.get(REPLAY_CONTEXT_INLINE_KEY)
+    if replay_context is not None:
+        if not isinstance(replay_context, dict):
+            raise ValueError(f"strict artifact {artifact_path} field replay_context must be a dict")
+        return replay_context
+
+    context_path_value = data.get(REPLAY_CONTEXT_PATH_KEY)
+    if context_path_value is None:
+        return None
+    if not isinstance(context_path_value, str) or not context_path_value:
+        raise ValueError(f"strict artifact {artifact_path} field replay_context_path must be a non-empty string")
+
+    context_path = Path(context_path_value).expanduser()
+    if not context_path.is_absolute():
+        context_path = Path(artifact_path).expanduser().parent / context_path
+    return _load_replay_context_metadata(context_path, loader=loader)
 
 
 def _validate_strict_artifact_schema(data: dict, path_label: str) -> None:
@@ -404,7 +442,7 @@ def _validate_actor_replay_fields(
     *,
     loader: Callable[[Path], dict] | None = None,
 ) -> None:
-    replay_context = resolve_replay_context(data, path_label, loader=loader)
+    replay_context = _resolve_replay_context_metadata(data, path_label, loader=loader)
     if not isinstance(replay_context, dict):
         raise ValueError(f"strict artifact {path_label} missing replay_context required for actor replay")
 

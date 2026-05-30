@@ -1,5 +1,7 @@
 import json
 
+import torch
+
 from wan_va.rl.dataset import (
     REQUIRED_STRICT_ARTIFACT_KEYS,
     STRICT_ARTIFACT_SCOPE_TRAJECTORY,
@@ -372,3 +374,50 @@ def test_inspect_strict_artifacts_accepts_external_replay_context(tmp_path):
 
     assert report.ok is True
     assert report.transition_count == 2
+
+
+def test_inspect_strict_artifacts_loads_external_replay_context_metadata_only(tmp_path, monkeypatch):
+    path = tmp_path / "grpo_groups.jsonl"
+    artifact_path = tmp_path / "strict.pt"
+    context_path = tmp_path / "context.pt"
+    artifact_path.write_bytes(b"strict-placeholder")
+    context_path.write_bytes(b"context-placeholder")
+    path.write_text(
+        json.dumps(
+            {
+                "group_id": "g0",
+                "task": "open_microwave",
+                "samples": [
+                    {
+                        "sample_idx": 0,
+                        "reward": 1.0,
+                        "advantage": 1.0,
+                        "record_path": "/tmp/r0.json",
+                        "strict_grpo_artifact_paths": [str(artifact_path)],
+                    }
+                ],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    artifact = _strict_trajectory_artifact_with_replay_context(transition_count=2)
+    external_context = artifact.pop("replay_context")
+    artifact["replay_context_path"] = context_path.name
+    seen_loads = []
+
+    def fake_load(load_path, *, map_location):
+        seen_loads.append((load_path.name, map_location))
+        if load_path == artifact_path:
+            return artifact
+        if load_path == context_path:
+            return external_context
+        raise AssertionError(load_path)
+
+    monkeypatch.setattr(torch, "load", fake_load)
+
+    report = inspect_strict_artifacts(read_transition_refs(path), require_replay_context=True)
+
+    assert report.ok is True
+    assert report.transition_count == 2
+    assert seen_loads == [("strict.pt", "cpu"), ("context.pt", "meta")]

@@ -170,7 +170,7 @@ qsub -V -N wam_grpo_subset jobs/myriad/35_prepare_actor_replay_subset.sh
 ```
 
 This job writes the rewritten groups file, materialization manifest,
-path-only validation summary, and `storage_audit.json` under `SUBSET_ROOT`.
+actor-replay validation summary, and `storage_audit.json` under `SUBSET_ROOT`.
 Keep `SUBSET_MAX_REPLAY_CONTEXT_GB` below the training-side
 `GRPO_MAX_RESOLVED_GB` budget; the submitter defaults are currently 30GB for
 subset preparation and 40GB for the actor replay smoke trainer.
