@@ -285,11 +285,18 @@ def test_actor_replay_subset_smoke_submitter_uses_low_resource_defaults():
     assert 'GRPO_GROUPS_PATH="${SUBSET_ROOT}/groups/grpo_groups.jsonl"' in text
     assert 'GRPO_STEPS="${GRPO_STEPS:-1}"' in text
     assert 'GRPO_LR="${GRPO_LR:-0.0000001}"' in text
+    assert 'GRPO_CLIP_LOW="${GRPO_CLIP_LOW:-0.2}"' in text
+    assert 'GRPO_CLIP_HIGH="${GRPO_CLIP_HIGH:-0.28}"' in text
+    assert 'GRPO_DEVICE="${GRPO_DEVICE:-cuda}"' in text
+    assert 'GRPO_DTYPE="${GRPO_DTYPE:-bfloat16}"' in text
     assert 'GRPO_ACTION_NUM_INFERENCE_STEPS="${GRPO_ACTION_NUM_INFERENCE_STEPS:-10}"' in text
     assert 'GRPO_LOGPROB_REDUCTION="${GRPO_LOGPROB_REDUCTION:-mean}"' in text
     assert 'GRPO_LOGPROB_STD_FLOOR="${GRPO_LOGPROB_STD_FLOOR:-0.1}"' in text
     assert 'GRPO_MAX_RESOLVED_GB="${GRPO_MAX_RESOLVED_GB:-40}"' in text
     assert 'GRPO_PROGRESS_EVERY="${GRPO_PROGRESS_EVERY:-1}"' in text
+    assert 'GRPO_CONFIG_NAME="${GRPO_CONFIG_NAME:-robotwin_grpo_train}"' in text
+    assert 'GRPO_STORAGE_AUDIT_JSON="${GRPO_STORAGE_AUDIT_JSON:-${GRPO_OUTPUT_DIR}/input_storage_audit.json}"' in text
+    assert 'GRPO_AUDIT_REPLAY_CONTEXTS="${GRPO_AUDIT_REPLAY_CONTEXTS:-true}"' in text
     assert 'PRECHECK_SUBSET_AUDIT="${PRECHECK_SUBSET_AUDIT:-true}"' in text
     assert 'SUBSET_STORAGE_AUDIT_JSON="${SUBSET_STORAGE_AUDIT_JSON:-}"' in text
     assert "Missing GRPO groups file" in text
@@ -299,9 +306,15 @@ def test_actor_replay_subset_smoke_submitter_uses_low_resource_defaults():
     assert 'QSUB_MEM="${QSUB_MEM:-16G}"' in text
     assert 'QSUB_SLOTS="${QSUB_SLOTS:-4}"' in text
     assert 'QSUB_TMPFS="${QSUB_TMPFS:-60G}"' in text
+    assert 'QSUB_EXPORT_CURRENT_ENV="${QSUB_EXPORT_CURRENT_ENV:-0}"' in text
+    assert 'if [ "${QSUB_EXPORT_CURRENT_ENV}" = "1" ]; then' in text
+    assert '"GRPO_GROUPS_PATH=${GRPO_GROUPS_PATH}"' in text
+    assert '"GRPO_OUTPUT_DIR=${GRPO_OUTPUT_DIR}"' in text
+    assert '"GRPO_DEVICE=${GRPO_DEVICE}"' in text
+    assert '"GRPO_STORAGE_AUDIT_JSON=${GRPO_STORAGE_AUDIT_JSON}"' in text
     assert 'DRY_RUN="${DRY_RUN:-0}"' in text
     assert "--dry-run" in text
-    assert 'qsub "${QSUB_ARGS[@]}" "${JOB_SCRIPT}"' in text
+    assert '"${cmd[@]}"' in text
 
 
 def test_actor_replay_subset_smoke_dry_run_flag_does_not_call_qsub(tmp_path):
@@ -339,6 +352,10 @@ def test_actor_replay_subset_smoke_dry_run_flag_does_not_call_qsub(tmp_path):
 
     assert result.returncode == 0, result.stderr
     assert "qsub" in result.stdout
+    assert "qsub -V" not in result.stdout
+    assert "GRPO_GROUPS_PATH=" in result.stdout
+    assert "GRPO_OUTPUT_DIR=" in result.stdout
+    assert "GRPO_ACTION_NUM_INFERENCE_STEPS=10" in result.stdout
     assert not qsub_called.exists()
 
 

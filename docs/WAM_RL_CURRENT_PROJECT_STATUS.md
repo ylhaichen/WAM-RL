@@ -365,6 +365,38 @@ promotion gate outputs:
   /home/zcably0/Scratch/wam-rl/results_actor_eval/seed10000_controls_20260530_0422/actor_step_promotion_gate.json
 ```
 
+Latest corrected provenance eval pair after removing accidental `qsub -V`
+environment leakage from the paired eval submitter:
+
+```text
+run_id:
+  actor_eval_pair_provenance_fixed_20260530_104124
+baseline root:
+  /home/zcably0/Scratch/wam-rl/results_actor_eval/baseline_move_stapler_pad_actor_eval_pair_provenance_fixed_20260530_104124
+actor root:
+  /home/zcably0/Scratch/wam-rl/results_actor_eval/actor_move_stapler_pad_actor_eval_pair_provenance_fixed_20260530_104124
+comparison:
+  /home/zcably0/Scratch/wam-rl/results_actor_eval/actor_eval_pair_provenance_fixed_20260530_104124_comparison
+baseline policy_checkpoint:
+  /home/zcably0/Scratch/wam-rl/checkpoints/lingbot-va-posttrain-robotwin
+actor policy_checkpoint:
+  /home/zcably0/Scratch/wam-rl/results_grpo_actor_replay/grpo_actor_subset_2samples_2artifacts_1step_20260530_020837/checkpoint.pt
+reference_checkpoint:
+  /home/zcably0/Scratch/wam-rl/checkpoints/lingbot-va-posttrain-robotwin
+matched episodes: 2
+baseline success: 2/2
+actor success: 2/2
+actor vs baseline: improved=0, regressed=0, same_success=2, same_failure=0
+```
+
+Interpretation:
+
+- this is a wiring/provenance smoke check, not an improvement claim;
+- both episode exports contain explicit `policy_checkpoint`,
+  `reference_checkpoint`, and `action_num_inference_steps`;
+- the previous pre-fix pair jobs were cancelled because `qsub -V` let the
+  baseline job inherit the actor checkpoint path from the submit shell.
+
 The baseline repeat and `lr=0` no-op checkpoint had the same success pattern on
 the two matched episodes: seed `100010000` succeeded with 144 actions, while
 seed `100010001` reached the 400-step limit and failed. This makes the previous

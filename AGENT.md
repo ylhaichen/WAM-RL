@@ -222,7 +222,10 @@ consume tens or hundreds of GB because they include transformer KV-cache state.
 - For one-step actor replay trainer smoke on a materialized subset, prefer
   `jobs/myriad/36_submit_actor_replay_subset_smoke.sh`. It wraps the real
   trainer job with lower default queue resources and keeps the training logic in
-  `jobs/myriad/34_train_actor_replay_grpo_robotwin.sh`.
+  `jobs/myriad/34_train_actor_replay_grpo_robotwin.sh`. The wrapper uses an
+  explicit `qsub -v` variable whitelist by default; keep
+  `QSUB_EXPORT_CURRENT_ENV=0` unless deliberately debugging inherited shell
+  environment behavior.
 - Use `tools/audit_grpo_artifact_storage.py` before cleanup decisions when a
   `grpo_groups.jsonl` or materialized subset might still reference large
   strict artifacts or replay-context symlink targets. Add

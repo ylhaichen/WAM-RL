@@ -194,6 +194,10 @@ The submitter checks the subset groups file and, when available, the
 `storage_audit.json` `storage_budget.ok` flag before `qsub`.
 Review the printed command and rerun without `--dry-run` only after the storage
 audit and queue request are acceptable.
+The printed `qsub` command uses explicit `-v` variables by default instead of
+`qsub -V`; do not enable `QSUB_EXPORT_CURRENT_ENV=1` unless you intentionally
+want to inherit the submit shell. This prevents stale `GRPO_*` or debug
+settings from changing a smoke run.
 
 `36_submit_actor_replay_subset_smoke.sh` only wraps `qsub`; the real training
 path remains `jobs/myriad/34_train_actor_replay_grpo_robotwin.sh`. Override

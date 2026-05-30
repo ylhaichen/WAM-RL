@@ -255,15 +255,23 @@ subset storage audit and queue request look correct.
 The submitter checks that `groups/grpo_groups.jsonl` exists before `qsub`. If
 `${SUBSET_ROOT}/storage_audit.json` exists, it also checks `storage_budget.ok`
 before submission; set `PRECHECK_SUBSET_AUDIT=false` only for manual debugging.
+It does not export the whole submit shell by default; keep
+`QSUB_EXPORT_CURRENT_ENV=0` unless you intentionally need `qsub -V`, because
+actor replay training should not inherit stale `GRPO_*`, checkpoint, or debug
+variables from an interactive shell.
 
 Defaults:
 
 ```text
 GRPO_STEPS=1
 GRPO_LR=1e-7
+GRPO_DEVICE=cuda
+GRPO_DTYPE=bfloat16
 GRPO_ACTION_NUM_INFERENCE_STEPS=10
 GRPO_LOGPROB_REDUCTION=mean
 GRPO_LOGPROB_STD_FLOOR=0.1
+GRPO_PROGRESS_EVERY=1
+GRPO_TRAINABLE_MODE=action_heads
 GRPO_MAX_RESOLVED_GB=40
 QSUB_H_RT=4:00:00
 QSUB_SLOTS=4
@@ -276,6 +284,8 @@ Only raise `GRPO_STEPS`, `GRPO_LR`, or queue resources after a one-step smoke
 passes. The trainer job writes `input_storage_audit.json` before training and
 uses `GRPO_MAX_RESOLVED_GB` to fail fast when strict artifacts plus
 replay-context files exceed the intended input budget.
+The dry-run command prints every `-v` variable that will be passed to `qsub`;
+review that list before submitting.
 
 ## 5. Inspect Actor Replay Output
 
