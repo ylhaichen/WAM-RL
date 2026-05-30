@@ -243,9 +243,10 @@ def test_actor_replay_subset_smoke_submitter_uses_low_resource_defaults():
     assert "Missing GRPO groups file" in text
     assert "Subset storage audit budget failed" in text
     assert "Subset storage audit precheck ok" in text
-    assert 'QSUB_H_RT="${QSUB_H_RT:-2:00:00}"' in text
+    assert 'QSUB_H_RT="${QSUB_H_RT:-4:00:00}"' in text
+    assert 'QSUB_MEM="${QSUB_MEM:-16G}"' in text
     assert 'QSUB_SLOTS="${QSUB_SLOTS:-4}"' in text
-    assert 'QSUB_TMPFS="${QSUB_TMPFS:-40G}"' in text
+    assert 'QSUB_TMPFS="${QSUB_TMPFS:-60G}"' in text
     assert 'DRY_RUN="${DRY_RUN:-0}"' in text
     assert "--dry-run" in text
     assert 'qsub "${QSUB_ARGS[@]}" "${JOB_SCRIPT}"' in text
