@@ -13,26 +13,34 @@ from typing import Any
 import torch
 
 
-def load_trainable_state_dict(checkpoint_path: Path) -> dict[str, torch.Tensor]:
+def load_checkpoint_payload(checkpoint_path: Path) -> Any:
     path = checkpoint_path.expanduser()
     if not path.exists():
         raise FileNotFoundError(f"missing actor replay checkpoint: {path}")
-    checkpoint = torch.load(path, map_location="cpu")
+    return torch.load(path, map_location="cpu")
+
+
+def trainable_state_dict_from_payload(checkpoint: Any, checkpoint_path: Path) -> dict[str, torch.Tensor]:
     state_dict = checkpoint.get("trainable_state_dict", checkpoint) if isinstance(checkpoint, dict) else checkpoint
     if not isinstance(state_dict, dict) or not state_dict:
-        raise ValueError(f"checkpoint has no trainable_state_dict: {path}")
+        raise ValueError(f"checkpoint has no trainable_state_dict: {checkpoint_path.expanduser()}")
 
     tensors: dict[str, torch.Tensor] = {}
     for key, value in state_dict.items():
         if torch.is_tensor(value):
             tensors[str(key)] = value.detach().cpu()
     if not tensors:
-        raise ValueError(f"checkpoint trainable_state_dict contains no tensors: {path}")
+        raise ValueError(f"checkpoint trainable_state_dict contains no tensors: {checkpoint_path.expanduser()}")
     return tensors
 
 
+def load_trainable_state_dict(checkpoint_path: Path) -> dict[str, torch.Tensor]:
+    return trainable_state_dict_from_payload(load_checkpoint_payload(checkpoint_path), checkpoint_path)
+
+
 def summarize_checkpoint(checkpoint_path: Path) -> dict[str, Any]:
-    state_dict = load_trainable_state_dict(checkpoint_path)
+    checkpoint = load_checkpoint_payload(checkpoint_path)
+    state_dict = trainable_state_dict_from_payload(checkpoint, checkpoint_path)
     total_sq = 0.0
     max_abs = 0.0
     dtype_counts: Counter[str] = Counter()
@@ -59,6 +67,7 @@ def summarize_checkpoint(checkpoint_path: Path) -> dict[str, Any]:
         "dtype_counts": dict(sorted(dtype_counts.items())),
         "top_key_prefix_counts": dict(prefix_counts.most_common(20)),
         "first_keys": sorted(state_dict.keys())[:20],
+        "config": _checkpoint_config_summary(checkpoint),
     }
 
 
@@ -132,13 +141,20 @@ def write_markdown_report(report: dict[str, Any], output_path: Path) -> None:
         "",
         "## Checkpoints",
         "",
-        "| checkpoint | tensors | params | bytes | l2_norm | max_abs |",
-        "|---|---:|---:|---:|---:|---:|",
+        "| checkpoint | tensors | params | bytes | lr | action_steps | logprob | trainable_mode | l2_norm | max_abs |",
+        "|---|---:|---:|---:|---:|---:|---|---|---:|---:|",
     ]
     for item in report["checkpoints"]:
+        config = item.get("config", {})
         lines.append(
-            "| {checkpoint_path} | {tensor_count} | {param_count} | {total_bytes} | {total_l2_norm:.6g} | {max_abs:.6g} |".format(
-                **item
+            "| {checkpoint_path} | {tensor_count} | {param_count} | {total_bytes} | {learning_rate} | "
+            "{action_num_inference_steps} | {logprob_reduction} | {trainable_mode} | {total_l2_norm:.6g} | "
+            "{max_abs:.6g} |".format(
+                learning_rate=_cell(config.get("learning_rate")),
+                action_num_inference_steps=_cell(config.get("action_num_inference_steps")),
+                logprob_reduction=_cell(config.get("logprob_reduction")),
+                trainable_mode=_cell(config.get("trainable_mode")),
+                **item,
             )
         )
 
@@ -174,6 +190,39 @@ def build_report(checkpoints: list[Path], reference: Path | None = None) -> dict
     if reference is not None:
         report["comparisons"] = [compare_checkpoints(path, reference) for path in checkpoints]
     return report
+
+
+def _checkpoint_config_summary(checkpoint: Any) -> dict[str, Any]:
+    if not isinstance(checkpoint, dict) or not isinstance(checkpoint.get("config"), dict):
+        return {}
+    keys = (
+        "groups_jsonl",
+        "output_dir",
+        "steps",
+        "learning_rate",
+        "clip_low",
+        "clip_high",
+        "device",
+        "dtype",
+        "seed",
+        "trainable_mode",
+        "action_num_inference_steps",
+        "action_snr_shift",
+        "logprob_reduction",
+        "logprob_std_floor",
+        "progress_every",
+        "cache_name",
+    )
+    config = checkpoint["config"]
+    return {key: config[key] for key in keys if key in config and _is_json_scalar(config[key])}
+
+
+def _is_json_scalar(value: Any) -> bool:
+    return value is None or isinstance(value, (str, int, float, bool))
+
+
+def _cell(value: Any) -> str:
+    return "" if value is None else str(value)
 
 
 def main() -> None:

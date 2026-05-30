@@ -280,6 +280,10 @@ python tools/inspect_actor_replay_checkpoint.py \
   --out-markdown "$OUT/checkpoint_inspection.md"
 ```
 
+The checkpoint inspection report includes trainable tensor statistics and, for
+new checkpoints, the saved actor replay training config (`learning_rate`,
+`action_num_inference_steps`, `logprob_reduction`, and `trainable_mode`).
+
 Pass criteria:
 
 - `input_dataset_validation.json` has `ok=true`;

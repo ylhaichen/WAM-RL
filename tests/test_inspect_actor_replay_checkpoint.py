@@ -12,13 +12,14 @@ from tools.inspect_actor_replay_checkpoint import (
 )
 
 
-def _write_checkpoint(path: Path, *, weight: torch.Tensor, bias: torch.Tensor) -> None:
+def _write_checkpoint(path: Path, *, weight: torch.Tensor, bias: torch.Tensor, config: dict | None = None) -> None:
     torch.save(
         {
             "trainable_state_dict": {
                 "action_head.weight": weight,
                 "action_head.bias": bias,
-            }
+            },
+            "config": config or {},
         },
         path,
     )
@@ -30,6 +31,13 @@ def test_summarize_checkpoint_reports_tensor_stats(tmp_path):
         checkpoint,
         weight=torch.tensor([[3.0, 4.0]], dtype=torch.float32),
         bias=torch.tensor([2.0], dtype=torch.float32),
+        config={
+            "learning_rate": 1e-7,
+            "action_num_inference_steps": 10,
+            "logprob_reduction": "mean",
+            "trainable_mode": "action_heads",
+            "ignored_list": [1, 2],
+        },
     )
 
     summary = summarize_checkpoint(checkpoint)
@@ -40,6 +48,11 @@ def test_summarize_checkpoint_reports_tensor_stats(tmp_path):
     assert summary["max_abs"] == 4.0
     assert summary["dtype_counts"] == {"float32": 2}
     assert summary["top_key_prefix_counts"] == {"action_head": 2}
+    assert summary["config"]["learning_rate"] == 1e-7
+    assert summary["config"]["action_num_inference_steps"] == 10
+    assert summary["config"]["logprob_reduction"] == "mean"
+    assert summary["config"]["trainable_mode"] == "action_heads"
+    assert "ignored_list" not in summary["config"]
 
 
 def test_compare_checkpoints_reports_deltas(tmp_path):
@@ -100,4 +113,6 @@ def test_build_report_and_cli_write_json(tmp_path):
     assert result.returncode == 0, result.stderr
     written = json.loads(out_json.read_text(encoding="utf-8"))
     assert written["comparisons"][0]["shared_key_count"] == 2
-    assert "Actor Replay Checkpoint Inspection" in out_markdown.read_text(encoding="utf-8")
+    markdown = out_markdown.read_text(encoding="utf-8")
+    assert "Actor Replay Checkpoint Inspection" in markdown
+    assert "action_steps" in markdown
