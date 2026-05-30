@@ -205,7 +205,12 @@ consume tens or hundreds of GB because they include transformer KV-cache state.
   refs are bounded by actual resolved replay-context footprint, not only by raw
   artifact count. Keep `SUBSET_STORAGE_MAX_RESOLVED_GB` enabled in the subset
   job so materialized strict-artifact plus replay-context dependencies are
-  audited before training.
+  audited before training. The subset job writes `materialize_plan.json` before
+  creating symlinks or copies; use it to inspect `planned_copy_gb` and resolved
+  dependency footprint before approving copy-mode self-contained subsets.
+- When combining multiple bounded `grpo_groups.jsonl` sources, use
+  `tools/merge_grpo_groups.py` instead of manual `cat`; it writes a manifest and
+  rejects duplicate `group_id` values by default.
 - For storage-limited replay-context collection, set
   `STRICT_GRPO_CAPTURE_CHUNK_STRIDE` or `STRICT_GRPO_CAPTURE_MAX_CHUNKS` at
   collection time to save fewer action chunks. Defaults are stride `1` and max
@@ -218,7 +223,9 @@ consume tens or hundreds of GB because they include transformer KV-cache state.
   default estimate is 4GB/context. Override `REPLAY_CONTEXT_ESTIMATE_GB` upward
   for action-guided (`action_guidance_scale > 1`) or legacy unpruned data.
   Keep `STORAGE_BUDGET_MODE=attempt` unless the user explicitly accepts the
-  risk of failed attempts leaving large replay-context files behind.
+  risk of failed attempts leaving large replay-context files behind. Set
+  `PLAN_JSON=/home/zcably0/Scratch/wam-rl/debug_logs/storage_audits/<run>.json`
+  when you want the dry-run storage plan persisted for later audit.
 - Keep `STRICT_GRPO_REPLAY_CONTEXT_MAX_GB` enabled for bounded replay-context
   collection. It is a per-context server-side guard checked before `torch.save`;
   if the live KV-cache tensor footprint exceeds the reviewed budget, the
