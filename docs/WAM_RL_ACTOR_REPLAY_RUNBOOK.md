@@ -382,6 +382,9 @@ jobs/myriad/37_submit_actor_eval_pair_smoke.sh --dry-run
 
 Review the two printed `qsub` commands and rerun without `--dry-run` when the
 ports, output roots, seed controls, and checkpoint path are correct.
+The one-GPU eval job records `POLICY_CHECKPOINT`, `REFERENCE_CHECKPOINT`, and
+`ACTION_NUM_INFERENCE_STEPS` in each episode JSON so paired summaries remain
+self-describing after logs move or get archived.
 
 After both jobs finish, summarize aggregate results, per-episode exports, and
 matched comparisons in one pass:

@@ -112,7 +112,16 @@ def write_repeatability_csv(path: Path, summary: dict[str, Any]) -> None:
     match_fields = summary["match_fields"]
     fieldnames = list(match_fields) + ["status", "success_count", "failure_count", "success_rate"]
     for label in labels:
-        fieldnames.extend([f"{label}_success", f"{label}_action_count", f"{label}_episode_file"])
+        fieldnames.extend(
+            [
+                f"{label}_success",
+                f"{label}_action_count",
+                f"{label}_action_num_inference_steps",
+                f"{label}_policy_checkpoint",
+                f"{label}_reference_checkpoint",
+                f"{label}_episode_file",
+            ]
+        )
     with path.expanduser().open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
@@ -130,6 +139,9 @@ def write_repeatability_csv(path: Path, summary: dict[str, Any]) -> None:
                 episode = item["runs"][label]
                 row[f"{label}_success"] = episode["success"]
                 row[f"{label}_action_count"] = episode["action_count"]
+                row[f"{label}_action_num_inference_steps"] = episode["action_num_inference_steps"]
+                row[f"{label}_policy_checkpoint"] = episode["policy_checkpoint"]
+                row[f"{label}_reference_checkpoint"] = episode["reference_checkpoint"]
                 row[f"{label}_episode_file"] = episode["episode_file"]
             writer.writerow(row)
 
@@ -188,6 +200,7 @@ def _key_to_dict(fields: tuple[str, ...], key: tuple) -> dict[str, Any]:
 def _episode_to_dict(episode: EpisodeResult) -> dict[str, Any]:
     return {
         "task": episode.task,
+        "run_id": episode.run_id,
         "episode_file": episode.episode_file,
         "episode_index": episode.episode_index,
         "seed": episode.seed,
@@ -199,6 +212,11 @@ def _episode_to_dict(episode: EpisodeResult) -> dict[str, Any]:
         "sampling_seed": episode.sampling_seed,
         "prompt_index": episode.prompt_index,
         "prompt": episode.prompt,
+        "policy_checkpoint": episode.policy_checkpoint,
+        "reference_checkpoint": episode.reference_checkpoint,
+        "action_num_inference_steps": episode.action_num_inference_steps,
+        "video_guidance_scale": episode.video_guidance_scale,
+        "action_guidance_scale": episode.action_guidance_scale,
     }
 
 

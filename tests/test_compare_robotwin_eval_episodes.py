@@ -5,7 +5,17 @@ import sys
 from tools.compare_robotwin_eval_episodes import compare_eval_runs, write_comparison_csv
 
 
-def _episode(root, task, index, seed, success, sampling_seed=740000, prompt_index=0):
+def _episode(
+    root,
+    task,
+    index,
+    seed,
+    success,
+    sampling_seed=740000,
+    prompt_index=0,
+    policy_checkpoint="",
+    reference_checkpoint="",
+):
     path = root / "rollouts" / task / f"episode_{index}.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
@@ -22,6 +32,12 @@ def _episode(root, task, index, seed, success, sampling_seed=740000, prompt_inde
                 "sampling_seed": sampling_seed,
                 "prompt_index": prompt_index,
                 "prompt": "move the stapler",
+                "run_id": f"{root.name}_run",
+                "policy_checkpoint": policy_checkpoint,
+                "reference_checkpoint": reference_checkpoint,
+                "action_num_inference_steps": 10,
+                "video_guidance_scale": 5.0,
+                "action_guidance_scale": 1.0,
             }
         )
         + "\n",
@@ -34,7 +50,15 @@ def test_compare_eval_runs_reports_matched_improvements(tmp_path):
     actor = tmp_path / "actor"
     _episode(baseline, "move_stapler_pad", 0, 10000, False)
     _episode(baseline, "move_stapler_pad", 1, 10001, True)
-    _episode(actor, "move_stapler_pad", 0, 10000, True)
+    _episode(
+        actor,
+        "move_stapler_pad",
+        0,
+        10000,
+        True,
+        policy_checkpoint="/tmp/actor/checkpoint.pt",
+        reference_checkpoint="/tmp/base/model",
+    )
     _episode(actor, "move_stapler_pad", 1, 10001, False)
     _episode(actor, "move_stapler_pad", 2, 10002, True)
 
@@ -55,6 +79,10 @@ def test_compare_eval_runs_reports_matched_improvements(tmp_path):
             "net_improvement_count": 0,
         }
     ]
+    actor_episode = comparison["episodes"][0]["runs"]["actor"]
+    assert actor_episode["policy_checkpoint"] == "/tmp/actor/checkpoint.pt"
+    assert actor_episode["reference_checkpoint"] == "/tmp/base/model"
+    assert actor_episode["action_num_inference_steps"] == 10
 
 
 def test_compare_eval_runs_excludes_duplicate_keys_and_writes_csv(tmp_path):

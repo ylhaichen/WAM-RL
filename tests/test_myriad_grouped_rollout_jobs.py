@@ -74,6 +74,10 @@ def test_selected_eval_job_can_load_actor_replay_checkpoint():
     assert 'actor_replay_checkpoint_path="${ACTOR_REPLAY_CHECKPOINT_PATH}"' in text
     assert 'ACTION_NUM_INFERENCE_STEPS="${ACTION_NUM_INFERENCE_STEPS:-}"' in text
     assert 'action_num_inference_steps="${ACTION_NUM_INFERENCE_STEPS}"' in text
+    assert 'POLICY_CHECKPOINT="${POLICY_CHECKPOINT:-${ACTOR_REPLAY_CHECKPOINT_PATH:-${WAN_VA_MODEL_PATH}}}"' in text
+    assert 'REFERENCE_CHECKPOINT="${REFERENCE_CHECKPOINT:-${WAN_VA_MODEL_PATH}}"' in text
+    assert "echo \"POLICY_CHECKPOINT=${POLICY_CHECKPOINT}\"" in text
+    assert "echo \"REFERENCE_CHECKPOINT=${REFERENCE_CHECKPOINT}\"" in text
     assert 'SERVER_HOST="${SERVER_HOST:-127.0.0.1}"' in text
     assert 'SAVE_SERVER_DEBUG_TENSORS="${SAVE_SERVER_DEBUG_TENSORS:-false}"' in text
     assert 'save_server_debug_tensors="${SAVE_SERVER_DEBUG_TENSORS}"' in text
@@ -98,9 +102,13 @@ def test_one_gpu_eval_smoke_job_can_load_actor_replay_checkpoint():
     assert "PROMPT_INDEX=${PROMPT_INDEX:-}" in launch_text
     assert "SAMPLING_SEED=${SAMPLING_SEED:-}" in launch_text
     assert "SAMPLING_SEED_PER_ENV=${SAMPLING_SEED_PER_ENV:-}" in launch_text
+    assert "POLICY_CHECKPOINT=${POLICY_CHECKPOINT:-}" in launch_text
+    assert "REFERENCE_CHECKPOINT=${REFERENCE_CHECKPOINT:-}" in launch_text
     assert "--prompt_index" in launch_text
     assert "--sampling_seed" in launch_text
     assert "--sampling_seed_per_env" in launch_text
+    assert "--policy_checkpoint" in launch_text
+    assert "--reference_checkpoint" in launch_text
     assert "SERVER_HOST=${SERVER_HOST:-127.0.0.1}" in launch_text
     assert "--server_host ${SERVER_HOST}" in launch_text
     assert "extra_args=()" in launch_text

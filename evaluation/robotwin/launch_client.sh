@@ -26,12 +26,16 @@ ROLLOUT_LOG_DIR=${ROLLOUT_LOG_DIR:-${save_root}/rollouts}
 PROMPT_INDEX=${PROMPT_INDEX:-}
 SAMPLING_SEED=${SAMPLING_SEED:-}
 SAMPLING_SEED_PER_ENV=${SAMPLING_SEED_PER_ENV:-}
+POLICY_CHECKPOINT=${POLICY_CHECKPOINT:-}
+REFERENCE_CHECKPOINT=${REFERENCE_CHECKPOINT:-}
 
 extra_args=()
 [ -n "${ACTION_NUM_INFERENCE_STEPS:-}" ] && extra_args+=(--action_num_inference_steps "${ACTION_NUM_INFERENCE_STEPS}")
 [ -n "${PROMPT_INDEX}" ] && extra_args+=(--prompt_index "${PROMPT_INDEX}")
 [ -n "${SAMPLING_SEED}" ] && extra_args+=(--sampling_seed "${SAMPLING_SEED}")
 [ -n "${SAMPLING_SEED_PER_ENV}" ] && extra_args+=(--sampling_seed_per_env "${SAMPLING_SEED_PER_ENV}")
+[ -n "${POLICY_CHECKPOINT}" ] && extra_args+=(--policy_checkpoint "${POLICY_CHECKPOINT}")
+[ -n "${REFERENCE_CHECKPOINT}" ] && extra_args+=(--reference_checkpoint "${REFERENCE_CHECKPOINT}")
 
 PYTHONWARNINGS=ignore::UserWarning \
 XLA_PYTHON_CLIENT_MEM_FRACTION=0.9 python -m evaluation.robotwin.eval_polict_client_openpi --config policy/$policy_name/deploy_policy.yml \

@@ -458,6 +458,8 @@ Next engineering target:
 
 - always export per-episode seed, prompt, sampling seed, action count, and
   success;
+- always record per-episode policy/reference checkpoint provenance and
+  `ACTION_NUM_INFERENCE_STEPS` for baseline-vs-actor evals;
 - compare policies by paired seed sets with
   `tools/compare_robotwin_eval_episodes.py`;
 - treat `n <= 5` as smoke only;

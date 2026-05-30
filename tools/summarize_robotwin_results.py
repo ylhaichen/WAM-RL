@@ -22,6 +22,7 @@ class TaskResult:
 @dataclass
 class EpisodeResult:
     root: str
+    run_id: str
     task: str
     episode_file: str
     episode_index: int | None
@@ -34,6 +35,11 @@ class EpisodeResult:
     sampling_seed: int | None
     prompt_index: int | None
     prompt: str
+    policy_checkpoint: str
+    reference_checkpoint: str
+    action_num_inference_steps: int | None
+    video_guidance_scale: float | None
+    action_guidance_scale: float | None
 
 
 def wilson_interval(successes: int, total: int, z: float = 1.96) -> tuple[float, float]:
@@ -85,7 +91,8 @@ def load_episode_results(root: Path) -> list[EpisodeResult]:
         episodes.append(
             EpisodeResult(
                 root=str(root),
-                task=str(data.get("task", path.parent.name)),
+                run_id=str(data.get("run_id", "")),
+                task=str(data.get("task", data.get("task_name", path.parent.name))),
                 episode_file=str(path),
                 episode_index=_optional_int(data.get("episode_index")),
                 seed=_optional_int(data.get("env_seed", data.get("seed"))),
@@ -97,6 +104,11 @@ def load_episode_results(root: Path) -> list[EpisodeResult]:
                 sampling_seed=_optional_int(data.get("sampling_seed")),
                 prompt_index=_optional_int(data.get("prompt_index")),
                 prompt=str(data.get("prompt", "")),
+                policy_checkpoint=str(data.get("policy_checkpoint", "")),
+                reference_checkpoint=str(data.get("reference_checkpoint", "")),
+                action_num_inference_steps=_optional_int(data.get("action_num_inference_steps")),
+                video_guidance_scale=_optional_float(data.get("video_guidance_scale")),
+                action_guidance_scale=_optional_float(data.get("action_guidance_scale")),
             )
         )
     return episodes
@@ -177,9 +189,15 @@ def write_episode_json(path: Path, episodes: list[EpisodeResult]) -> None:
 
 
 def _optional_int(value) -> int | None:
-    if value is None:
+    if value is None or value == "":
         return None
     return int(value)
+
+
+def _optional_float(value) -> float | None:
+    if value is None or value == "":
+        return None
+    return float(value)
 
 
 def main() -> None:

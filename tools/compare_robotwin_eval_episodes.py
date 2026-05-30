@@ -119,6 +119,9 @@ def write_comparison_csv(path: Path, comparison: dict) -> None:
                 f"{label}_sampling_seed",
                 f"{label}_prompt_index",
                 f"{label}_action_count",
+                f"{label}_action_num_inference_steps",
+                f"{label}_policy_checkpoint",
+                f"{label}_reference_checkpoint",
                 f"{label}_episode_file",
             ]
         )
@@ -134,6 +137,9 @@ def write_comparison_csv(path: Path, comparison: dict) -> None:
                 row[f"{label}_sampling_seed"] = episode["sampling_seed"]
                 row[f"{label}_prompt_index"] = episode["prompt_index"]
                 row[f"{label}_action_count"] = episode["action_count"]
+                row[f"{label}_action_num_inference_steps"] = episode["action_num_inference_steps"]
+                row[f"{label}_policy_checkpoint"] = episode["policy_checkpoint"]
+                row[f"{label}_reference_checkpoint"] = episode["reference_checkpoint"]
                 row[f"{label}_episode_file"] = episode["episode_file"]
             writer.writerow(row)
 
@@ -156,6 +162,7 @@ def _key_to_dict(fields: tuple[str, ...], key: tuple) -> dict:
 def _episode_to_dict(episode: EpisodeResult) -> dict:
     return {
         "task": episode.task,
+        "run_id": episode.run_id,
         "episode_file": episode.episode_file,
         "episode_index": episode.episode_index,
         "seed": episode.seed,
@@ -167,6 +174,11 @@ def _episode_to_dict(episode: EpisodeResult) -> dict:
         "sampling_seed": episode.sampling_seed,
         "prompt_index": episode.prompt_index,
         "prompt": episode.prompt,
+        "policy_checkpoint": episode.policy_checkpoint,
+        "reference_checkpoint": episode.reference_checkpoint,
+        "action_num_inference_steps": episode.action_num_inference_steps,
+        "video_guidance_scale": episode.video_guidance_scale,
+        "action_guidance_scale": episode.action_guidance_scale,
     }
 
 
