@@ -198,7 +198,8 @@ self-contained copy subset with explicit storage headroom:
 Before submitting the subset job, you can also run the materializer itself in
 `--dry-run` mode. This resolves the artifact and replay-context mapping and
 prints the planned output paths without creating `SUBSET_ROOT` or copying
-files:
+files. In `--link-mode copy`, check `planned_copy_gb` before submitting the
+real copy job:
 
 ```bash
 python tools/materialize_grpo_artifacts.py \

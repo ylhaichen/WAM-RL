@@ -58,6 +58,8 @@ def test_materialize_grpo_artifacts_symlinks_artifact_and_replay_context(tmp_pat
     assert rewritten_context.resolve() == context
     assert manifest["unique_artifact_count"] == 1
     assert manifest["unique_replay_context_count"] == 1
+    assert manifest["planned_copy_bytes"] == 0
+    assert manifest["source_artifacts_plus_replay_contexts"]["resolved_bytes"] == artifact.stat().st_size + context.stat().st_size
 
 
 def test_materialize_grpo_artifacts_can_copy_and_write_outputs(tmp_path):
@@ -107,6 +109,9 @@ def test_materialize_grpo_artifacts_dry_run_only_reports_paths(tmp_path):
     assert manifest["dry_run"] is True
     assert manifest["unique_artifact_count"] == 1
     assert manifest["unique_replay_context_count"] == 1
+    assert manifest["source_artifacts"]["resolved_bytes"] == artifact.stat().st_size
+    assert manifest["source_replay_contexts"]["resolved_bytes"] == context.stat().st_size
+    assert manifest["planned_copy_bytes"] == artifact.stat().st_size + context.stat().st_size
     assert rewritten_path.is_relative_to(out_root)
     assert not out_root.exists()
 
@@ -141,6 +146,8 @@ def test_materialize_grpo_artifacts_cli_dry_run_does_not_write_outputs(tmp_path)
     assert payload["dry_run"] is True
     assert payload["output_jsonl"] == str(out_root / "groups" / "grpo_groups.jsonl")
     assert payload["output_manifest"] == str(out_root / "manifest.json")
+    assert payload["source_artifacts"]["resolved_bytes"] == artifact.stat().st_size
+    assert payload["planned_copy_bytes"] == artifact.stat().st_size
     assert not out_root.exists()
 
 

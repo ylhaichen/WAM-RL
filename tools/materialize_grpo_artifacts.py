@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 import shutil
+from collections.abc import Iterable
 from pathlib import Path
 
 try:
@@ -65,6 +66,12 @@ def materialize_grpo_artifacts(
                 context_mapping[str(context_src)] = str(context_dest)
 
     rewritten_groups = _rewrite_artifact_paths(source_groups, mapping)
+    source_artifacts = _file_size_summary(mapping.keys())
+    source_replay_contexts = _file_size_summary(context_mapping.keys())
+    source_artifacts_plus_replay_contexts = _file_size_summary([*mapping.keys(), *context_mapping.keys()])
+    planned_copy_bytes = (
+        int(source_artifacts_plus_replay_contexts["resolved_bytes"]) if link_mode == "copy" else 0
+    )
     manifest = {
         "source_jsonl": str(groups_jsonl.expanduser()),
         "out_root": str(expanded_out),
@@ -78,6 +85,11 @@ def materialize_grpo_artifacts(
         "unique_replay_context_count": len(context_mapping),
         "artifact_mapping": mapping,
         "replay_context_mapping": context_mapping,
+        "source_artifacts": source_artifacts,
+        "source_replay_contexts": source_replay_contexts,
+        "source_artifacts_plus_replay_contexts": source_artifacts_plus_replay_contexts,
+        "planned_copy_bytes": planned_copy_bytes,
+        "planned_copy_gb": planned_copy_bytes / 1024**3,
     }
     return rewritten_groups, manifest
 
@@ -178,6 +190,30 @@ def _artifact_paths(groups: list[dict]) -> list[str]:
 
 def _sample_count(groups: list[dict]) -> int:
     return sum(len(group.get("samples", []) or []) for group in groups)
+
+
+def _file_size_summary(paths: Iterable[str]) -> dict:
+    unique_paths = sorted(set(str(path) for path in paths))
+    existing_count = 0
+    missing_paths = []
+    resolved_bytes = 0
+    for value in unique_paths:
+        path = Path(value).expanduser()
+        try:
+            stat = path.stat()
+        except FileNotFoundError:
+            missing_paths.append(str(path))
+            continue
+        existing_count += 1
+        resolved_bytes += stat.st_size
+    return {
+        "unique_count": len(unique_paths),
+        "existing_count": existing_count,
+        "missing_count": len(missing_paths),
+        "resolved_bytes": resolved_bytes,
+        "resolved_gb": resolved_bytes / 1024**3,
+        "missing_paths": missing_paths,
+    }
 
 
 def main() -> None:
