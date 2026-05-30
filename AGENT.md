@@ -128,6 +128,12 @@ consume tens or hundreds of GB because they include transformer KV-cache state.
   explicit user approval.
 - Check `qstat` before deleting data so no running job is writing to the target
   directory.
+- For actor replay debugging, prefer a lightweight workflow:
+  `tools/subset_grpo_groups.py` to select a small mixed subset, then
+  `tools/materialize_grpo_artifacts.py --link-mode symlink
+  --include-replay-context` to create a rewritten groups file plus symlinked
+  strict artifacts/replay contexts. Do not delete the source `server_vis/` while
+  such a symlink materialized subset is active.
 
 For concrete commands and RDSS archival patterns, use
 `docs/WAM_RL_MYRIAD_STORAGE_POLICY.md`.
@@ -174,6 +180,9 @@ current system:
   not a full simulator determinism guarantee; repeated RoboTwin closed-loop
   runs can still diverge after the first action chunk, so interpret small
   `n=5` differences as smoke signals rather than policy improvement claims.
+- Compare baseline and actor evals with
+  `tools/compare_robotwin_eval_episodes.py` on matched episode keys before
+  interpreting aggregate success-rate differences.
 - Long actor replay runs should set `GRPO_PROGRESS_EVERY` so the job log is not
   silent while replaying hundreds of denoising transitions.
 - The first real update surface should be action-specific modules:
