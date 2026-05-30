@@ -111,12 +111,15 @@ Its defaults use `ACTION_NUM_INFERENCE_STEPS=10`,
 `STRICT_GRPO_CAPTURE_MAX_CHUNKS=1`, `STRICT_GRPO_SAVE_REPLAY_CONTEXT=true`, and
 `SAVE_SERVER_DEBUG_TENSORS=false`. This preserves a real replay-context smoke
 contract while avoiding full-trajectory, all-debug-tensor collection by
-default. The wrapper also prints a replay-context storage estimate. The default
-estimate is 4.0GB/context for new action-scale-one collections, where replay
-context capture prunes the unused CFG negative action branch. Override
-`REPLAY_CONTEXT_ESTIMATE_GB` upward for action-guided (`action_guidance_scale >
-1`) or unpruned legacy collections. If `PLAN_JSON` is set, the wrapper writes
-the same estimate as JSON for later audit.
+default. The wrapper also narrows the queue request to `QSUB_H_RT=6:00:00` and
+`QSUB_TMPFS=80G` by default; override those only after reviewing expected
+runtime and local scratch needs. The wrapper also prints a replay-context
+storage estimate. The default estimate is 4.0GB/context for new
+action-scale-one collections, where replay context capture prunes the unused
+CFG negative action branch. Override `REPLAY_CONTEXT_ESTIMATE_GB` upward for
+action-guided (`action_guidance_scale > 1`) or unpruned legacy collections. If
+`PLAN_JSON` is set, the wrapper writes the same estimate as JSON for later
+audit.
 
 The storage gate defaults to `STORAGE_BUDGET_MODE=attempt`, so it budgets for
 the configured seed-search attempt budget, not only the final accepted group.

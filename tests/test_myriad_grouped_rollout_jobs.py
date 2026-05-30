@@ -169,8 +169,12 @@ def test_scale_submit_wrapper_does_not_inherit_stale_output_roots_by_default():
     assert 'ACTOR_REPLAY_CHECKPOINT_PATH="${ACTOR_REPLAY_CHECKPOINT_PATH:-}"' in text
     assert "export ACTOR_REPLAY_CHECKPOINT_PATH" in text
     assert 'QSUB_EXPORT_CURRENT_ENV="${QSUB_EXPORT_CURRENT_ENV:-0}"' in text
+    assert 'QSUB_H_RT="${QSUB_H_RT:-}"' in text
+    assert 'QSUB_TMPFS="${QSUB_TMPFS:-}"' in text
     assert 'DRY_RUN="${DRY_RUN:-0}"' in text
     assert 'if [ "${QSUB_EXPORT_CURRENT_ENV}" = "1" ]; then' in text
+    assert 'QSUB_ARGS+=(-l "h_rt=${QSUB_H_RT}")' in text
+    assert 'QSUB_ARGS+=(-l "tmpfs=${QSUB_TMPFS}")' in text
     assert '"ACTOR_REPLAY_CHECKPOINT_PATH=${ACTOR_REPLAY_CHECKPOINT_PATH}"' in text
     assert 'cmd=(qsub "${QSUB_ARGS[@]}")' in text
     assert 'unset RESULTS_ROOT' in text
@@ -196,6 +200,8 @@ def test_scale_submit_wrapper_dry_run_uses_explicit_qsub_vars(tmp_path):
             "TASK_NAMES": "move_stapler_pad",
             "DRY_RUN": "1",
             "ACTOR_REPLAY_CHECKPOINT_PATH": str(tmp_path / "actor.pt"),
+            "QSUB_H_RT": "6:00:00",
+            "QSUB_TMPFS": "80G",
         }
     )
 
@@ -211,6 +217,8 @@ def test_scale_submit_wrapper_dry_run_uses_explicit_qsub_vars(tmp_path):
     assert "qsub -V" not in result.stdout
     assert f"ACTOR_REPLAY_CHECKPOINT_PATH={tmp_path / 'actor.pt'}" in result.stdout
     assert "TASK_NAMES=move_stapler_pad" in result.stdout
+    assert "h_rt=6:00:00" in result.stdout
+    assert "tmpfs=80G" in result.stdout
     assert not qsub_called.exists()
 
 
@@ -590,6 +598,8 @@ def test_bounded_replayctx_submitter_uses_storage_safe_defaults():
     assert 'MIN_SCRATCH_HEADROOM_GB="${MIN_SCRATCH_HEADROOM_GB:-50}"' in text
     assert 'STORAGE_BUDGET_MODE="${STORAGE_BUDGET_MODE:-attempt}"' in text
     assert 'PLAN_JSON="${PLAN_JSON:-}"' in text
+    assert 'QSUB_H_RT="${QSUB_H_RT:-6:00:00}"' in text
+    assert 'QSUB_TMPFS="${QSUB_TMPFS:-80G}"' in text
     assert 'PLAN_ARGS=(' in text
     assert 'Wrote replay-context collection plan' in text
     assert "tools/plan_replay_context_collection.py" in text
@@ -607,6 +617,8 @@ def test_bounded_replayctx_submitter_uses_storage_safe_defaults():
     assert "DRY_RUN=1, not submitting" in text
     assert 'SAVE_SERVER_DEBUG_TENSORS="${SAVE_SERVER_DEBUG_TENSORS}"' in text
     assert 'STRICT_GRPO_REPLAY_CONTEXT_MAX_GB="${STRICT_GRPO_REPLAY_CONTEXT_MAX_GB}"' in text
+    assert 'QSUB_H_RT="${QSUB_H_RT}"' in text
+    assert 'QSUB_TMPFS="${QSUB_TMPFS}"' in text
     assert 'bash "${SUBMIT_SCRIPT}"' in text
 
 

@@ -38,6 +38,10 @@ RUN_ID="${RUN_ID:-grpo_scale_8tasks_k${GROUP_SIZE}_g${GROUPS_PER_TASK}_seedsearc
 USE_EXISTING_RESULTS_ROOT="${USE_EXISTING_RESULTS_ROOT:-0}"
 USE_EXISTING_STABLE_SEED_CACHE_DIR="${USE_EXISTING_STABLE_SEED_CACHE_DIR:-0}"
 QSUB_EXPORT_CURRENT_ENV="${QSUB_EXPORT_CURRENT_ENV:-0}"
+QSUB_H_RT="${QSUB_H_RT:-}"
+QSUB_MEM="${QSUB_MEM:-}"
+QSUB_SLOTS="${QSUB_SLOTS:-}"
+QSUB_TMPFS="${QSUB_TMPFS:-}"
 DRY_RUN="${DRY_RUN:-0}"
 
 if ! command -v qsub >/dev/null 2>&1; then
@@ -123,12 +127,28 @@ Submitting grouped rollout scale job
   TOTAL_CLIENT_BATCHES=${TOTAL_CLIENT_BATCHES}
   USE_EXISTING_RESULTS_ROOT=${USE_EXISTING_RESULTS_ROOT}
   QSUB_EXPORT_CURRENT_ENV=${QSUB_EXPORT_CURRENT_ENV}
+  QSUB_H_RT=${QSUB_H_RT}
+  QSUB_MEM=${QSUB_MEM}
+  QSUB_SLOTS=${QSUB_SLOTS}
+  QSUB_TMPFS=${QSUB_TMPFS}
   DRY_RUN=${DRY_RUN}
 EOF
 
 QSUB_ARGS=(-N "${JOB_NAME}")
 if [ "${QSUB_EXPORT_CURRENT_ENV}" = "1" ]; then
     QSUB_ARGS=(-V "${QSUB_ARGS[@]}")
+fi
+if [ -n "${QSUB_H_RT}" ]; then
+    QSUB_ARGS+=(-l "h_rt=${QSUB_H_RT}")
+fi
+if [ -n "${QSUB_MEM}" ]; then
+    QSUB_ARGS+=(-l "mem=${QSUB_MEM}")
+fi
+if [ -n "${QSUB_SLOTS}" ]; then
+    QSUB_ARGS+=(-pe smp "${QSUB_SLOTS}")
+fi
+if [ -n "${QSUB_TMPFS}" ]; then
+    QSUB_ARGS+=(-l "tmpfs=${QSUB_TMPFS}")
 fi
 
 QSUB_VARS=(
