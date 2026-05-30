@@ -154,14 +154,16 @@ Its defaults use `ACTION_NUM_INFERENCE_STEPS=10`,
 contract while avoiding full-trajectory, all-debug-tensor collection by
 default. The wrapper also narrows the queue request to `QSUB_H_RT=6:00:00` and
 `QSUB_TMPFS=80G` by default; override those only after reviewing expected
-runtime and local scratch needs. The wrapper dry-run prints both the
-replay-context storage estimate and the final underlying `qsub` command, so
-review both before submitting. The default estimate is 4.0GB/context for new
-action-scale-one collections, where replay context capture prunes the unused
-CFG negative action branch. Override `REPLAY_CONTEXT_ESTIMATE_GB` upward for
-action-guided (`action_guidance_scale > 1`) or unpruned legacy collections. If
-`PLAN_JSON` is set, the wrapper writes the same estimate as JSON for later
-audit.
+runtime and local scratch needs. The submit path explicitly exports the
+canonical `RESULTS_ROOT` derived from `RUN_ID`, so `qstat -j` status reports can
+locate the result directory before the SGE stdout log is available. The wrapper
+dry-run prints both the replay-context storage estimate and the final underlying
+`qsub` command, so review both before submitting. The default estimate is
+4.0GB/context for new action-scale-one collections, where replay context capture
+prunes the unused CFG negative action branch. Override
+`REPLAY_CONTEXT_ESTIMATE_GB` upward for action-guided
+(`action_guidance_scale > 1`) or unpruned legacy collections. If `PLAN_JSON` is
+set, the wrapper writes the same estimate as JSON for later audit.
 
 The storage gate defaults to `STORAGE_BUDGET_MODE=attempt`, so it budgets for
 the configured seed-search attempt budget, not only the final accepted group.

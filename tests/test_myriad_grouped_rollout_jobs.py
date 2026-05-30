@@ -153,11 +153,13 @@ def test_robotwin_eval_client_searches_and_caches_group_stable_seed():
     assert "grouped rollout seed {now_seed} failed during expert precheck" in text
 
 
-def test_scale_submit_wrapper_does_not_inherit_stale_output_roots_by_default():
+def test_scale_submit_wrapper_derives_output_roots_by_default():
     text = Path("jobs/myriad/32_submit_grpo_scale_8tasks_4gpu.sh").read_text()
 
     assert 'USE_EXISTING_RESULTS_ROOT="${USE_EXISTING_RESULTS_ROOT:-0}"' in text
     assert 'USE_EXISTING_STABLE_SEED_CACHE_DIR="${USE_EXISTING_STABLE_SEED_CACHE_DIR:-0}"' in text
+    assert 'DEFAULT_WAM_ROOT="${HOME}/Scratch/wam-rl"' in text
+    assert 'WAM_ROOT="${WAM_ROOT:-${DEFAULT_WAM_ROOT}}"' in text
     assert 'GROUP_MAX_ATTEMPTS="${GROUP_MAX_ATTEMPTS:-$((GROUPS_PER_TASK * GROUP_RETRY_MULTIPLIER))}"' in text
     assert "export GROUP_MAX_ATTEMPTS" in text
     assert "export STRICT_GRPO_CAPTURE_SCOPE" in text
@@ -177,8 +179,10 @@ def test_scale_submit_wrapper_does_not_inherit_stale_output_roots_by_default():
     assert 'QSUB_ARGS+=(-l "h_rt=${QSUB_H_RT}")' in text
     assert 'QSUB_ARGS+=(-l "tmpfs=${QSUB_TMPFS}")' in text
     assert '"ACTOR_REPLAY_CHECKPOINT_PATH=${ACTOR_REPLAY_CHECKPOINT_PATH}"' in text
+    assert 'RESULTS_ROOT="${WAM_ROOT}/results_grouped_rollouts/${RUN_ID}"' in text
+    assert '"WAM_ROOT=${WAM_ROOT}"' in text
+    assert '"RESULTS_ROOT=${RESULTS_ROOT}"' in text
     assert 'cmd=(qsub "${QSUB_ARGS[@]}")' in text
-    assert 'unset RESULTS_ROOT' in text
     assert 'unset STABLE_SEED_CACHE_DIR' in text
 
 
@@ -218,6 +222,8 @@ def test_scale_submit_wrapper_dry_run_uses_explicit_qsub_vars(tmp_path):
     assert "qsub -V" not in result.stdout
     assert f"ACTOR_REPLAY_CHECKPOINT_PATH={tmp_path / 'actor.pt'}" in result.stdout
     assert "TASK_NAMES=move_stapler_pad" in result.stdout
+    assert "RESULTS_ROOT=" in result.stdout
+    assert "/results_grouped_rollouts/" in result.stdout
     assert "h_rt=6:00:00" in result.stdout
     assert "tmpfs=80G" in result.stdout
     assert not qsub_called.exists()

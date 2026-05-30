@@ -231,8 +231,11 @@ consume tens or hundreds of GB because they include transformer KV-cache state.
   `DRY_RUN=1` output before submission. It defaults to one captured chunk per
   rollout and disables server debug tensors. New action-scale-one collections
   use conditional-branch-only replay-context k/v storage, so the wrapper's
-  default estimate is 4GB/context. Override `REPLAY_CONTEXT_ESTIMATE_GB` upward
-  for action-guided (`action_guidance_scale > 1`) or legacy unpruned data.
+  default estimate is 4GB/context. The final `qsub` command should include an
+  explicit canonical `RESULTS_ROOT` derived from `RUN_ID`, which lets
+  `tools/report_grpo_run_status.py --qstat-job-id <job-id>` locate output early.
+  Override `REPLAY_CONTEXT_ESTIMATE_GB` upward for action-guided
+  (`action_guidance_scale > 1`) or legacy unpruned data.
   Keep `STORAGE_BUDGET_MODE=attempt` unless the user explicitly accepts the
   risk of failed attempts leaving large replay-context files behind. Set
   `PLAN_JSON=/home/zcably0/Scratch/wam-rl/debug_logs/storage_audits/<run>.json`

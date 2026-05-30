@@ -44,6 +44,13 @@ QSUB_SLOTS="${QSUB_SLOTS:-}"
 QSUB_TMPFS="${QSUB_TMPFS:-}"
 DRY_RUN="${DRY_RUN:-0}"
 
+if [ -d "${HOME}/Scratch" ]; then
+    DEFAULT_WAM_ROOT="${HOME}/Scratch/wam-rl"
+else
+    DEFAULT_WAM_ROOT="${HOME}/wam-rl"
+fi
+WAM_ROOT="${WAM_ROOT:-${DEFAULT_WAM_ROOT}}"
+
 if [ "${DRY_RUN}" != "1" ] && ! command -v qsub >/dev/null 2>&1; then
     echo "qsub is not available on PATH. Run this on a Myriad login node." >&2
     exit 2
@@ -89,11 +96,13 @@ export ACTION_NUM_INFERENCE_STEPS
 export ACTOR_REPLAY_CHECKPOINT_PATH
 export TASK_NAMES
 export RUN_ID
+export WAM_ROOT
 
 if [ "${USE_EXISTING_RESULTS_ROOT}" = "1" ] && [ -n "${RESULTS_ROOT:-}" ]; then
     export RESULTS_ROOT
 else
-    unset RESULTS_ROOT
+    RESULTS_ROOT="${WAM_ROOT}/results_grouped_rollouts/${RUN_ID}"
+    export RESULTS_ROOT
 fi
 
 if [ "${USE_EXISTING_STABLE_SEED_CACHE_DIR}" = "1" ] && [ -n "${STABLE_SEED_CACHE_DIR:-}" ]; then
@@ -106,6 +115,8 @@ cat <<EOF
 Submitting grouped rollout scale job
   JOB_NAME=${JOB_NAME}
   RUN_ID=${RUN_ID}
+  WAM_ROOT=${WAM_ROOT}
+  RESULTS_ROOT=${RESULTS_ROOT}
   REPO_ROOT=${REPO_ROOT}
   TASK_COUNT=${TASK_COUNT}
   TASK_NAMES=${TASK_NAMES}
@@ -174,10 +185,9 @@ QSUB_VARS=(
     "ACTOR_REPLAY_CHECKPOINT_PATH=${ACTOR_REPLAY_CHECKPOINT_PATH}"
     "TASK_NAMES=${TASK_NAMES}"
     "RUN_ID=${RUN_ID}"
+    "WAM_ROOT=${WAM_ROOT}"
+    "RESULTS_ROOT=${RESULTS_ROOT}"
 )
-if [ "${USE_EXISTING_RESULTS_ROOT}" = "1" ] && [ -n "${RESULTS_ROOT:-}" ]; then
-    QSUB_VARS+=("RESULTS_ROOT=${RESULTS_ROOT}")
-fi
 if [ "${USE_EXISTING_STABLE_SEED_CACHE_DIR}" = "1" ] && [ -n "${STABLE_SEED_CACHE_DIR:-}" ]; then
     QSUB_VARS+=("STABLE_SEED_CACHE_DIR=${STABLE_SEED_CACHE_DIR}")
 fi
