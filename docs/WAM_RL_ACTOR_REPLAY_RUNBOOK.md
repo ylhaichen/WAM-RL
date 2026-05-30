@@ -181,6 +181,7 @@ GRPO_LR=1e-7
 GRPO_ACTION_NUM_INFERENCE_STEPS=10
 GRPO_LOGPROB_REDUCTION=mean
 GRPO_LOGPROB_STD_FLOOR=0.1
+GRPO_MAX_RESOLVED_GB=40
 QSUB_H_RT=2:00:00
 QSUB_SLOTS=4
 QSUB_TMPFS=40G
@@ -188,7 +189,9 @@ QSUB_GPU=1
 ```
 
 Only raise `GRPO_STEPS`, `GRPO_LR`, or queue resources after a one-step smoke
-passes.
+passes. The trainer job writes `input_storage_audit.json` before training and
+uses `GRPO_MAX_RESOLVED_GB` to fail fast when strict artifacts plus
+replay-context files exceed the intended input budget.
 
 ## 5. Inspect Actor Replay Output
 

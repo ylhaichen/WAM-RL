@@ -132,6 +132,8 @@ Implemented:
 - actor replay checkpoint tensor inspection/comparison with
   `tools/inspect_actor_replay_checkpoint.py`;
 - real actor replay trainer over LingBot-VA transformer parameters;
+- actor replay input storage audit and optional resolved-size training budget
+  through `GRPO_MAX_RESOLVED_GB`;
 - checkpoint loading into the inference server via
   `actor_replay_checkpoint_path`;
 - `GRPO_ACTION_NUM_INFERENCE_STEPS` support in the trainer job;

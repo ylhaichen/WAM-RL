@@ -183,9 +183,15 @@ def test_actor_replay_training_job_runs_real_actor_trainer():
     assert "STRICT_GRPO_SAVE_REPLAY_CONTEXT=true" in text
     assert 'GRPO_LOGPROB_REDUCTION="${GRPO_LOGPROB_REDUCTION:-mean}"' in text
     assert 'GRPO_LOGPROB_STD_FLOOR="${GRPO_LOGPROB_STD_FLOOR:-0.1}"' in text
+    assert 'GRPO_STORAGE_AUDIT_JSON="${GRPO_STORAGE_AUDIT_JSON:-${GRPO_OUTPUT_DIR}/input_storage_audit.json}"' in text
+    assert 'GRPO_AUDIT_REPLAY_CONTEXTS="${GRPO_AUDIT_REPLAY_CONTEXTS:-true}"' in text
+    assert 'GRPO_MAX_RESOLVED_GB="${GRPO_MAX_RESOLVED_GB:-0}"' in text
     assert "--logprob-reduction \"${GRPO_LOGPROB_REDUCTION}\"" in text
     assert "--logprob-std-floor \"${GRPO_LOGPROB_STD_FLOOR}\"" in text
     assert "--progress-every \"${GRPO_PROGRESS_EVERY}\"" in text
+    assert "tools/audit_grpo_artifact_storage.py" in text
+    assert "--inspect-replay-contexts --omit-replay-context-mapping" in text
+    assert "--max-resolved-gb \"${GRPO_MAX_RESOLVED_GB}\"" in text
 
 
 def test_actor_replay_subset_job_materializes_lightweight_dataset():
@@ -217,6 +223,7 @@ def test_actor_replay_subset_smoke_submitter_uses_low_resource_defaults():
     assert 'GRPO_ACTION_NUM_INFERENCE_STEPS="${GRPO_ACTION_NUM_INFERENCE_STEPS:-10}"' in text
     assert 'GRPO_LOGPROB_REDUCTION="${GRPO_LOGPROB_REDUCTION:-mean}"' in text
     assert 'GRPO_LOGPROB_STD_FLOOR="${GRPO_LOGPROB_STD_FLOOR:-0.1}"' in text
+    assert 'GRPO_MAX_RESOLVED_GB="${GRPO_MAX_RESOLVED_GB:-40}"' in text
     assert 'GRPO_PROGRESS_EVERY="${GRPO_PROGRESS_EVERY:-1}"' in text
     assert 'QSUB_H_RT="${QSUB_H_RT:-2:00:00}"' in text
     assert 'QSUB_SLOTS="${QSUB_SLOTS:-4}"' in text

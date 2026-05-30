@@ -251,6 +251,11 @@ and server debug tensors disabled. It prints accepted-run and attempt-budget
 storage estimates before submission and fails fast on non-dry-run submission if
 the accepted-run estimate plus the configured Scratch headroom does not fit.
 
+Actor replay training jobs also audit their input storage before loading the
+model. Set `GRPO_MAX_RESOLVED_GB=<GB>` for a hard budget; the subset smoke
+submitter defaults this to `40` GiB. Leave it at `0` only for an explicitly
+reviewed full-source training run.
+
 For pure RoboTwin eval jobs, keep `SAVE_SERVER_DEBUG_TENSORS=false` unless you
 need per-chunk `latents_*.pt`, `actions_*.pt`, or `obs_data_*.pt` for a
 specific diagnosis. Episode JSON, executed actions, metrics, and videos are
