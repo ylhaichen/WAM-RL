@@ -130,6 +130,54 @@ cp logs/jobs/<job-log> /home/zcably0/Scratch/wam-rl/debug_logs/<run-id>/ 2>/dev/
 rm -rf "$RUN/server_vis"
 ```
 
+## Lightweight Actor-Replay Subsets
+
+For real actor replay debugging, do not train directly from a huge k=8
+replay-context run unless the full dataset is intentionally needed. First build
+a small JSON-only subset, then materialize only the referenced files.
+
+Example for one success and one failure sample, with two artifact refs per
+sample:
+
+```bash
+RUN=/home/zcably0/Scratch/wam-rl/results_grouped_rollouts/<replayctx-run>
+SUBSET=/home/zcably0/Scratch/wam-rl/results_grpo_actor_replay_subsets/<name>
+
+python tools/subset_grpo_groups.py \
+  "$RUN/groups/grpo_groups.jsonl" \
+  --tasks move_stapler_pad \
+  --max-groups 1 \
+  --samples-per-reward 1 \
+  --max-artifacts-per-sample 2 \
+  --require-artifacts \
+  --out-jsonl "$RUN/groups/grpo_groups_actor_subset_2samples_2artifacts.jsonl" \
+  --out-manifest "$RUN/groups/grpo_groups_actor_subset_2samples_2artifacts_manifest.json"
+
+python tools/materialize_grpo_artifacts.py \
+  "$RUN/groups/grpo_groups_actor_subset_2samples_2artifacts.jsonl" \
+  --out-root "$SUBSET" \
+  --include-replay-context \
+  --link-mode symlink \
+  --overwrite
+
+python tools/validate_grpo_dataset.py \
+  "$SUBSET/groups/grpo_groups.jsonl" \
+  --out-summary "$SUBSET/validation_path_only.json" \
+  --fail-on-error
+```
+
+Use `--link-mode symlink` for Scratch debug runs. This keeps disk usage tiny
+because the subset references the original strict artifacts and replay-context
+files. Use `--link-mode copy` only when deliberately creating an archive or
+portable package, because copy mode can duplicate many GB.
+
+`--include-replay-context` needs `torch` to read each strict artifact's
+`replay_context_path` metadata. Run it in the WAM-RL container or another Python
+environment with `torch`.
+
+Do not delete the source run's `server_vis/` while a symlink materialized subset
+is still active. The symlink package depends on the original artifact files.
+
 ## Monitoring Commands
 
 Check available Scratch space:
